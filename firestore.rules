@@ -1,0 +1,84 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-\\.]+$');
+    }
+
+    // Dengue & Chikungunya Entries collection
+    match /dengueEntries/{dengueId} {
+      allow read: if true;
+      allow write: if isValidId(dengueId);
+    }
+
+    // BS Data Entry collection
+    match /bsDataEntry/{entryId} {
+      allow read: if true;
+      allow write: if isValidId(entryId);
+    }
+
+    // Village Details collection
+    match /villageDetails/{detailId} {
+      allow read: if true;
+      allow write: if isValidId(detailId);
+    }
+
+    // Subcenter Master collection
+    match /subcenterMaster/{scId} {
+      allow read: if true;
+      allow write: if isValidId(scId);
+    }
+
+    // Employee Master collection
+    match /employeeMaster/{empId} {
+      allow read: if true;
+      allow write: if isValidId(empId);
+    }
+
+    // Villages Master collection
+    match /villagesMaster/{vilId} {
+      allow read: if true;
+      allow write: if isValidId(vilId);
+    }
+
+    // Month Master collection
+    match /monthMaster/{monthId} {
+      allow read: if true;
+      allow write: if isValidId(monthId);
+    }
+
+    // Transfer History collection
+    match /transferHistory/{transferId} {
+      allow read: if true;
+      allow write: if isValidId(transferId);
+    }
+
+    // App config & metadata
+    match /appConfig/{configId} {
+      allow read, write: if isValidId(configId);
+    }
+
+    // NWBDCP Dedicated Collections
+    match /NWBDCP_WaterSources/{sourceId} {
+      allow read, write: if isValidId(sourceId);
+    }
+    match /NWBDCP_SampleDispatch/{dispatchId} {
+      allow read, write: if isValidId(dispatchId);
+    }
+    match /NWBDCP_SampleResults/{resultId} {
+      allow read, write: if isValidId(resultId);
+    }
+    match /NWBDCP_Retest/{retestId} {
+      allow read, write: if isValidId(retestId);
+    }
+    match /NWBDCP_AuditLog/{auditId} {
+      allow read, write: if isValidId(auditId);
+    }
+  }
+}

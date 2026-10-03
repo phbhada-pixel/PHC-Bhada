@@ -1,0 +1,114 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Dengue_Template</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>
+th { background-color: #4a5568; color: #ffffff; font-weight: bold; border: 1px solid #cbd5e0; padding: 6px; }
+td { border: 1px solid #cbd5e0; padding: 5px; mso-number-format: "\@"; }
+</style>
+</head>
+<body>
+<table>
+<thead>
+<tr>
+  <th>नोंदणी क्र. (Reg_No)</th>
+  <th>रुग्णाचे नाव (Patient_Name)</th>
+  <th>गाव (Village)</th>
+  <th>वय (Age)</th>
+  <th>लिंग (Sex)</th>
+  <th>मोबाईल (Mobile)</th>
+  <th>घर क्र. (House_No)</th>
+  <th>नमुना दिनांक (Collection_Date DD-MM-YYYY)</th>
+  <th>लक्षणे सुरू दिनांक (Onset_Date DD-MM-YYYY)</th>
+  <th>ताप दिवस (Fever_Days)</th>
+  <th>डोकेदुखी (Headache_Days)</th>
+  <th>अंगदुखी (Bodyache_Days)</th>
+  <th>सांधेदुखी (Joint_Pain_Days)</th>
+  <th>रक्तस्राव (Haemorrhagic Yes/No)</th>
+  <th>डेंगी निष्कर्ष (Dengue_Result)</th>
+  <th>डेंगी चाचणी प्रकार (Dengue_Test_Type)</th>
+  <th>डेंगी लॅब संदर्भ क्र. (Dengue_Report_Ref)</th>
+  <th>डेंगी अहवाल दिनांक (Dengue_Report_Date)</th>
+  <th>चिकनगुनिया निष्कर्ष (Chik_Result)</th>
+  <th>चिकनगुनिया चाचणी प्रकार (Chik_Test_Type)</th>
+  <th>चिकनगुनिया लॅब संदर्भ क्र. (Chik_Report_Ref)</th>
+  <th>चिकनगुनिया अहवाल दिनांक (Chik_Report_Date)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+  <td>101</td>
+  <td>रमेश विठ्ठल पाटील</td>
+  <td>भादा</td>
+  <td>34</td>
+  <td>पुरुष</td>
+  <td>9876543210</td>
+  <td>12</td>
+  <td>01-09-2026</td>
+  <td>28-08-2026</td>
+  <td>4</td>
+  <td>1</td>
+  <td>1</td>
+  <td>1</td>
+  <td>No</td>
+  <td>Positive</td>
+  <td>NS1 Ag ELISA</td>
+  <td>GMC/MICRO/2026/DEN-145</td>
+  <td>15-09-2026</td>
+  <td>Negative</td>
+  <td>Chikungunya IgM ELISA</td>
+  <td>GMC/MICRO/2026/CHIK-89</td>
+  <td>20-09-2026</td>
+</tr>
+<tr>
+  <td>102</td>
+  <td>अनिता प्रकाश गायकवाड</td>
+  <td>भादा</td>
+  <td>28</td>
+  <td>स्त्री</td>
+  <td>9855512345</td>
+  <td>45</td>
+  <td>01-09-2026</td>
+  <td>29-08-2026</td>
+  <td>3</td>
+  <td>1</td>
+  <td>1</td>
+  <td>1</td>
+  <td>No</td>
+  <td>Negative</td>
+  <td>NS1 Ag ELISA</td>
+  <td>GMC/MICRO/2026/DEN-145</td>
+  <td>15-09-2026</td>
+  <td>Negative</td>
+  <td>Chikungunya IgM ELISA</td>
+  <td>GMC/MICRO/2026/CHIK-89</td>
+  <td>20-09-2026</td>
+</tr>
+<tr>
+  <td>103</td>
+  <td>सुधाकर मारुती शिंदे</td>
+  <td>तपसेचिंचोली</td>
+  <td>45</td>
+  <td>पुरुष</td>
+  <td>9766623456</td>
+  <td>88</td>
+  <td>01-09-2026</td>
+  <td>27-08-2026</td>
+  <td>5</td>
+  <td>1</td>
+  <td>1</td>
+  <td>1</td>
+  <td>No</td>
+  <td>Negative</td>
+  <td>NS1 Ag ELISA</td>
+  <td>GMC/MICRO/2026/DEN-145</td>
+  <td>15-09-2026</td>
+  <td>Positive</td>
+  <td>Chikungunya IgM ELISA</td>
+  <td>GMC/MICRO/2026/CHIK-89</td>
+  <td>20-09-2026</td>
+</tr>
+</tbody>
+</table>
+</body>
+</html>

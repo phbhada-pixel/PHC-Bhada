@@ -1,0 +1,173 @@
+{
+  "entities": {
+    "BsDataEntry": {
+      "title": "BS Data Entry",
+      "description": "Blood smear sample entry collected by healthcare staff",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique row ID" },
+        "date": { "type": "string", "description": "ISO date string" },
+        "upkendra": { "type": "string", "description": "Subcenter name" },
+        "employeeName": { "type": "string", "description": "Staff name" },
+        "designation": { "type": "string", "description": "Designation" },
+        "bsCode": { "type": "string", "description": "BS Code" },
+        "bundleNumber": { "type": "string", "description": "Bundle number" },
+        "pasun": { "type": "number", "description": "From sample number" },
+        "paraynt": { "type": "number", "description": "To sample number" },
+        "total": { "type": "number", "description": "Total sample count" },
+        "updatedAt": { "type": "string", "description": "Last updated timestamp" }
+      },
+      "required": ["id", "upkendra", "employeeName", "total"]
+    },
+    "VillageDetail": {
+      "title": "Village Detail",
+      "description": "Village-wise breakdown of blood smear samples",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Parent BS ID" },
+        "employeeName": { "type": "string", "description": "Staff name" },
+        "date": { "type": "string", "description": "ISO date string" },
+        "villageName": { "type": "string", "description": "Village name" },
+        "sampleCount": { "type": "number", "description": "Sample count" },
+        "maleCount": { "type": "number", "description": "Male count" },
+        "femaleCount": { "type": "number", "description": "Female count" },
+        "upkendra": { "type": "string", "description": "Subcenter" },
+        "updatedAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "villageName", "sampleCount"]
+    },
+    "DengueEntry": {
+      "title": "Dengue Entry",
+      "description": "Dengue and Chikungunya patient serum sample entry",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Patient ID" },
+        "patientName": { "type": "string", "description": "Patient Name" },
+        "age": { "type": "number", "description": "Age" },
+        "gender": { "type": "string", "description": "Gender" },
+        "village": { "type": "string", "description": "Village" },
+        "upkendra": { "type": "string", "description": "Subcenter" },
+        "collectionDate": { "type": "string", "description": "Sample Collection Date" },
+        "sampleType": { "type": "string", "description": "Serum Sample Type" },
+        "ns1Result": { "type": "string", "description": "NS1 Result" },
+        "igmResult": { "type": "string", "description": "IgM Result" },
+        "chikungunyaResult": { "type": "string", "description": "Chikungunya Result" },
+        "syncStatus": { "type": "string", "description": "Sync Status" },
+        "updatedAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "patientName", "village"]
+    },
+    "MonthMaster": {
+      "title": "Month Master",
+      "description": "Monthly targets and progressive indicators",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Month name" },
+        "newOpd": { "type": "number", "description": "OPD count" },
+        "bloodSmears": { "type": "number", "description": "Blood smears count" },
+        "feverCases": { "type": "number", "description": "Fever cases count" },
+        "treatedCases": { "type": "number", "description": "Treated cases count" },
+        "chloroquineSpent": { "type": "number", "description": "Chloroquine tablets spent" },
+        "mpwHomeVisits": { "type": "number", "description": "MPW visits" },
+        "anmHomeVisits": { "type": "number", "description": "ANM visits" },
+        "updatedAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["name"]
+    },
+    "SubcenterMaster": {
+      "title": "Subcenter Master",
+      "description": "Subcenter healthcare center details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Subcenter ID" },
+        "name": { "type": "string", "description": "Subcenter Name" },
+        "headquarter": { "type": "string", "description": "Headquarter Village" },
+        "contactPerson": { "type": "string", "description": "Contact Person" },
+        "population": { "type": "number", "description": "Total Population" },
+        "houses": { "type": "number", "description": "Total Households" },
+        "contactPhone": { "type": "string", "description": "Contact Phone" },
+        "updatedAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "name"]
+    },
+    "EmployeeMaster": {
+      "title": "Employee Master",
+      "description": "Healthcare worker staff register",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Employee ID" },
+        "upkendra": { "type": "string", "description": "Subcenter Name" },
+        "employeeName": { "type": "string", "description": "Employee Name" },
+        "designation": { "type": "string", "description": "Designation" },
+        "bsCode": { "type": "string", "description": "BS Code" },
+        "mobile": { "type": "string", "description": "Mobile Number" },
+        "updatedAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "employeeName"]
+    },
+    "VillagesMaster": {
+      "title": "Villages Master",
+      "description": "Village level demographic master",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Village ID" },
+        "subcenter": { "type": "string", "description": "Subcenter Name" },
+        "villageName": { "type": "string", "description": "Village Name" },
+        "population": { "type": "number", "description": "Village Population" },
+        "households": { "type": "number", "description": "Village Households" },
+        "updatedAt": { "type": "string", "description": "Timestamp" }
+      },
+      "required": ["id", "villageName"]
+    }
+  },
+  "firestore": {
+    "/bsDataEntry/{entryId}": {
+      "schema": "BsDataEntry",
+      "description": "Collection of blood smear entries"
+    },
+    "/villageDetails/{detailId}": {
+      "schema": "VillageDetail",
+      "description": "Collection of village-wise breakdowns"
+    },
+    "/dengueEntries/{dengueId}": {
+      "schema": "DengueEntry",
+      "description": "Collection of Dengue and Chikungunya patient records"
+    },
+    "/monthMaster/{monthId}": {
+      "schema": "MonthMaster",
+      "description": "Collection of monthly performance indicators"
+    },
+    "/subcenterMaster/{scId}": {
+      "schema": "SubcenterMaster",
+      "description": "Collection of subcenter healthcare centers"
+    },
+    "/employeeMaster/{empId}": {
+      "schema": "EmployeeMaster",
+      "description": "Collection of healthcare employees and workers"
+    },
+    "/villagesMaster/{vilId}": {
+      "schema": "VillagesMaster",
+      "description": "Collection of village demographic data"
+    },
+    "/NWBDCP_WaterSources/{sourceId}": {
+      "schema": "WaterSource",
+      "description": "NWBDCP registered water sources"
+    },
+    "/NWBDCP_SampleDispatch/{dispatchId}": {
+      "schema": "SampleDispatch",
+      "description": "NWBDCP dispatched water samples"
+    },
+    "/NWBDCP_SampleResults/{resultId}": {
+      "schema": "SampleResult",
+      "description": "NWBDCP laboratory test results and report copies"
+    },
+    "/NWBDCP_Retest/{retestId}": {
+      "schema": "SampleRetest",
+      "description": "NWBDCP re-test tracking records"
+    },
+    "/NWBDCP_AuditLog/{auditId}": {
+      "schema": "AuditLog",
+      "description": "NWBDCP audit logs"
+    }
+  }
+}

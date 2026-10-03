@@ -1,0 +1,4 @@
+Reg_No,Patient_Name,Village,Age,Sex,Mobile,House_No,Collection_Date,Onset_Date,Fever_Days,Headache_Days,Bodyache_Days,Joint_Pain_Days,Haemorrhagic,Dengue_Result,Dengue_Test_Type,Dengue_Report_Ref,Dengue_Report_Date,Chik_Result,Chik_Test_Type,Chik_Report_Ref,Chik_Report_Date
+101,Ramesh Vithal Patil,Bhada,34,Male,9876543210,12,01-09-2026,28-08-2026,4,1,1,1,No,Positive,NS1 Ag ELISA,GMC/MICRO/2026/DEN-145,15-09-2026,Negative,Chikungunya IgM ELISA,GMC/MICRO/2026/CHIK-89,20-09-2026
+102,Anita Prakash Gaikwad,Bhada,28,Female,9855512345,45,01-09-2026,29-08-2026,3,1,1,1,No,Negative,NS1 Ag ELISA,GMC/MICRO/2026/DEN-145,15-09-2026,Negative,Chikungunya IgM ELISA,GMC/MICRO/2026/CHIK-89,20-09-2026
+103,Sudhakar Maruti Shinde,Tapse Chincholi,45,Male,9766623456,88,01-09-2026,27-08-2026,5,1,1,1,No,Negative,NS1 Ag ELISA,GMC/MICRO/2026/DEN-145,15-09-2026,Positive,Chikungunya IgM ELISA,GMC/MICRO/2026/CHIK-89,20-09-2026

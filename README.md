@@ -1,11 +1,71 @@
-<div align="center">
+# प्राथमिक आरोग्य केंद्र, भादा - राष्ट्रीय कीटकजन्य रोग नियंत्रण कार्यक्रम (NVBDCP)
+## PHC Bhada Malaria Management System & Daily Reporting Portal
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+महाराष्ट्र शासन, सार्वजनिक आरोग्य विभाग अंतर्गत **प्राथमिक आरोग्य केंद्र, भादा (जि. धाराशिव / लातूर)** येथील राष्ट्रीय कीटकजन्य रोग नियंत्रण कार्यक्रम (हिवताप/मलेरिया) अंतर्गत रक्त नमुने नोंदणी, दैनिक/मासिक अहवाल निर्मिती, कर्मचारी कामगिरी ट्रॅकर व गुगल शीट सिंक्रोनायझेशन प्रणाली.
 
-  <h1>Built with AI Studio</h2>
+---
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+### 🌟 प्रमुख वैशिष्ट्ये (Key Features)
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+1. **📊 डॅशबोर्ड व विश्लेषण (Interactive Dashboard & Charts)**
+   - पंधरवडा व महिनानिहाय रक्त नमुने (Blood Smears) आकडेवारी
+   - ६ उपकेंद्रे व ३७ गावनिहाय थेट व्हिज्युअलायझेशन
+   - ASHA, ANM, MPW, MO कर्मचारी कामगिरी ट्रॅकिंग
 
-</div>
+2. **📝 डिजिटल डेटा नोंदणी (Daily Data Entry)**
+   - कर्मचारीनिहाय रक्त नमुना संग्रह (BS Collection) नोंदणी
+   - गावनिहाय तपशील (स्त्री / पुरुष वर्गीकरण)
+   - स्वयंचलित युनिक आयडी व बंडल नंबर निर्मिती
+
+3. **📑 स्वयंचलित अहवाल निर्मिती (Automated Reports)**
+   - **दैनिक हिवताप अहवाल (Daily Malaria Report)**
+   - **मासिक अहवाल (Monthly NVBDCP Report)**
+   - **कर्मचारीनिहाय रजिस्टर (Employee Smear Register)**
+   - **कमी कामगिरी / डिफॉल्टर नोटीस (Defaulter & Low Performance Notices)**
+
+4. **🔥 क्लाउड फायरस्टोअर थेट डेटाबेस (Cloud Firestore Live Database)**
+   - Firebase Firestore द्वारे १००% सुरक्षित, रिअल-टाइम व एकात्मिक डेटा साठवणूक
+   - बहु-स्तरीय सुरक्षा नियमावली (Security Rules) व अखंड डेटा उपलब्धता
+
+5. **🏛️ मास्टर व्यवस्थापन व कर्मचारी बदली (Master Management & Transfers)**
+   - ६ उपकेंद्रे: आलमला, भादा, खडकउमरा, माकणी, तावशीगड, वडजी
+   - ६५ आरोग्य कर्मचारी व ३७ गावांचे अधिकारक्षेत्र
+   - कर्मचारी कार्यक्षेत्र अद्ययावत व बदली इतिहास (Transfer Audit Trail)
+
+6. **📥 डाउनलोड्स, मार्गदर्शक पुस्तिक व फोटो गॅलरी**
+   - NVBDCP परिपत्रके, SOPs, मार्गदर्शक सूचना
+   - क्षेत्रीय फवारणी (IRS) व कीटकशास्त्रीय सर्व्हेक्षण छायाचित्रे
+
+---
+
+### 🚀 GitHub Pages वर वापर (Deploying / Hosting on GitHub Pages)
+
+हे ॲप **GitHub Pages** वर थेट स्टँडअलोन वेब ॲप म्हणून चालते:
+- मुख्य प्रवेशिका: `index.html` (किंवा `Form.html`)
+- कोणत्याही बाह्य सर्व्हरशिवाय संपूर्ण डॅशबोर्ड, डेटा नोंदणी, तक्ते व अहवाल ब्राउझरमध्ये उपलब्ध.
+- गुगल शीट सेटिंग्जमध्ये जाऊन आपली Google Apps Script Web App URL लिंक करून डेटा थेट गुगल शीटमध्ये सेव्ह करता येतो.
+
+---
+
+### 💻 स्थानिक पातळीवर चालवणे (Local Development)
+
+```bash
+# १. रिपॉझिटरी क्लोन करा
+git clone https://github.com/phcbhada/nvbdcp-malaria-management-system.git
+cd nvbdcp-malaria-management-system
+
+# २. पॅकेजेस इन्स्टॉल करा
+npm install
+
+# ३. ॲप्लिकेशन सुरू करा
+npm start
+# किंवा
+node server.js
+```
+ब्राउझरमध्ये उघडा: `http://localhost:3000`
+
+---
+
+### 📋 परवाना व हक्क
+&copy; २०२६ प्राथमिक आरोग्य केंद्र, भादा. सार्वजनिक आरोग्य विभाग, महाराष्ट्र शासन.
+सर्व हक्क सुरक्षित.

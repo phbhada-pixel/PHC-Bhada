@@ -1,0 +1,8 @@
+{
+  "name": "PHC Bhada - NWBDCP Water Quality Management System",
+  "description": "प्राथमिक आरोग्य केंद्र भादा - राष्ट्रीय जलजन्य रोग नियंत्रण कार्यक्रम (NWBDCP) पाणी गुणवत्ता सनियंत्रण व नमुना व्यवस्थापन प्रणाली",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
