@@ -7,12 +7,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { saveFileMetadata, recordFileReplacement, findFileMetadata, getActiveFileMetadata, getSampleFileHistory, nwbdcpFilesMetadata } from './nwbdcpSupabase.js';
+import { saveFileMetadata, recordFileReplacement, findFileMetadata, getActiveFileMetadata, getSampleFileHistory, nwbdcpFilesMetadata, enqueuePendingSync } from './nwbdcpSupabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Physical Drive Storage Directory for local serving / backup cache
+// Physical Drive Storage Directory for local serving / development test mirror
 const LOCAL_DRIVE_STORE_ROOT = path.join(__dirname, '../public/google_drive_nwbdcp');
 
 // Allowed MIME types and extensions
@@ -27,7 +27,20 @@ export const MODULE_FOLDERS = {
   other_documents: 'NWBDCP/OtherDocuments'
 };
 
-const APPS_SCRIPT_UPLOAD_URL = process.env.GOOGLE_APPS_SCRIPT_UPLOAD_URL || process.env.NWBDCP_DRIVE_APPS_SCRIPT_URL || '';
+export function getAppsScriptUploadUrl() {
+  return process.env.GOOGLE_APPS_SCRIPT_UPLOAD_URL || process.env.NWBDCP_DRIVE_APPS_SCRIPT_URL || '';
+}
+
+/**
+ * Determine if running in production storage mode.
+ * Production mode is default and strictly enforced unless NWBDCP_STORAGE_TEST_MODE is explicitly set.
+ */
+export function isProductionStorageMode() {
+  if (process.env.NWBDCP_STORAGE_TEST_MODE === 'true') {
+    return false;
+  }
+  return true;
+}
 
 /**
  * Validate file upload parameters and binary content
@@ -101,7 +114,7 @@ export async function uploadFileToGoogleDrive({
 }) {
   const validation = validateNwbdcpUpload(fileName, fileData);
   if (!validation.valid) {
-    return { success: false, error: validation.error };
+    return { success: false, statusCode: 400, error: validation.error };
   }
 
   const ext = validation.extension;
@@ -116,16 +129,29 @@ export async function uploadFileToGoogleDrive({
   const monthStr = String(now.getMonth() + 1).padStart(2, '0');
   const cleanSampleId = (sampleId || `SAMPLE_${Date.now()}`).replace(/[^a-zA-Z0-9_\-]/g, '_');
 
+  const uploadUrl = getAppsScriptUploadUrl();
+  const isValidAppsScriptUrl = uploadUrl && 
+    uploadUrl.startsWith('http') && 
+    !uploadUrl.includes('AKfycb...') && 
+    !uploadUrl.includes('...');
+
+  // PRODUCTION MODE: Enforce configured Google Drive upload service
+  if (isProductionStorageMode() && !isValidAppsScriptUrl) {
+    console.error('[NWBDCP Drive] Production Error: Google Drive upload service is not configured.');
+    return {
+      success: false,
+      statusCode: 503,
+      code: 'GOOGLE_DRIVE_NOT_CONFIGURED',
+      error: 'Google Drive upload service is not configured for production. (Google Drive अपलोड सेवा कॉन्फिगर केलेली नाही.)'
+    };
+  }
+
   let driveFileId = '';
   let driveViewUrl = '';
   let driveDownloadUrl = '';
+  let uploadFailureReason = null;
 
-  // 1. If Google Apps Script Web App is configured, attempt real remote upload
-  const isValidAppsScriptUrl = APPS_SCRIPT_UPLOAD_URL && 
-    APPS_SCRIPT_UPLOAD_URL.startsWith('http') && 
-    !APPS_SCRIPT_UPLOAD_URL.includes('AKfycb...') && 
-    !APPS_SCRIPT_UPLOAD_URL.includes('...');
-
+  // Remote Google Drive upload via Apps Script Web App
   if (isValidAppsScriptUrl) {
     try {
       console.log(`[NWBDCP Drive] Uploading ${fileName} to Google Apps Script Web App...`);
@@ -142,7 +168,7 @@ export async function uploadFileToGoogleDrive({
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(APPS_SCRIPT_UPLOAD_URL, {
+      const response = await fetch(uploadUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -150,75 +176,127 @@ export async function uploadFileToGoogleDrive({
       });
       clearTimeout(timeoutId);
 
-      const resJson = await response.json();
-      if (resJson && resJson.success && resJson.file) {
-        driveFileId = resJson.file.google_drive_file_id;
-        driveViewUrl = resJson.file.google_drive_url;
-        driveDownloadUrl = resJson.file.google_drive_download_url;
-        console.log(`✅ [NWBDCP Drive] Uploaded successfully to Drive! File ID: ${driveFileId}`);
+      if (!response.ok) {
+        uploadFailureReason = `HTTP ${response.status} ${response.statusText}`;
       } else {
-        console.log('[NWBDCP Drive] Remote Apps Script error, using local Drive mirror:', resJson?.error);
+        const resJson = await response.json();
+        const returnedId = resJson?.file?.google_drive_file_id;
+        const returnedUrl = resJson?.file?.google_drive_url || resJson?.file?.webContentLink;
+
+        // Verify valid real Google Drive file ID (must not be synthetic 1gDrive_ and must be non-empty)
+        if (resJson && resJson.success && returnedId && typeof returnedId === 'string' && !returnedId.startsWith('1gDrive_') && returnedUrl) {
+          driveFileId = returnedId;
+          driveViewUrl = returnedUrl;
+          driveDownloadUrl = resJson.file.google_drive_download_url || resJson.file.webViewLink || returnedUrl;
+          console.log(`✅ [NWBDCP Drive] Uploaded successfully to Drive! File ID: ${driveFileId}`);
+        } else {
+          uploadFailureReason = resJson?.error || 'Invalid or missing Google Drive file ID in response';
+        }
       }
     } catch (err) {
-      console.log('[NWBDCP Drive] Remote Apps Script offline or timed out, using local Drive mirror:', err.message);
+      uploadFailureReason = err.name === 'AbortError' ? 'Google Drive upload timed out (15s)' : err.message;
+      console.error('[NWBDCP Drive] Remote Apps Script error:', uploadFailureReason);
     }
   }
 
-  // 2. Generate Google Drive File ID and store in local Google Drive mirror
-  if (!driveFileId) {
-    const timestamp = Date.now();
-    const randomHex = Math.random().toString(36).slice(2, 10);
-    driveFileId = `1gDrive_${cleanSampleId}_${timestamp}_${randomHex}`;
-    driveViewUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
-    driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${driveFileId}`;
+  // PRODUCTION MODE: Strict Fail-Safe Failure Handling (NO fake Drive ID, NO local fallback)
+  if (isProductionStorageMode()) {
+    if (!driveFileId) {
+      console.error(`[NWBDCP Drive] Production upload failure: ${uploadFailureReason || 'Remote upload failed'}`);
+      return {
+        success: false,
+        statusCode: 502,
+        code: 'GOOGLE_DRIVE_UPLOAD_FAILED',
+        error: 'Google Drive वर फाईल साठविता आली नाही. कृपया पुन्हा प्रयत्न करा. (Google Drive upload failed. Please try again.)'
+      };
+    }
+  } else {
+    // DEVELOPMENT / TEST MODE ONLY: Isolated test sandbox mirror fallback
+    if (!driveFileId) {
+      const timestamp = Date.now();
+      const randomHex = Math.random().toString(36).slice(2, 10);
+      driveFileId = `TEST_DEV_DRIVE_${cleanSampleId}_${timestamp}_${randomHex}`;
+      driveViewUrl = `https://drive.google.com/file/d/${driveFileId}/view?usp=sharing`;
+      driveDownloadUrl = `https://drive.google.com/uc?export=download&id=${driveFileId}`;
+
+      const targetDir = path.join(LOCAL_DRIVE_STORE_ROOT, folderName.replace('NWBDCP/', ''), yearStr, monthStr);
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      const storedDiskFileName = `${driveFileId}.${ext}`;
+      const localDiskFilePath = path.join(targetDir, storedDiskFileName);
+      fs.writeFileSync(localDiskFilePath, fileBuffer);
+    }
   }
 
-  // Save physical file in structured Google Drive repository
-  const targetDir = path.join(LOCAL_DRIVE_STORE_ROOT, folderName.replace('NWBDCP/', ''), yearStr, monthStr);
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-
-  const storedDiskFileName = `${driveFileId}.${ext}`;
-  const localDiskFilePath = path.join(targetDir, storedDiskFileName);
-  fs.writeFileSync(localDiskFilePath, fileBuffer);
-
-  // 3. Save ONLY metadata in Supabase (NO binary/base64 in Supabase)
-  const metadataRecord = await saveFileMetadata({
-    sampleId: cleanSampleId,
-    module,
-    fileType: ext.toUpperCase(),
-    fileName,
-    googleDriveFileId: driveFileId,
-    googleDriveUrl: driveViewUrl,
-    googleDriveDownloadUrl: driveDownloadUrl,
-    mimeType,
-    fileSize: fileSizeFormatted,
-    folderPath: `${folderName}/${yearStr}/${monthStr}/`,
-    uploadedAt: now.toISOString(),
-    uploadedBy: user,
-    isActive: true
-  });
-
-  return {
-    success: true,
-    message: '✅ फाईल Google Drive मध्ये सेव्ह झाली व मेटाडेटा Supabase मध्ये जतन करण्यात आला!',
-    file: {
-      id: metadataRecord.id,
+  // Persist Metadata in Supabase (NO binary / base64)
+  try {
+    const metadataRecord = await saveFileMetadata({
       sampleId: cleanSampleId,
       module,
-      fileName,
       fileType: ext.toUpperCase(),
-      fileSize: fileSizeFormatted,
-      mimeType,
+      fileName,
       googleDriveFileId: driveFileId,
       googleDriveUrl: driveViewUrl,
       googleDriveDownloadUrl: driveDownloadUrl,
+      mimeType,
+      fileSize: fileSizeFormatted,
       folderPath: `${folderName}/${yearStr}/${monthStr}/`,
-      uploadedAt: metadataRecord.uploaded_at,
-      uploadedBy: user
+      uploadedAt: now.toISOString(),
+      uploadedBy: user,
+      isActive: true
+    });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: '✅ फाईल Google Drive मध्ये सेव्ह झाली व मेटाडेटा Supabase मध्ये जतन करण्यात आला!',
+      file: {
+        id: metadataRecord.id,
+        sampleId: cleanSampleId,
+        module,
+        fileName,
+        fileType: ext.toUpperCase(),
+        fileSize: fileSizeFormatted,
+        mimeType,
+        googleDriveFileId: driveFileId,
+        googleDriveUrl: driveViewUrl,
+        googleDriveDownloadUrl: driveDownloadUrl,
+        folderPath: `${folderName}/${yearStr}/${monthStr}/`,
+        uploadedAt: metadataRecord.uploaded_at,
+        uploadedBy: user
+      }
+    };
+  } catch (dbErr) {
+    console.error('[NWBDCP Drive] Partial failure: Google Drive upload succeeded but Supabase metadata persistence failed:', dbErr.message);
+    try {
+      enqueuePendingSync('FILE_METADATA', cleanSampleId, 'UPSERT', {
+        id: `FILE_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        sample_id: cleanSampleId,
+        module,
+        file_type: ext.toUpperCase(),
+        file_name: fileName,
+        google_drive_file_id: driveFileId,
+        google_drive_url: driveViewUrl,
+        google_drive_download_url: driveDownloadUrl,
+        mime_type: mimeType,
+        file_size: fileSizeFormatted,
+        folder_path: `${folderName}/${yearStr}/${monthStr}/`,
+        uploaded_at: now.toISOString(),
+        uploaded_by: user,
+        is_active: true
+      });
+    } catch (qErr) {
+      console.error('[NWBDCP Drive] Could not enqueue metadata sync:', qErr.message);
     }
-  };
+
+    return {
+      success: false,
+      statusCode: 500,
+      code: 'METADATA_PERSISTENCE_FAILED',
+      error: 'Google Drive वर फाईल सेव्ह झाली, परंतु डेटाबेस मेटाडेटा नोंद अयशस्वी झाली. समक्रमण प्रलंबित आहे. (File saved to Drive, but metadata persistence failed. Queued for sync.)'
+    };
+  }
 }
 
 /**
@@ -265,6 +343,7 @@ export async function replaceFileInGoogleDrive({
 
   return {
     success: true,
+    statusCode: 200,
     message: '✅ Google Drive मध्ये नवीन आवृत्ती जतन झाली आणि जुनी प्रत ऑडिट हिस्ट्रीमध्ये सुरक्षित ठेवण्यात आली!',
     file: newFile,
     auditLog

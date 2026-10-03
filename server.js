@@ -2356,7 +2356,7 @@ app.post('/api/nwbdcp/upload-report-copy', nwbdcpRequireAuth(ROLES.STAFF), async
     });
 
     if (!driveResult.success) {
-      return res.status(400).json(driveResult);
+      return res.status(driveResult.statusCode || 400).json(driveResult);
     }
 
     const file = driveResult.file;
@@ -2391,7 +2391,7 @@ app.post('/api/nwbdcp/storage/upload', nwbdcpRequireAuth(ROLES.STAFF), async (re
     const { sampleId, module = 'other_documents', fileName, fileData } = req.body;
     const result = await uploadFileToGoogleDrive({ sampleId, module, fileName, fileData, user });
     if (!result.success) {
-      return res.status(400).json(result);
+      return res.status(result.statusCode || 400).json(result);
     }
     res.json(result);
   } catch (err) {
@@ -2406,7 +2406,7 @@ app.post('/api/nwbdcp/storage/replace', nwbdcpRequireAuth(ROLES.ADMIN), async (r
     const { sampleId, module = 'laboratory_reports', fileName, fileData, replacementReason } = req.body;
     const result = await replaceFileInGoogleDrive({ sampleId, module, fileName, fileData, replacementReason, user });
     if (!result.success) {
-      return res.status(400).json(result);
+      return res.status(result.statusCode || 400).json(result);
     }
     res.json(result);
   } catch (err) {
@@ -2526,7 +2526,7 @@ app.post('/api/nwbdcp/replace-report-copy', nwbdcpRequireAuth(ROLES.ADMIN), asyn
       });
 
       if (!driveRes.success) {
-        return res.status(400).json(driveRes);
+        return res.status(driveRes.statusCode || 400).json(driveRes);
       }
 
       const f = driveRes.file;

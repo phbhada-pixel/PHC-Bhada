@@ -161,6 +161,60 @@
       "is_active": true,
       "created_at": "2026-10-01T08:45:53.190Z",
       "updated_at": "2026-10-01T08:45:53.190Z"
+    },
+    {
+      "id": "FILE_1791007630996_obzblz",
+      "sample_id": "NWBDCP-TEST-SAFE-01",
+      "module": "laboratory_reports",
+      "file_type": "PDF",
+      "file_name": "report.pdf",
+      "google_drive_file_id": "1QWO76U3FbaDSiGaDu-8d2TL-b8YtBXGb",
+      "google_drive_url": "https://drive.google.com/file/d/1QWO76U3FbaDSiGaDu-8d2TL-b8YtBXGb/view?usp=drivesdk",
+      "google_drive_download_url": "https://drive.google.com/uc?export=download&id=1QWO76U3FbaDSiGaDu-8d2TL-b8YtBXGb",
+      "mime_type": "application/pdf",
+      "file_size": "0.1 KB",
+      "folder_path": "NWBDCP/LaboratoryReports/2026/10/",
+      "uploaded_at": "2026-10-03T06:07:07.129Z",
+      "uploaded_by": "Staff Test",
+      "is_active": true,
+      "created_at": "2026-10-03T06:07:10.996Z",
+      "updated_at": "2026-10-03T06:07:10.996Z"
+    },
+    {
+      "id": "FILE_1791007632475_twfmls",
+      "sample_id": "NWBDCP-TEST-SAFE-04",
+      "module": "laboratory_reports",
+      "file_type": "PDF",
+      "file_name": "real_report.pdf",
+      "google_drive_file_id": "1kEyzVQMtGgeqMEYxrfyifEdkWbDQXMCT",
+      "google_drive_url": "https://drive.google.com/file/d/1kEyzVQMtGgeqMEYxrfyifEdkWbDQXMCT/view?usp=sharing",
+      "google_drive_download_url": "https://drive.google.com/uc?export=download&id=1kEyzVQMtGgeqMEYxrfyifEdkWbDQXMCT",
+      "mime_type": "application/pdf",
+      "file_size": "0.1 KB",
+      "folder_path": "NWBDCP/LaboratoryReports/2026/10/",
+      "uploaded_at": "2026-10-03T06:07:12.471Z",
+      "uploaded_by": "Staff Test",
+      "is_active": true,
+      "created_at": "2026-10-03T06:07:12.475Z",
+      "updated_at": "2026-10-03T06:07:12.475Z"
+    },
+    {
+      "id": "FILE_1791007677196_ewkq9s",
+      "sample_id": "NWBDCP-20261015-0001",
+      "module": "laboratory_reports",
+      "file_type": "PDF",
+      "file_name": "real_report.pdf",
+      "google_drive_file_id": "1kEyzVQMtGgeqMEYxrfyifEdkWbDQXMCT",
+      "google_drive_url": "https://drive.google.com/file/d/1kEyzVQMtGgeqMEYxrfyifEdkWbDQXMCT/view?usp=sharing",
+      "google_drive_download_url": "https://drive.google.com/uc?export=download&id=1kEyzVQMtGgeqMEYxrfyifEdkWbDQXMCT",
+      "mime_type": "application/pdf",
+      "file_size": "0.1 KB",
+      "folder_path": "NWBDCP/LaboratoryReports/2026/10/",
+      "uploaded_at": "2026-10-03T06:07:57.190Z",
+      "uploaded_by": "Staff Test",
+      "is_active": true,
+      "created_at": "2026-10-03T06:07:57.196Z",
+      "updated_at": "2026-10-03T06:07:57.196Z"
     }
   ],
   "auditLogs": [
@@ -217,5 +271,5 @@
       "created_at": "2026-10-01T08:45:53.715Z"
     }
   ],
-  "lastSaved": "2026-10-01T08:45:53.716Z"
+  "lastSaved": "2026-10-03T06:07:57.196Z"
 }
