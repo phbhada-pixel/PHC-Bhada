@@ -4390,6 +4390,10 @@
       box-sizing: border-box;
     }
 
+    .sheet-modal.open, .modal.open {
+      display: flex !important;
+    }
+
     .sheet-modal-body {
       background: var(--surface);
       border-radius: var(--radius-lg);
@@ -5686,7 +5690,7 @@
               प्रा.आ.के. भादा अंतर्गत येणाऱ्या ३७ गावांमधील सर्व शासकीय व खाजगी पिण्याच्या पाण्याच्या स्त्रोतांची अधिकृत नोंद. (NVBDCP मास्टर डेटा वरून उपकेंद्र व गावे Read-Only संदर्भ म्हणून आयात केलेले आहेत).
             </p>
           </div>
-          <button type="button" onclick="openNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-size:13.5px; padding:10px 18px;">
+          <button type="button" id="nwbdcpBtnAddSource" onclick="openNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-size:13.5px; padding:10px 18px;">
             <span>➕ नवीन जलस्त्रोत नोंदवा (Add Source)</span>
           </button>
         </div>
@@ -5817,8 +5821,8 @@
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
                 <label style="font-weight:800; font-size:14px; color:#1e293b;">1. उपकेंद्रे निवडा (Select Subcenters):</label>
                 <div style="display:flex; gap:8px;">
-                  <button type="button" onclick="selectAllNwbdcpDispatchSubcenters(true)" style="font-size:11.5px; font-weight:700; color:#0284c7; background:#e0f2fe; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">सर्व निवडा</button>
-                  <button type="button" onclick="selectAllNwbdcpDispatchSubcenters(false)" style="font-size:11.5px; font-weight:700; color:#64748b; background:#f1f5f9; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">क्लियर करा</button>
+                  <button type="button" id="nwbdcpBtnSelectAllDispatchSubcenters" onclick="selectAllNwbdcpDispatchSubcenters(true)" style="font-size:11.5px; font-weight:700; color:#0284c7; background:#e0f2fe; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">सर्व निवडा</button>
+                  <button type="button" id="nwbdcpBtnClearDispatchSubcenters" onclick="selectAllNwbdcpDispatchSubcenters(false)" style="font-size:11.5px; font-weight:700; color:#64748b; background:#f1f5f9; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">क्लियर करा</button>
                 </div>
               </div>
               <div id="nwbdcpDispatchSubcenterList" style="max-height:180px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(130px, 1fr)); gap:8px; padding:4px;">
@@ -5831,8 +5835,8 @@
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #f1f5f9; padding-bottom:8px;">
                 <label style="font-weight:800; font-size:14px; color:#1e293b;">2. गावे निवडा (Select Villages):</label>
                 <div style="display:flex; gap:8px;">
-                  <button type="button" onclick="selectAllNwbdcpDispatchVillages(true)" style="font-size:11.5px; font-weight:700; color:#0284c7; background:#e0f2fe; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">सर्व निवडा</button>
-                  <button type="button" onclick="selectAllNwbdcpDispatchVillages(false)" style="font-size:11.5px; font-weight:700; color:#64748b; background:#f1f5f9; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">क्लियर करा</button>
+                  <button type="button" id="nwbdcpBtnSelectAllDispatchVillages" onclick="selectAllNwbdcpDispatchVillages(true)" style="font-size:11.5px; font-weight:700; color:#0284c7; background:#e0f2fe; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">सर्व निवडा</button>
+                  <button type="button" id="nwbdcpBtnClearDispatchVillages" onclick="selectAllNwbdcpDispatchVillages(false)" style="font-size:11.5px; font-weight:700; color:#64748b; background:#f1f5f9; border:none; border-radius:6px; padding:2px 8px; cursor:pointer;">क्लियर करा</button>
                 </div>
               </div>
               <div id="nwbdcpDispatchVillageList" style="max-height:180px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:8px; padding:4px;">
@@ -5870,10 +5874,10 @@
                   <option value="खाजगी">खाजगी</option>
                   <option value="अज्ञात / Not Specified">अज्ञात / इतर</option>
                 </select>
-                <button type="button" onclick="selectAllNwbdcpDispatchSources(true)" style="font-size:12px; font-weight:700; color:#ffffff; background:#0284c7; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
+                <button type="button" id="nwbdcpBtnSelectAllDispatchSources" onclick="selectAllNwbdcpDispatchSources(true)" style="font-size:12px; font-weight:700; color:#ffffff; background:#0284c7; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
                   ✓ सर्व स्रोत निवडा
                 </button>
-                <button type="button" onclick="selectAllNwbdcpDispatchSources(false)" style="font-size:12px; font-weight:700; color:#334155; background:#e2e8f0; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
+                <button type="button" id="nwbdcpBtnClearDispatchSources" onclick="selectAllNwbdcpDispatchSources(false)" style="font-size:12px; font-weight:700; color:#334155; background:#e2e8f0; border:none; border-radius:6px; padding:6px 12px; cursor:pointer;">
                   ✕ सर्व क्लियर करा
                 </button>
               </div>
@@ -19822,9 +19826,9 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         </div>
         <div>
           <label style="font-weight:700; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">
-            स्त्रोत आयडी / कोड (Source ID): <span style="font-size:11px; color:#64748b; font-weight:normal;">(रिकामे ठेवल्यास ऑटो-जनरेट होईल)</span>
+            स्त्रोत आयडी / कोड (Source ID): <span style="font-size:11px; color:#0284c7; font-weight:700;">(ऑटो-जनरेट / Auto)</span>
           </label>
-          <input type="text" id="nwbdcpSrcModalCode" placeholder="उदा. WS-BHD-TAP-001" class="mui-form-control" style="font-weight:700; font-family:monospace; text-transform:uppercase;">
+          <input type="text" id="nwbdcpSrcModalCode" placeholder="उदा. WS-BHD-WLL-001 (ऑटो-जनरेट होईल)" class="mui-form-control" style="font-weight:700; font-family:monospace; text-transform:uppercase; background:#f8fafc;" readonly>
         </div>
       </div>
 
@@ -19866,10 +19870,10 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       </div>
 
       <div style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid #f1f5f9; padding-top:16px;">
-        <button type="button" onclick="closeNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-secondary">
+        <button type="button" id="nwbdcpBtnCancelAddSource" onclick="closeNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-secondary">
           रद्द करा (Cancel)
         </button>
-        <button type="button" onclick="saveNwbdcpWaterSourceFromModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-weight:800;">
+        <button type="button" id="nwbdcpBtnSaveSource" onclick="saveNwbdcpWaterSourceFromModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-weight:800;">
           💾 जलस्त्रोत सेव्ह करा (Save Source)
         </button>
       </div>
@@ -20101,6 +20105,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
             nwbdcpMasterData.subcenters = res.subcenters || [];
             nwbdcpMasterData.villages = res.villages || [];
             populateNwbdcpMasterDropdowns();
+            renderNwbdcpDispatchSection();
           }
         })
         .catch(err => console.warn('Error loading NWBDCP master reference:', err));
@@ -20113,6 +20118,12 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       // 4. Fetch Retests
       loadNwbdcpRetests();
+
+      // 5. Setup Source Modal & Save button event listeners
+      setupNwbdcpSourceModalEventListeners();
+
+      // 6. Setup Dispatch Selection event listeners
+      setupNwbdcpDispatchEventListeners();
     }
 
     // Switch NWBDCP Subtabs
@@ -20227,6 +20238,37 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (!modalVEl) return;
       const filteredV = nwbdcpMasterData.villages.filter(v => v.subcenter === scName);
       modalVEl.innerHTML = filteredV.map(v => `<option value="${v.villageName}">${v.villageName}</option>`).join('');
+      updateNwbdcpModalAutoSourceId();
+    }
+
+    // Auto-generate Source ID (स्त्रोत आयडी / कोड) based on village and source type
+    function updateNwbdcpModalAutoSourceId() {
+      const editId = document.getElementById('nwbdcpSrcEditId')?.value;
+      if (editId) return; // Do not overwrite code when editing existing source
+
+      const village = document.getElementById('nwbdcpSrcModalVillage')?.value || 'भादा';
+      const sourceType = document.getElementById('nwbdcpSrcModalType')?.value || 'विहीर';
+      const codeEl = document.getElementById('nwbdcpSrcModalCode');
+      if (!codeEl) return;
+
+      const typeMap = {
+        'हातपंप': 'HP',
+        'विद्युत पंप': 'EP',
+        'विहीर': 'WLL',
+        'आड': 'AAD',
+        'सार्वजनिक पाणीपुरवठा योजना (नळ योजना)': 'TAP',
+        'स्टॅन्ड पोस्ट': 'SP',
+        'RO Plant': 'RO',
+        'इतर': 'OTH'
+      };
+      const typeCode = typeMap[sourceType] || 'OTH';
+      const cleanVil = (village || 'BHD').replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || 'BHD';
+
+      const existingList = window.nwbdcpWaterSourcesList || [];
+      const matching = existingList.filter(s => s.village === village && s.sourceType === sourceType).length + 1;
+      const seq = String(matching).padStart(3, '0');
+
+      codeEl.value = `WS-${cleanVil}-${typeCode}-${seq}`;
     }
 
     // Load & Filter Water Sources
@@ -20237,6 +20279,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
           if (res && res.success) {
             nwbdcpWaterSourcesList = res.sources || [];
             filterNwbdcpSourcesTable();
+            renderNwbdcpDispatchSourcesList();
           }
         })
         .catch(err => console.warn('Error loading water sources:', err));
@@ -20304,33 +20347,51 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     }
 
     function openNwbdcpAddSourceModal() {
-      document.getElementById('nwbdcpAddSourceModalTitle').innerText = '➕ नवीन जलस्त्रोत नोंदवा (Add Water Source)';
-      document.getElementById('nwbdcpSrcEditId').value = '';
-      document.getElementById('nwbdcpSrcModalName').value = '';
-      const codeEl = document.getElementById('nwbdcpSrcModalCode');
-      if (codeEl) codeEl.value = '';
-      document.getElementById('nwbdcpSrcModalLocation').value = '';
-      document.getElementById('nwbdcpSrcModalType').value = 'विहीर';
-      document.getElementById('nwbdcpSrcModalOwnership').value = 'शासकीय';
-      document.getElementById('nwbdcpSrcModalStatus').value = 'Active';
+      const modalTitle = document.getElementById('nwbdcpAddSourceModalTitle');
+      if (modalTitle) modalTitle.innerText = '➕ नवीन जलस्त्रोत नोंदवा (Add Water Source)';
+      const editIdEl = document.getElementById('nwbdcpSrcEditId');
+      if (editIdEl) editIdEl.value = '';
+      const nameEl = document.getElementById('nwbdcpSrcModalName');
+      if (nameEl) nameEl.value = '';
+      const locEl = document.getElementById('nwbdcpSrcModalLocation');
+      if (locEl) locEl.value = '';
+      const typeEl = document.getElementById('nwbdcpSrcModalType');
+      if (typeEl) typeEl.value = 'विहीर';
+      const ownEl = document.getElementById('nwbdcpSrcModalOwnership');
+      if (ownEl) ownEl.value = 'शासकीय';
+      const statusEl = document.getElementById('nwbdcpSrcModalStatus');
+      if (statusEl) statusEl.value = 'Active';
 
       populateNwbdcpMasterDropdowns();
-      document.getElementById('nwbdcpModalAddSource').classList.add('open');
+      updateNwbdcpModalAutoSourceId();
+
+      const modal = document.getElementById('nwbdcpModalAddSource');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
     }
 
     function openNwbdcpEditSourceModal(id) {
       const src = nwbdcpWaterSourcesList.find(s => s.id === id);
       if (!src) return;
 
-      document.getElementById('nwbdcpAddSourceModalTitle').innerText = '✏️ जलस्त्रोत संपादित करा (Edit Source)';
-      document.getElementById('nwbdcpSrcEditId').value = src.id;
-      document.getElementById('nwbdcpSrcModalName').value = src.sourceName;
+      const modalTitle = document.getElementById('nwbdcpAddSourceModalTitle');
+      if (modalTitle) modalTitle.innerText = '✏️ जलस्त्रोत संपादित करा (Edit Source)';
+      const editIdEl = document.getElementById('nwbdcpSrcEditId');
+      if (editIdEl) editIdEl.value = src.id;
+      const nameEl = document.getElementById('nwbdcpSrcModalName');
+      if (nameEl) nameEl.value = src.sourceName;
       const codeEl = document.getElementById('nwbdcpSrcModalCode');
       if (codeEl) codeEl.value = src.sourceCode || src.sourceId || '';
-      document.getElementById('nwbdcpSrcModalLocation').value = src.location || '';
-      document.getElementById('nwbdcpSrcModalType').value = src.sourceType || 'विहीर';
-      document.getElementById('nwbdcpSrcModalOwnership').value = src.ownership || 'शासकीय';
-      document.getElementById('nwbdcpSrcModalStatus').value = src.status || 'Active';
+      const locEl = document.getElementById('nwbdcpSrcModalLocation');
+      if (locEl) locEl.value = src.location || '';
+      const typeEl = document.getElementById('nwbdcpSrcModalType');
+      if (typeEl) typeEl.value = src.sourceType || 'विहीर';
+      const ownEl = document.getElementById('nwbdcpSrcModalOwnership');
+      if (ownEl) ownEl.value = src.ownership || 'शासकीय';
+      const statusEl = document.getElementById('nwbdcpSrcModalStatus');
+      if (statusEl) statusEl.value = src.status || 'Active';
 
       const scSelect = document.getElementById('nwbdcpSrcModalSubcenter');
       if (scSelect) {
@@ -20342,23 +20403,31 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         vSelect.value = src.village;
       }
 
-      document.getElementById('nwbdcpModalAddSource').classList.add('open');
+      const modal = document.getElementById('nwbdcpModalAddSource');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
     }
 
     function closeNwbdcpAddSourceModal() {
-      document.getElementById('nwbdcpModalAddSource').classList.remove('open');
+      const modal = document.getElementById('nwbdcpModalAddSource');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('open');
+      }
     }
 
     function saveNwbdcpWaterSourceFromModal(allowDuplicate = false) {
-      const id = document.getElementById('nwbdcpSrcEditId').value;
-      const subcenter = document.getElementById('nwbdcpSrcModalSubcenter').value;
-      const village = document.getElementById('nwbdcpSrcModalVillage').value;
-      const sourceName = document.getElementById('nwbdcpSrcModalName').value;
+      const id = document.getElementById('nwbdcpSrcEditId')?.value || '';
+      const subcenter = document.getElementById('nwbdcpSrcModalSubcenter')?.value || '';
+      const village = document.getElementById('nwbdcpSrcModalVillage')?.value || '';
+      const sourceName = document.getElementById('nwbdcpSrcModalName')?.value || '';
       const sourceCode = document.getElementById('nwbdcpSrcModalCode')?.value || '';
-      const sourceType = document.getElementById('nwbdcpSrcModalType').value;
-      const ownership = document.getElementById('nwbdcpSrcModalOwnership').value;
-      const status = document.getElementById('nwbdcpSrcModalStatus').value;
-      const location = document.getElementById('nwbdcpSrcModalLocation').value;
+      const sourceType = document.getElementById('nwbdcpSrcModalType')?.value || 'विहीर';
+      const ownership = document.getElementById('nwbdcpSrcModalOwnership')?.value || 'शासकीय';
+      const status = document.getElementById('nwbdcpSrcModalStatus')?.value || 'Active';
+      const location = document.getElementById('nwbdcpSrcModalLocation')?.value || '';
 
       if (!subcenter) {
         alert('⚠️ कृपया उपकेंद्र निवडा.');
@@ -20371,6 +20440,12 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (!sourceName || !sourceName.trim()) {
         alert('⚠️ कृपया जलस्त्रोताचे नाव / वर्णन प्रविष्ट करा.');
         return;
+      }
+
+      const saveBtn = document.getElementById('nwbdcpBtnSaveSource');
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerText = '⏳ सेव्ह होत आहे...';
       }
 
       const payload = { id, sourceCode, subcenter, village, sourceName, sourceType, ownership, status, location, allowDuplicate };
@@ -20394,8 +20469,55 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
           alert(res.error || res.message || '⚠️ सेव्ह करताना त्रुटी आली.');
         }
       })
-      .catch(err => alert('⚠️ नेटवर्क त्रुटी: ' + err.message));
+      .catch(err => alert('⚠️ नेटवर्क त्रुटी: ' + err.message))
+      .finally(() => {
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.innerText = '💾 जलस्त्रोत सेव्ह करा (Save Source)';
+        }
+      });
     }
+
+    // Attach event listeners for Add Source modal & Save button
+    function setupNwbdcpSourceModalEventListeners() {
+      const addBtn = document.getElementById('nwbdcpBtnAddSource');
+      if (addBtn && !addBtn.dataset.listenerBound) {
+        addBtn.dataset.listenerBound = 'true';
+        addBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          openNwbdcpAddSourceModal();
+        });
+      }
+
+      const saveBtn = document.getElementById('nwbdcpBtnSaveSource');
+      if (saveBtn && !saveBtn.dataset.listenerBound) {
+        saveBtn.dataset.listenerBound = 'true';
+        saveBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          saveNwbdcpWaterSourceFromModal();
+        });
+      }
+
+      const vilSelect = document.getElementById('nwbdcpSrcModalVillage');
+      if (vilSelect && !vilSelect.dataset.autoBound) {
+        vilSelect.dataset.autoBound = 'true';
+        vilSelect.addEventListener('change', updateNwbdcpModalAutoSourceId);
+      }
+
+      const typeSelect = document.getElementById('nwbdcpSrcModalType');
+      if (typeSelect && !typeSelect.dataset.autoBound) {
+        typeSelect.dataset.autoBound = 'true';
+        typeSelect.addEventListener('change', updateNwbdcpModalAutoSourceId);
+      }
+    }
+
+    // Expose modal handlers to global window scope
+    window.openNwbdcpAddSourceModal = openNwbdcpAddSourceModal;
+    window.openNwbdcpEditSourceModal = openNwbdcpEditSourceModal;
+    window.closeNwbdcpAddSourceModal = closeNwbdcpAddSourceModal;
+    window.saveNwbdcpWaterSourceFromModal = saveNwbdcpWaterSourceFromModal;
+    window.updateNwbdcpModalAutoSourceId = updateNwbdcpModalAutoSourceId;
+    window.setupNwbdcpSourceModalEventListeners = setupNwbdcpSourceModalEventListeners;
 
     function toggleNwbdcpSourceStatusClient(id) {
       nwbdcpFetch('/api/nwbdcp/water-source/toggle-status', {
@@ -20431,15 +20553,24 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     let selectedDispatchSubcenters = new Set();
     let selectedDispatchVillages = new Set();
     let selectedDispatchSources = new Set();
+    let isDispatchSectionInitialized = false;
 
     function renderNwbdcpDispatchSection() {
       // 1. Render Subcenters Checkboxes
       const scList = nwbdcpMasterData.subcenters || [];
       const scContainer = document.getElementById('nwbdcpDispatchSubcenterList');
+
+      // Initialize default selections upon opening or when master-data loads
+      if (!isDispatchSectionInitialized && scList.length > 0) {
+        selectedDispatchSubcenters.clear();
+        selectedDispatchVillages.clear();
+        scList.forEach(sc => selectedDispatchSubcenters.add(sc.name));
+        const allVillages = nwbdcpMasterData.villages || [];
+        allVillages.forEach(v => selectedDispatchVillages.add(v.villageName));
+        isDispatchSectionInitialized = true;
+      }
+
       if (scContainer) {
-        if (selectedDispatchSubcenters.size === 0) {
-          scList.forEach(sc => selectedDispatchSubcenters.add(sc.name));
-        }
         scContainer.innerHTML = scList.map(sc => `
           <label style="font-size:12.5px; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; cursor:pointer;">
             <input type="checkbox" value="${sc.name}" ${selectedDispatchSubcenters.has(sc.name) ? 'checked' : ''} onchange="onNwbdcpDispatchSubcenterCheckboxChange(this)">
@@ -20450,6 +20581,9 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       // 2. Render Villages Checkboxes
       renderNwbdcpDispatchVillagesList();
+
+      // 3. Ensure button event listeners are bound
+      setupNwbdcpDispatchEventListeners();
     }
 
     function selectAllNwbdcpDispatchSubcenters(checkAll) {
@@ -20457,47 +20591,108 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       selectedDispatchSubcenters.clear();
       if (checkAll) {
         scList.forEach(sc => selectedDispatchSubcenters.add(sc.name));
+        // When all subcenters are selected, also select all corresponding villages
+        const allVillages = nwbdcpMasterData.villages || [];
+        allVillages.forEach(v => selectedDispatchVillages.add(v.villageName));
+      } else {
+        // Clearing subcenters also clears villages and sources
+        selectedDispatchVillages.clear();
+        selectedDispatchSources.clear();
       }
-      renderNwbdcpDispatchSection();
+
+      const scContainer = document.getElementById('nwbdcpDispatchSubcenterList');
+      if (scContainer) {
+        scContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = !!checkAll;
+        });
+        scContainer.innerHTML = scList.map(sc => `
+          <label style="font-size:12.5px; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; cursor:pointer;">
+            <input type="checkbox" value="${sc.name}" ${selectedDispatchSubcenters.has(sc.name) ? 'checked' : ''} onchange="onNwbdcpDispatchSubcenterCheckboxChange(this)">
+            <span>${sc.name}</span>
+          </label>
+        `).join('');
+      }
+
+      const headerCb = document.getElementById('nwbdcpDispatchHeaderCheckbox');
+      if (headerCb && !checkAll) {
+        headerCb.checked = false;
+      }
+
+      renderNwbdcpDispatchVillagesList();
     }
 
     function onNwbdcpDispatchSubcenterCheckboxChange(cb) {
+      const scVillages = (nwbdcpMasterData.villages || []).filter(v => v.subcenter === cb.value);
       if (cb.checked) {
         selectedDispatchSubcenters.add(cb.value);
+        scVillages.forEach(v => selectedDispatchVillages.add(v.villageName));
       } else {
         selectedDispatchSubcenters.delete(cb.value);
+        scVillages.forEach(v => selectedDispatchVillages.delete(v.villageName));
       }
       renderNwbdcpDispatchVillagesList();
     }
 
     function renderNwbdcpDispatchVillagesList() {
-      const filteredVillages = nwbdcpMasterData.villages.filter(v => selectedDispatchSubcenters.has(v.subcenter));
+      const filteredVillages = (nwbdcpMasterData.villages || []).filter(v => selectedDispatchSubcenters.has(v.subcenter));
       const vContainer = document.getElementById('nwbdcpDispatchVillageList');
       
       if (vContainer) {
-        // Retain village selections that match
-        const validVSet = new Set(filteredVillages.map(v => v.villageName));
-        if (selectedDispatchVillages.size === 0) {
-          filteredVillages.forEach(v => selectedDispatchVillages.add(v.villageName));
+        if (filteredVillages.length === 0) {
+          vContainer.innerHTML = `<div style="grid-column:1/-1; color:#94a3b8; font-size:12.5px; padding:10px; text-align:center;">किमान एक उपकेंद्र निवडा.</div>`;
+        } else {
+          vContainer.innerHTML = filteredVillages.map(v => `
+            <label style="font-size:12.5px; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; cursor:pointer;">
+              <input type="checkbox" value="${v.villageName}" ${selectedDispatchVillages.has(v.villageName) ? 'checked' : ''} onchange="onNwbdcpDispatchVillageCheckboxChange(this)">
+              <span>${v.villageName}</span>
+            </label>
+          `).join('');
         }
-
-        vContainer.innerHTML = filteredVillages.map(v => `
-          <label style="font-size:12.5px; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; cursor:pointer;">
-            <input type="checkbox" value="${v.villageName}" ${selectedDispatchVillages.has(v.villageName) ? 'checked' : ''} onchange="onNwbdcpDispatchVillageCheckboxChange(this)">
-            <span>${v.villageName}</span>
-          </label>
-        `).join('');
       }
 
       renderNwbdcpDispatchSourcesList();
     }
 
     function selectAllNwbdcpDispatchVillages(checkAll) {
-      const filteredVillages = nwbdcpMasterData.villages.filter(v => selectedDispatchSubcenters.has(v.subcenter));
+      const scList = nwbdcpMasterData.subcenters || [];
+      const allVillages = nwbdcpMasterData.villages || [];
+
+      // If user clicks "सर्व निवडा" (Select All) on Villages when no subcenter is selected, auto-select all subcenters
+      if (checkAll && selectedDispatchSubcenters.size === 0) {
+        scList.forEach(sc => selectedDispatchSubcenters.add(sc.name));
+        const scContainer = document.getElementById('nwbdcpDispatchSubcenterList');
+        if (scContainer) {
+          scContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+          scContainer.innerHTML = scList.map(sc => `
+            <label style="font-size:12.5px; font-weight:700; color:#334155; display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0; cursor:pointer;">
+              <input type="checkbox" value="${sc.name}" checked onchange="onNwbdcpDispatchSubcenterCheckboxChange(this)">
+              <span>${sc.name}</span>
+            </label>
+          `).join('');
+        }
+      }
+
+      const filteredVillages = allVillages.filter(v => selectedDispatchSubcenters.has(v.subcenter));
       selectedDispatchVillages.clear();
       if (checkAll) {
         filteredVillages.forEach(v => selectedDispatchVillages.add(v.villageName));
+      } else {
+        // Clearing villages also clears sources selection
+        selectedDispatchSources.clear();
       }
+
+      const vContainer = document.getElementById('nwbdcpDispatchVillageList');
+      if (vContainer) {
+        vContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+          cb.checked = !!checkAll;
+        });
+      }
+
+      const headerCb = document.getElementById('nwbdcpDispatchHeaderCheckbox');
+      if (headerCb && !checkAll) {
+        headerCb.checked = false;
+      }
+
       renderNwbdcpDispatchVillagesList();
     }
 
@@ -20510,15 +20705,13 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       renderNwbdcpDispatchSourcesList();
     }
 
-    let isNwbdcpDispatchSubmitting = false;
-
     function renderNwbdcpDispatchSourcesList() {
       const search = (document.getElementById('nwbdcpDispatchSourceSearch')?.value || '').toLowerCase().trim();
       const typeFilter = document.getElementById('nwbdcpDispatchTypeFilter')?.value || 'ALL';
       const ownershipFilter = document.getElementById('nwbdcpDispatchOwnershipFilter')?.value || 'ALL';
 
-      let sources = nwbdcpWaterSourcesList.filter(s => 
-        s.status === 'Active' &&
+      let sources = (nwbdcpWaterSourcesList || []).filter(s => 
+        (s.status === 'Active' || !s.status) &&
         selectedDispatchSubcenters.has(s.subcenter) &&
         selectedDispatchVillages.has(s.village)
       );
@@ -20533,11 +20726,11 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       if (search) {
         sources = sources.filter(s => 
-          s.sourceName.toLowerCase().includes(search) || 
-          (s.sourceCode && s.sourceCode.toLowerCase().includes(search)) ||
-          (s.sourceId && s.sourceId.toLowerCase().includes(search)) ||
-          s.village.toLowerCase().includes(search) ||
-          s.subcenter.toLowerCase().includes(search)
+          ((s.sourceName || '').toLowerCase().includes(search)) || 
+          ((s.sourceCode || '').toLowerCase().includes(search)) ||
+          ((s.sourceId || '').toLowerCase().includes(search)) ||
+          ((s.village || '').toLowerCase().includes(search)) ||
+          ((s.subcenter || '').toLowerCase().includes(search))
         );
       }
 
@@ -20563,7 +20756,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       tbody.innerHTML = sources.map(s => {
         const isChecked = selectedDispatchSources.has(s.id);
-        const codeDisplay = s.sourceCode || s.sourceId || s.id;
+        const codeDisplay = s.sourceCode || s.sourceId || s.id || 'N/A';
         return `
           <tr style="${isChecked ? 'background:#f0f9ff;' : ''}">
             <td style="text-align:center;">
@@ -20572,13 +20765,13 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
             <td style="font-family:monospace; font-weight:800; color:#0369a1;">
               <span style="background:#e0f2fe; color:#0369a1; padding:2px 6px; border-radius:4px; border:1px solid #7dd3fc; font-size:11.5px;">${codeDisplay}</span>
             </td>
-            <td><b>${s.subcenter}</b></td>
-            <td><b>${s.village}</b></td>
+            <td><b>${s.subcenter || ''}</b></td>
+            <td><b>${s.village || ''}</b></td>
             <td style="font-weight:700; color:#1e293b;">
-              ${s.sourceName}
+              ${s.sourceName || ''}
             </td>
-            <td><span class="mui-chip mui-chip-info">${s.sourceType}</span></td>
-            <td><span class="mui-chip mui-chip-primary">${s.ownership}</span></td>
+            <td><span class="mui-chip mui-chip-info">${s.sourceType || 'पाणी स्त्रोत'}</span></td>
+            <td><span class="mui-chip mui-chip-primary">${s.ownership || 'शासकीय'}</span></td>
           </tr>
         `;
       }).join('');
@@ -20598,8 +20791,8 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const ownershipFilter = document.getElementById('nwbdcpDispatchOwnershipFilter')?.value || 'ALL';
       const search = (document.getElementById('nwbdcpDispatchSourceSearch')?.value || '').toLowerCase().trim();
 
-      let sources = nwbdcpWaterSourcesList.filter(s => 
-        s.status === 'Active' &&
+      let sources = (nwbdcpWaterSourcesList || []).filter(s => 
+        (s.status === 'Active' || !s.status) &&
         selectedDispatchSubcenters.has(s.subcenter) &&
         selectedDispatchVillages.has(s.village)
       );
@@ -20607,19 +20800,93 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (typeFilter !== 'ALL') sources = sources.filter(s => s.sourceType === typeFilter);
       if (ownershipFilter !== 'ALL') sources = sources.filter(s => s.ownership === ownershipFilter);
       if (search) sources = sources.filter(s => 
-        s.sourceName.toLowerCase().includes(search) || 
-        (s.sourceCode && s.sourceCode.toLowerCase().includes(search)) ||
-        (s.sourceId && s.sourceId.toLowerCase().includes(search)) ||
-        s.village.toLowerCase().includes(search)
+        ((s.sourceName || '').toLowerCase().includes(search)) || 
+        ((s.sourceCode || '').toLowerCase().includes(search)) ||
+        ((s.sourceId || '').toLowerCase().includes(search)) ||
+        ((s.village || '').toLowerCase().includes(search))
       );
 
-      sources.forEach(s => {
-        if (checkAll) selectedDispatchSources.add(s.id);
-        else selectedDispatchSources.delete(s.id);
-      });
+      if (checkAll) {
+        sources.forEach(s => selectedDispatchSources.add(s.id));
+      } else {
+        if (!search && typeFilter === 'ALL' && ownershipFilter === 'ALL') {
+          selectedDispatchSources.clear();
+        } else {
+          sources.forEach(s => selectedDispatchSources.delete(s.id));
+        }
+      }
+
+      const headerCb = document.getElementById('nwbdcpDispatchHeaderCheckbox');
+      if (headerCb) {
+        headerCb.checked = checkAll;
+      }
 
       renderNwbdcpDispatchSourcesList();
     }
+
+    // Attach event listeners to Dispatch Subcenters, Villages & Sources Select All and Clear buttons
+    function setupNwbdcpDispatchEventListeners() {
+      const btnClearSc = document.getElementById('nwbdcpBtnClearDispatchSubcenters');
+      if (btnClearSc && !btnClearSc.dataset.listenerBound) {
+        btnClearSc.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectAllNwbdcpDispatchSubcenters(false);
+        });
+        btnClearSc.dataset.listenerBound = 'true';
+      }
+
+      const btnSelectAllSc = document.getElementById('nwbdcpBtnSelectAllDispatchSubcenters');
+      if (btnSelectAllSc && !btnSelectAllSc.dataset.listenerBound) {
+        btnSelectAllSc.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectAllNwbdcpDispatchSubcenters(true);
+        });
+        btnSelectAllSc.dataset.listenerBound = 'true';
+      }
+
+      const btnClearV = document.getElementById('nwbdcpBtnClearDispatchVillages');
+      if (btnClearV && !btnClearV.dataset.listenerBound) {
+        btnClearV.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectAllNwbdcpDispatchVillages(false);
+        });
+        btnClearV.dataset.listenerBound = 'true';
+      }
+
+      const btnSelectAllV = document.getElementById('nwbdcpBtnSelectAllDispatchVillages');
+      if (btnSelectAllV && !btnSelectAllV.dataset.listenerBound) {
+        btnSelectAllV.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectAllNwbdcpDispatchVillages(true);
+        });
+        btnSelectAllV.dataset.listenerBound = 'true';
+      }
+
+      const btnSelectAllSrc = document.getElementById('nwbdcpBtnSelectAllDispatchSources');
+      if (btnSelectAllSrc && !btnSelectAllSrc.dataset.listenerBound) {
+        btnSelectAllSrc.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectAllNwbdcpDispatchSources(true);
+        });
+        btnSelectAllSrc.dataset.listenerBound = 'true';
+      }
+
+      const btnClearSrc = document.getElementById('nwbdcpBtnClearDispatchSources');
+      if (btnClearSrc && !btnClearSrc.dataset.listenerBound) {
+        btnClearSrc.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectAllNwbdcpDispatchSources(false);
+        });
+        btnClearSrc.dataset.listenerBound = 'true';
+      }
+    }
+
+    window.selectAllNwbdcpDispatchSubcenters = selectAllNwbdcpDispatchSubcenters;
+    window.selectAllNwbdcpDispatchVillages = selectAllNwbdcpDispatchVillages;
+    window.selectAllNwbdcpDispatchSources = selectAllNwbdcpDispatchSources;
+    window.setupNwbdcpDispatchEventListeners = setupNwbdcpDispatchEventListeners;
+    window.onNwbdcpDispatchSubcenterCheckboxChange = onNwbdcpDispatchSubcenterCheckboxChange;
+    window.onNwbdcpDispatchVillageCheckboxChange = onNwbdcpDispatchVillageCheckboxChange;
 
     function toggleAllNwbdcpDispatchCheckboxes(isChecked) {
       selectAllNwbdcpDispatchSources(isChecked);
@@ -21864,6 +22131,25 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         }, 100);
       }
     };
+
+    // Auto-setup NWBDCP modal & dispatch listeners on initial load
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', () => {
+        if (typeof setupNwbdcpSourceModalEventListeners === 'function') {
+          setupNwbdcpSourceModalEventListeners();
+        }
+        if (typeof setupNwbdcpDispatchEventListeners === 'function') {
+          setupNwbdcpDispatchEventListeners();
+        }
+      });
+    } else {
+      if (typeof setupNwbdcpSourceModalEventListeners === 'function') {
+        setupNwbdcpSourceModalEventListeners();
+      }
+      if (typeof setupNwbdcpDispatchEventListeners === 'function') {
+        setupNwbdcpDispatchEventListeners();
+      }
+    }
   </script>
 
 

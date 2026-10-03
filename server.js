@@ -349,8 +349,47 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.options('*', cors());
 
+// Minimal Exact Allowed Origins helper for NWBDCP APIs (/api/nwbdcp/*)
+// NWBDCP runs entirely on Cloud Run and does NOT run from GitHub Pages or AI Studio parent window
+function getExactAllowedOrigins() {
+  const allowed = new Set();
+
+  // 1. Parse process.env.ALLOWED_ORIGINS (excluding legacy NVBDCP GitHub Pages)
+  if (process.env.ALLOWED_ORIGINS) {
+    process.env.ALLOWED_ORIGINS.split(',').forEach(entry => {
+      let val = entry.trim();
+      if (val.includes('=')) {
+        val = val.split('=').pop().trim();
+      }
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1).trim();
+      }
+      val = val.replace(/\/+$/, '').toLowerCase();
+      // Only allow custom production origins; exclude legacy NVBDCP GitHub Pages
+      if (val && !val.includes('phbhada-pixel.github.io')) {
+        allowed.add(val);
+      }
+    });
+  }
+
+  // 2. Specific Cloud Run service URL for this applet deployment
+  if (process.env.APP_URL) {
+    const appUrlClean = process.env.APP_URL.trim().replace(/\/+$/, '').toLowerCase();
+    allowed.add(appUrlClean);
+
+    // Paired production/shared environment pair
+    if (appUrlClean.includes('ais-dev-')) {
+      allowed.add(appUrlClean.replace('ais-dev-', 'ais-pre-'));
+    } else if (appUrlClean.includes('ais-pre-')) {
+      allowed.add(appUrlClean.replace('ais-pre-', 'ais-dev-'));
+    }
+  }
+
+  return allowed;
+}
+
 // Hardened CORS Origin Guard strictly for NWBDCP APIs (/api/nwbdcp/*)
-// Preserves existing shared global CORS for NVBDCP while restricting NWBDCP to trusted origins
+// Preserves existing shared global CORS for NVBDCP while restricting NWBDCP to exact trusted origins
 const nwbdcpCorsGuard = (req, res, next) => {
   const origin = req.headers.origin;
 
@@ -360,30 +399,36 @@ const nwbdcpCorsGuard = (req, res, next) => {
   }
 
   const isProd = process.env.NODE_ENV === 'production';
-  const allowedExplicit = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim().toLowerCase())
-    : [];
+  const originClean = origin.trim().replace(/\/+$/, '').toLowerCase();
 
-  const originLower = origin.toLowerCase();
-
-  // 1. Explicitly configured production origins
-  const isExplicitAllowed = allowedExplicit.includes(originLower);
-
-  // 2. Trusted Google Cloud Run and Google AI Studio application domains
-  const isTrustedCloudDomain =
-    originLower.endsWith('.run.app') ||
-    originLower.endsWith('.aistudio.google.com') ||
-    originLower === 'https://aistudio.google.com';
-
-  // 3. Localhost origins (allowed ONLY when development mode is active)
+  // Check localhost / loopback origins
   const isLocalhost =
-    originLower.startsWith('http://localhost:') ||
-    originLower === 'http://localhost' ||
-    originLower.startsWith('http://127.0.0.1:') ||
-    originLower === 'http://127.0.0.1';
-  const isDevLocalhostAllowed = !isProd && isLocalhost;
+    originClean.startsWith('http://localhost:') ||
+    originClean === 'http://localhost' ||
+    originClean.startsWith('http://127.0.0.1:') ||
+    originClean === 'http://127.0.0.1';
 
-  if (isExplicitAllowed || isTrustedCloudDomain || isDevLocalhostAllowed) {
+  if (isLocalhost) {
+    // In production, reject localhost unconditionally
+    if (isProd) {
+      return res.status(403).json({ error: 'CORS origin not allowed in production.' });
+    }
+    // In development mode only, allow localhost
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    return next();
+  }
+
+  // Precision check against exact allowlisted production origins (no wildcards)
+  const exactAllowedOrigins = getExactAllowedOrigins();
+  const isAllowed = exactAllowedOrigins.has(originClean);
+
+  if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
