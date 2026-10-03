@@ -148,6 +148,7 @@ import {
   revokeNwbdcpSession,
   authenticateAndIssueNwbdcpToken,
   authenticateGoogleIdentityAndIssueToken,
+  handleNwbdcpTokenIssuance,
   nwbdcpAuthRateLimiter
 } from './services/nwbdcpAuth.js';
 
@@ -188,8 +189,105 @@ import {
   syncBatchTransferHistoryToFirestore
 } from './services/firebaseStore.js';
 
+import {
+  fetchSubcentersFromSupabase,
+  syncSubcenterToSupabase,
+  deleteSubcenterFromSupabase,
+  fetchVillagesFromSupabase,
+  syncVillageToSupabase,
+  deleteVillageFromSupabase,
+  fetchEmployeesFromSupabase,
+  syncEmployeeToSupabase,
+  deleteEmployeeFromSupabase,
+  fetchMonthMasterFromSupabase,
+  syncMonthMasterToSupabase,
+  fetchBsDataFromSupabase,
+  syncBsDataToSupabase,
+  deleteBsEntryFromSupabase,
+  fetchVillageDetailsFromSupabase,
+  syncVillageDetailsToSupabase,
+  fetchTransferHistoryFromSupabase,
+  syncTransferHistoryToSupabase,
+  fetchDengueChikungunyaFromSupabase,
+  syncDengueEntryToSupabase,
+  deleteDengueEntryFromSupabase
+} from './services/nvbdcpSupabase.js';
+
 let lastFsSyncTime = 0;
 const FS_SYNC_CACHE_MS = 1000; // 1-second debounce to avoid redundant concurrent network calls
+
+export async function syncAllDataFromSupabase() {
+  try {
+    const [subcenters, villages, employees, months, bsData, vDetails, transfers, dengue] = await Promise.all([
+      fetchSubcentersFromSupabase(),
+      fetchVillagesFromSupabase(),
+      fetchEmployeesFromSupabase(),
+      fetchMonthMasterFromSupabase(),
+      fetchBsDataFromSupabase(),
+      fetchVillageDetailsFromSupabase(),
+      fetchTransferHistoryFromSupabase(),
+      fetchDengueChikungunyaFromSupabase()
+    ]);
+
+    let loadedAny = false;
+
+    if (Array.isArray(subcenters) && subcenters.length > 0) {
+      subcenterMaster.length = 0;
+      subcenters.forEach(s => subcenterMaster.push(s));
+      loadedAny = true;
+    }
+    if (Array.isArray(villages) && villages.length > 0) {
+      villagesMaster.length = 0;
+      villages.forEach(v => villagesMaster.push(v));
+      loadedAny = true;
+    }
+    if (Array.isArray(employees) && employees.length > 0) {
+      employeeMaster.length = 0;
+      employees.forEach(e => employeeMaster.push(e));
+      syncMasterData();
+      loadedAny = true;
+    }
+    if (Array.isArray(months) && months.length > 0) {
+      months.forEach(savedM => {
+        const m = monthMaster.find(x => x.name === savedM.name);
+        if (m) Object.assign(m, savedM);
+      });
+      loadedAny = true;
+    }
+    if (Array.isArray(bsData) && bsData.length > 0) {
+      bsDataEntry.length = 0;
+      bsData.forEach(r => bsDataEntry.push(r));
+      loadedAny = true;
+    }
+    if (Array.isArray(vDetails) && vDetails.length > 0) {
+      villageDetails.length = 0;
+      vDetails.forEach(r => villageDetails.push(r));
+      loadedAny = true;
+    }
+    if (Array.isArray(transfers) && transfers.length > 0) {
+      transferHistory.length = 0;
+      transfers.forEach(t => transferHistory.push(t));
+      loadedAny = true;
+    }
+    if (Array.isArray(dengue) && dengue.length > 0) {
+      dengueChikungunyaEntries.length = 0;
+      dengue.forEach(d => dengueChikungunyaEntries.push(d));
+      loadedAny = true;
+    }
+
+    if (loadedAny) {
+      backfillBsDataEmployeeNames();
+      recalculateAllMonthProgressives();
+      saveDbToDisk();
+      console.log(`[Server] Synced and refreshed from Supabase Primary Database.`);
+      return { success: true, source: 'SUPABASE' };
+    }
+    return { success: false, reason: 'SUPABASE_EMPTY_OR_UNAVAILABLE' };
+  } catch (err) {
+    console.warn('[Server] syncAllDataFromSupabase error:', err.message);
+    return { success: false, error: err.message };
+  }
+}
 
 export async function syncAllDataFromFirestore(force = false) {
   const now = Date.now();
@@ -1156,7 +1254,13 @@ app.post('/api/rpc', async (req, res) => {
         recalculateAllMonthProgressives();
         saveDbToDisk();
 
-        // Direct Firestore Write (Single Source of Truth)
+        // Primary Supabase Write
+        syncBsDataToSupabase(newEntriesForSync).catch(err => console.warn('[Supabase] BS data sync warning:', err.message));
+        if (newVillageDetailsForSync.length > 0) {
+          syncVillageDetailsToSupabase(newVillageDetailsForSync).catch(err => console.warn('[Supabase] Village details sync warning:', err.message));
+        }
+
+        // Direct Firestore Write (Compatibility / Fallback)
         const fsBsRes = await syncBatchBsDataToFirestore(newEntriesForSync.map(e => [
           e.id, e.date, e.upkendra, e.employeeName, e.designation, e.bsCode, e.bundleNumber, e.pasun, e.paraynt, e.total
         ]));
@@ -1172,12 +1276,12 @@ app.post('/api/rpc', async (req, res) => {
         if (fsBsRes.success) {
           result = {
             success: true,
-            message: '✅ नोंद Firestore क्लाउड डेटाबेसमध्ये थेट यशस्वीरित्या सेव्ह झाली 🟢'
+            message: '✅ नोंद डेटाबेसमध्ये थेट यशस्वीरित्या सेव्ह झाली 🟢'
           };
         } else {
           result = {
             success: false,
-            message: 'डेटा Firestore मध्ये जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (' + (fsBsRes.error || 'Firestore Error') + ').'
+            message: 'डेटा जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (' + (fsBsRes.error || 'Database Error') + ').'
           };
         }
         break;
@@ -1232,7 +1336,7 @@ app.post('/api/rpc', async (req, res) => {
       case 'fetchDataFromGoogleSheet': {
         result = {
           success: true,
-          message: 'प्रणाली आता पूर्णपणे Cloud Firestore कडून संचलित आहे. (Google Sheet सेवा पूर्णपणे बंद करण्यात आली आहे).'
+          message: 'प्रणाली आता पूर्णपणे प्राथमिक क्लाउड डेटाबेस कडून संचलित आहे. (Google Sheet सेवा पूर्णपणे बंद करण्यात आली आहे).'
         };
         break;
       }
@@ -1259,8 +1363,9 @@ app.post('/api/rpc', async (req, res) => {
             }
           }
           saveDbToDisk();
+          deleteBsEntryFromSupabase(entryId).catch(err => console.warn('[Supabase] delete error:', err.message));
           await deleteBsDataEntryFromFirestore(entryId);
-          result = { success: true, message: `नोंद ${entryId} Firestore क्लाउड डेटाबेसमधून यशस्वीरित्या हटवली!` };
+          result = { success: true, message: `नोंद ${entryId} डेटाबेसमधून यशस्वीरित्या हटवली!` };
         } else {
           result = { success: false, message: 'नोंद सापडली नाही.' };
         }
@@ -1694,12 +1799,13 @@ app.post('/api/rpc', async (req, res) => {
         result = saveDengueEntry(entryData);
         if (result.success) {
           const rec = result.record || entryData;
+          syncDengueEntryToSupabase(rec).catch(err => console.warn('[Supabase] Dengue entry sync warning:', err.message));
           const fsRes = await syncDengueEntryToFirestore(rec);
           if (fsRes.success) {
-            result.message = `रुग्ण ${rec.patientName} ची नोंद Firestore क्लाउड डेटाबेसमध्ये थेट यशस्वीरित्या जतन झाली 🟢`;
+            result.message = `रुग्ण ${rec.patientName} ची नोंद डेटाबेसमध्ये थेट यशस्वीरित्या जतन झाली 🟢`;
           } else {
             result.success = false;
-            result.message = `डेटा Firestore मध्ये जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${fsRes.error || 'Connection Error'}).`;
+            result.message = `डेटा जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${fsRes.error || 'Connection Error'}).`;
           }
         }
         break;
@@ -1710,12 +1816,13 @@ app.post('/api/rpc', async (req, res) => {
         result = updateDengueLabReport(reportData);
         if (result.success) {
           const rec = result.record;
+          syncDengueEntryToSupabase(rec).catch(err => console.warn('[Supabase] Dengue report sync warning:', err.message));
           const fsRes = await syncDengueEntryToFirestore(rec);
           if (fsRes.success) {
-            result.message = `रुग्ण ${rec.patientName} चा प्रयोगशाळा अहवाल Firestore क्लाउड डेटाबेसमध्ये थेट जतन झाला 🟢`;
+            result.message = `रुग्ण ${rec.patientName} चा प्रयोगशाळा अहवाल डेटाबेसमध्ये थेट जतन झाला 🟢`;
           } else {
             result.success = false;
-            result.message = `अहवाल Firestore मध्ये अपडेट झाला नाही. इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${fsRes.error || 'Connection Error'}).`;
+            result.message = `अहवाल अपडेट झाला नाही. इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${fsRes.error || 'Connection Error'}).`;
           }
         }
         break;
@@ -2159,6 +2266,7 @@ app.post('/api/rpc', async (req, res) => {
         const [scData] = args;
         result = saveSubcenter(scData);
         if (result.success && result.subcenter) {
+          syncSubcenterToSupabase(result.subcenter).catch(err => console.warn('[Supabase] Subcenter sync warning:', err.message));
           syncSubcenterMasterToFirestore(result.subcenter).catch(err => console.error(err));
         }
         break;
@@ -2167,6 +2275,9 @@ app.post('/api/rpc', async (req, res) => {
       case 'deleteSubcenter': {
         const [scId] = args;
         result = deleteSubcenter(scId);
+        if (result.success) {
+          deleteSubcenterFromSupabase(scId).catch(err => console.warn('[Supabase] Subcenter delete warning:', err.message));
+        }
         break;
       }
 
@@ -2179,6 +2290,7 @@ app.post('/api/rpc', async (req, res) => {
         const [vilData] = args;
         result = saveVillage(vilData);
         if (result.success && result.village) {
+          syncVillageToSupabase(result.village).catch(err => console.warn('[Supabase] Village sync warning:', err.message));
           await syncVillagesMasterToFirestore(result.village);
           saveDbToDisk();
         }
@@ -2188,6 +2300,9 @@ app.post('/api/rpc', async (req, res) => {
       case 'deleteVillage': {
         const [vilId] = args;
         result = deleteVillage(vilId);
+        if (result.success) {
+          deleteVillageFromSupabase(vilId).catch(err => console.warn('[Supabase] Village delete warning:', err.message));
+        }
         break;
       }
 
@@ -2200,6 +2315,7 @@ app.post('/api/rpc', async (req, res) => {
         const [empData] = args;
         result = saveEmployee(empData);
         if (result.success && result.employee) {
+          syncEmployeeToSupabase(result.employee).catch(err => console.warn('[Supabase] Employee sync warning:', err.message));
           syncEmployeeMasterToFirestore(result.employee).catch(err => console.error(err));
         }
         break;
@@ -2208,6 +2324,9 @@ app.post('/api/rpc', async (req, res) => {
       case 'deleteEmployee': {
         const [empId] = args;
         result = deleteEmployee(empId);
+        if (result.success) {
+          deleteEmployeeFromSupabase(empId).catch(err => console.warn('[Supabase] Employee delete warning:', err.message));
+        }
         break;
       }
 
@@ -2215,6 +2334,9 @@ app.post('/api/rpc', async (req, res) => {
         const [empId, targetUpkendra, newVillages, newBsCode, reason, orderNo] = args;
         result = transferEmployee(empId, targetUpkendra, newVillages, newBsCode, reason, orderNo);
         if (result.success) {
+          if (result.transfer) {
+            syncTransferHistoryToSupabase(result.transfer).catch(err => console.warn('[Supabase] Transfer sync warning:', err.message));
+          }
           // Sync all master changes to Cloud Firestore synchronously to prevent page refresh rollback!
           await syncBatchEmployeesToFirestore(employeeMaster);
           await syncBatchSubcentersToFirestore(subcenterMaster);
@@ -2305,23 +2427,7 @@ app.post('/api/rpc', async (req, res) => {
 // 0. Auth & Token Management Endpoints
 app.post(['/api/nwbdcp/auth/google', '/api/nwbdcp/auth/token'], nwbdcpAuthRateLimiter, async (req, res) => {
   try {
-    const { idToken, credential } = req.body || {};
-    const token = idToken || credential;
-    const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        error: '⚠️ प्रमाणीकरण आवश्यक: Google ID Token उपलब्ध नाही (Google ID Token required. userId/role assertions not accepted).'
-      });
-    }
-
-    const authResult = await authenticateGoogleIdentityAndIssueToken({ idToken: token, ip });
-    if (!authResult.success) {
-      return res.status(authResult.statusCode || 401).json(authResult);
-    }
-    const { statusCode, ...data } = authResult;
-    res.status(statusCode || 200).json(data);
+    await handleNwbdcpTokenIssuance(req, res);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
@@ -2660,7 +2766,31 @@ app.post('/api/nwbdcp/retest-sample', nwbdcpRequireAuth(ROLES.STAFF), async (req
 app.post('/api/nwbdcp/update-retest-result', nwbdcpRequireAuth(ROLES.STAFF), async (req, res) => {
   try {
     const user = req.nwbdcpAuth.user;
-    const result = await updateRetestResult(req.body, user);
+    const { retestId, reportCopy } = req.body;
+    let finalCopy = reportCopy;
+
+    if (reportCopy && reportCopy.fileData) {
+      const driveRes = await uploadFileToGoogleDrive({
+        sampleId: retestId,
+        module: 'retest_reports',
+        fileName: reportCopy.fileName,
+        fileData: reportCopy.fileData,
+        user
+      });
+
+      if (driveRes && driveRes.success && driveRes.file) {
+        const f = driveRes.file;
+        finalCopy = {
+          reportFileName: f.fileName,
+          reportFileUrl: `/api/nwbdcp/storage/serve/${f.googleDriveFileId}`,
+          reportFileType: f.fileType,
+          reportFileSize: f.fileSize,
+          googleDriveFileId: f.googleDriveFileId
+        };
+      }
+    }
+
+    const result = await updateRetestResult({ ...req.body, reportCopy: finalCopy }, user);
     res.json(result);
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -2761,8 +2891,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal Server Error' });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`PHC Bhada Malaria Management System running on http://0.0.0.0:${PORT}`);
-  // Immediately initialize and load all live data from Cloud Firestore
-  syncAllDataFromFirestore(true).catch(err => console.error('[Server] Initial Firestore sync error:', err));
+  // Immediately initialize from Supabase Primary Database, fallback to Cloud Firestore
+  try {
+    const sbRes = await syncAllDataFromSupabase();
+    if (!sbRes || !sbRes.success) {
+      await syncAllDataFromFirestore(true);
+    }
+  } catch (err) {
+    console.error('[Server] Initial data sync error:', err);
+    await syncAllDataFromFirestore(true).catch(e => console.error('[Server] Fallback Firestore sync error:', e));
+  }
 });

@@ -5949,8 +5949,21 @@
         <!-- Filter Controls for Register -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; margin-bottom:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end;">
           <div>
+            <label style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:4px; display:block;">📅 पाठवणी दिनांक (Sending Date):</label>
+            <div style="display:flex; gap:6px;">
+              <input type="date" id="nwbdcpRegFilterDate" class="mui-form-control" onchange="onNwbdcpRegFilterDateInput(this.value)" style="height:38px; font-size:13px; font-weight:700; flex:1;">
+              <button type="button" onclick="clearNwbdcpRegDateFilter()" title="दिनांक क्लियर करा" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:0 10px; cursor:pointer; font-size:12px; font-weight:700; color:#475569; white-space:nowrap;">क्लियर</button>
+            </div>
+          </div>
+          <div>
+            <label style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:4px; display:block;">📅 पाठवणी दिनांक यादी (Select Date):</label>
+            <select id="nwbdcpRegDateSelect" class="filter-select" onchange="onNwbdcpRegDateSelectChange(this.value)" style="width:100%; height:38px; font-weight:700; color:#0369a1;">
+              <option value="ALL">-- सर्व पाठवणी दिनांक --</option>
+            </select>
+          </div>
+          <div>
             <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">उपकेंद्र:</label>
-            <select id="nwbdcpRegFilterSubcenter" class="filter-select" onchange="filterNwbdcpRegisterTable()" style="width:100%;">
+            <select id="nwbdcpRegFilterSubcenter" class="filter-select" onchange="onNwbdcpRegFilterSubcenterChange(this.value); filterNwbdcpRegisterTable();" style="width:100%;">
               <option value="ALL">-- सर्व उपकेंद्रे --</option>
             </select>
           </div>
@@ -5972,8 +5985,8 @@
             </select>
           </div>
           <div>
-            <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">नमुना आयडी किंवा स्त्रोत शोधा:</label>
-            <input type="text" id="nwbdcpRegSearchInput" placeholder="Sample ID / Source..." oninput="filterNwbdcpRegisterTable()" class="mui-form-control" style="height:38px; font-size:13px;">
+            <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">नमुना आयडी, दिनांक किंवा स्त्रोत शोधा:</label>
+            <input type="text" id="nwbdcpRegSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक (उदा. 28/10/2026), गाव..." oninput="filterNwbdcpRegisterTable()" class="mui-form-control" style="height:38px; font-size:13px;">
           </div>
         </div>
 
@@ -6085,11 +6098,15 @@
         <div style="background:#f0f9ff; border:1.5px solid #0284c7; border-radius:12px; padding:14px 20px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; box-shadow:0 2px 6px rgba(2,132,199,0.06);">
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap; flex:1;">
             <label for="nwbdcpLabDispatchDateSelect" style="font-weight:800; font-size:13.5px; color:#0369a1; display:flex; align-items:center; gap:6px; white-space:nowrap;">
-              <span>📅 पाठवणी दिनांक निवडा:</span>
+              <span>📅 पाठवणी दिनांक (Sending Date):</span>
             </label>
-            <select id="nwbdcpLabDispatchDateSelect" onchange="renderNwbdcpLabResultsTable()" class="filter-select" style="min-width:320px; font-weight:800; font-size:13.5px; color:#0f172a; border:2px solid #0284c7; background:#ffffff; padding:7px 14px; border-radius:8px;">
-              <!-- Dynamically populated with pending dates only -->
+            <select id="nwbdcpLabDispatchDateSelect" onchange="onNwbdcpLabDispatchDateSelectChange(this.value)" class="filter-select" style="min-width:300px; font-weight:800; font-size:13.5px; color:#0f172a; border:2px solid #0284c7; background:#ffffff; padding:7px 14px; border-radius:8px;">
+              <!-- Dynamically populated with pending and historical dates -->
             </select>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <input type="date" id="nwbdcpLabFilterDate" class="mui-form-control" onchange="onNwbdcpLabFilterDateChange(this.value)" title="कॅलेंडरमधून पाठवणी दिनांक निवडा" style="height:38px; font-size:13px; font-weight:700; width:155px;">
+              <button type="button" onclick="clearNwbdcpLabDateFilter()" title="दिनांक क्लियर करा" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:0 10px; cursor:pointer; font-size:12px; font-weight:700; color:#475569; white-space:nowrap; height:38px;">क्लियर</button>
+            </div>
           </div>
           <div id="nwbdcpLabDispatchDateSummary" style="font-size:13px; font-weight:800; color:#0284c7; background:#e0f2fe; padding:6px 14px; border-radius:8px; border:1px solid #7dd3fc;">
             <!-- Dynamically populated stats -->
@@ -6105,7 +6122,7 @@
               <option value="पिण्यास योग्य">पिण्यास योग्य (Safe Only)</option>
               <option value="पिण्यास अयोग्य">पिण्यास अयोग्य (Unfit Only)</option>
             </select>
-            <input type="text" id="nwbdcpLabSearchInput" placeholder="नमुना आयडी किंवा गाव शोधा..." oninput="renderNwbdcpLabResultsTable()" class="mui-form-control" style="width:200px; height:34px; font-size:12.5px;">
+            <input type="text" id="nwbdcpLabSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक (उदा. 28/10/2026), गाव..." oninput="renderNwbdcpLabResultsTable()" class="mui-form-control" style="width:280px; height:34px; font-size:12.5px;">
           </div>
           <div style="font-size:12px; color:#64748b;">
             * 'पिण्यास अयोग्य' नमुन्यांसाठी थेट **पुनर्तपासणी (Re-Test)** व अहवाल **प्रत पहा/बदला** सुविधा उपलब्ध.
@@ -6152,16 +6169,42 @@
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
             <div>
               <h3 style="margin:0; font-size:18px; font-weight:800; color:#dc2626; display:flex; align-items:center; gap:8px;">
-                <span>🔄 दूषित पाणी नमुने पुनर्तपासणी रजिस्टर (Re-Test Audit Log)</span>
+                <span>🔄 दूषित पाणी नमुने पुनर्तपासणी व तातडीची ॲक्शन नोंदवही (Re-Test & Action Log)</span>
               </h3>
               <p style="margin:4px 0 0 0; font-size:13px; color:#475569;">
-                'पिण्यास अयोग्य' ठरलेल्या नमुन्यांवर टीसीएल सुपर क्लोरीनेशन उपाययोजना केल्यानंतर घेतलेल्या पुनर्तपासणी नमुन्यांची संपूर्ण ऑडिट हिस्ट्री.
+                'पिण्यास अयोग्य' ठरलेल्या नमुन्यांवर टीसीएल सुपर क्लोरीनेशन उपाययोजना, पुनर्तपासणी अहवाल, द्वितीय पुनर्तपासणी व ग्रामपंचायत तातडीची नोटीस/सुधारणा आदेशची संपूर्ण ऑडिट हिस्ट्री.
               </p>
             </div>
             <div class="mui-chip mui-chip-danger" style="font-weight:800; font-size:13px;">
-              दूषित नमुने हिस्ट्री
+              दूषित नमुने ॲक्शन ट्रॅकर
             </div>
           </div>
+        </div>
+
+        <!-- Persistent Contamination Alert Banner (Shown dynamically when any re-test is unfit) -->
+        <div id="nwbdcpRetestsAlertBanner" style="display:none; background:#fef2f2; border:2px solid #ef4444; border-radius:12px; padding:14px 20px; margin-bottom:18px; box-shadow:0 2px 8px rgba(220,38,38,0.1); align-items:center; justify-space-between; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:center; gap:12px;">
+            <span style="font-size:28px;">🚨</span>
+            <div>
+              <div style="font-size:14px; font-weight:800; color:#dc2626;">
+                सावधान: पुनर्तपासणीनंतरही १ किंवा अधिक पाणी नमुने 'पिण्यास अयोग्य' (दूषित) आढळले आहेत!
+              </div>
+              <div style="font-size:12.5px; color:#991b1b; margin-top:2px;">
+                संबंधित ग्रामपंचायतीस तातडीचा बंद व दुरुस्ती आदेश बजावून २ री तीव्र क्लोरीनेशन पुनर्तपासणी तात्काळ नोंदवा.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter for Retests Table -->
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <label style="font-weight:700; font-size:12.5px; color:#0369a1;">📅 पाठवणी दिनांक (Sending Date):</label>
+            <input type="date" id="nwbdcpRetestFilterDate" onchange="renderNwbdcpRetestsTable()" class="mui-form-control" style="height:36px; font-size:12.5px; width:155px; font-weight:700;">
+            <button type="button" onclick="clearNwbdcpRetestDateFilter()" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:0 10px; height:36px; cursor:pointer; font-size:12px; font-weight:700; color:#475569;">क्लियर</button>
+            <input type="text" id="nwbdcpRetestSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक (उदा. 28/10/2026), गाव..." oninput="renderNwbdcpRetestsTable()" class="mui-form-control" style="width:280px; height:36px; font-size:12.5px;">
+          </div>
+          <span id="nwbdcpRetestCountBadge" class="mui-chip mui-chip-danger" style="font-weight:800;">0 नोंदी</span>
         </div>
 
         <!-- Retests Table -->
@@ -6171,14 +6214,15 @@
               <thead>
                 <tr>
                   <th>पुनर्तपासणी आयडी (Re-Test ID)</th>
-                  <th>मूळ नमुना आयडी (Original)</th>
+                  <th>मूळ नमुना आयडी</th>
                   <th>उपकेंद्र</th>
                   <th>गाव</th>
                   <th>जलस्त्रोताचे नाव</th>
                   <th>केलेली उपाययोजना (Action Taken)</th>
                   <th>पुनर्तपासणी दिनांक</th>
                   <th>पुनर्तपासणी निकाल</th>
-                  <th style="text-align:center; width:140px;">निकाल अपडेट</th>
+                  <th>अहवाल प्रत</th>
+                  <th style="text-align:center; min-width:320px;">पुढील प्रक्रिया व तातडीची ॲक्शन (Action & Next Step)</th>
                 </tr>
               </thead>
               <tbody id="nwbdcpRetestsTableBody">
@@ -19974,6 +20018,140 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     </div>
   </div>
 
+  <!-- 5. Update Re-Test Result & Report Copy Modal -->
+  <div id="nwbdcpModalUpdateRetestResult" class="sheet-modal">
+    <div class="sheet-modal-body" style="max-width:640px; padding:24px; border-radius:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:8px;">
+          <span>✏️ पुनर्तपासणी निकाल व प्रयोगशाळा अहवाल नोंदवा</span>
+        </h3>
+        <button type="button" onclick="closeNwbdcpUpdateRetestResultModal()" style="background:#edf2f7; border:none; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; color:#4a5568;">✕</button>
+      </div>
+
+      <input type="hidden" id="nwbdcpUpdateRetestId">
+
+      <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px; color:#0369a1;">
+        <div><b>पुनर्तपासणी आयडी:</b> <span id="nwbdcpUpdateRetestDispId" style="font-family:monospace; font-weight:800; color:#0284c7;">--</span></div>
+        <div><b>मूळ नमुना आयडी:</b> <span id="nwbdcpUpdateRetestDispOrigId" style="font-family:monospace; font-weight:700;">--</span></div>
+        <div><b>उपकेंद्र / गाव / जलस्त्रोत:</b> <b id="nwbdcpUpdateRetestDispSource">--</b></div>
+        <div><b>केलेली उपाययोजना:</b> <span id="nwbdcpUpdateRetestDispAction" style="color:#475569;">--</span></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:16px;">
+        <div>
+          <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">पुनर्तपासणी निकाल <span style="color:#dc2626;">*</span>:</label>
+          <select id="nwbdcpUpdateRetestResultSelect" class="filter-select" style="width:100%; font-weight:800; height:42px;">
+            <option value="पिण्यास योग्य" style="color:#166534; font-weight:800;">🟢 पिण्यास योग्य (Safe)</option>
+            <option value="पिण्यास अयोग्य" style="color:#dc2626; font-weight:800;">🔴 पिण्यास अयोग्य (Still Contaminated / Unfit)</option>
+            <option value="अहवाल अप्राप्त">🟡 अहवाल अप्राप्त (Awaited)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">अहवाल प्राप्ती दिनांक:</label>
+          <input type="date" id="nwbdcpUpdateRetestReceivedDate" class="mui-form-control" style="font-weight:700; height:42px;">
+        </div>
+        <div>
+          <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">प्रयोगशाळा जावक क्र. (Lab Ref No):</label>
+          <input type="text" id="nwbdcpUpdateRetestLabRefNo" placeholder="उदा. /2026/LAB-102" class="mui-form-control" style="height:42px;">
+        </div>
+        <div>
+          <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">प्रयोगशाळा / आरोग्य निरीक्षक शेरा:</label>
+          <input type="text" id="nwbdcpUpdateRetestRemarks" placeholder="विशेष शेरा..." class="mui-form-control" style="height:42px;">
+        </div>
+      </div>
+
+      <!-- File Upload section for Retest Report Copy -->
+      <div style="background:#f8fafc; border:1.5px dashed #0284c7; border-radius:10px; padding:14px; margin-bottom:18px;">
+        <label style="font-weight:800; font-size:12.5px; color:#0369a1; margin-bottom:6px; display:block;">📎 पुनर्तपासणी प्रयोगशाळा अहवाल प्रत अपलोड करा (PDF / Image):</label>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <input type="file" id="nwbdcpRetestReportFileInput" accept=".pdf,.jpg,.jpeg,.png,.webp" style="display:none;" onchange="onNwbdcpRetestReportFileSelected(this)">
+          <button type="button" onclick="document.getElementById('nwbdcpRetestReportFileInput').click()" class="mui-btn" style="background:#ffffff; color:#0284c7; border:1px solid #0284c7; font-weight:800;">
+            📁 फाईल निवडा
+          </button>
+          <span id="nwbdcpRetestReportFileName" style="font-size:12.5px; font-weight:700; color:#475569;">कोणतीही फाईल निवडलेली नाही</span>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid #f1f5f9; padding-top:16px;">
+        <button type="button" onclick="closeNwbdcpUpdateRetestResultModal()" class="mui-btn mui-btn-contained-secondary">
+          रद्द करा
+        </button>
+        <button type="button" onclick="submitNwbdcpUpdateRetestResult()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-weight:800;">
+          💾 निकाल व अहवाल सेव्ह करा
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Emergency Contamination Notice & Action Order Modal for FAILED Retests -->
+  <div id="nwbdcpModalEmergencyNotice" class="sheet-modal">
+    <div class="sheet-modal-body" style="max-width:850px; padding:24px; border-radius:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:2px solid #dc2626; padding-bottom:12px;" class="no-print">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#dc2626; display:flex; align-items:center; gap:8px;">
+          <span>🚨 ग्रामपंचायत तातडीची दूषित जलस्त्रोत सूचना व सुधारणा आदेश</span>
+        </h3>
+        <div style="display:flex; gap:10px;">
+          <button type="button" onclick="window.print()" class="mui-btn mui-btn-contained-primary" style="background:#dc2626; font-weight:800;">
+            🖨️ नोटीस प्रिंट काढा (Print / PDF)
+          </button>
+          <button type="button" onclick="closeNwbdcpEmergencyNoticeModal()" style="background:#edf2f7; border:none; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; color:#4a5568;">✕</button>
+        </div>
+      </div>
+
+      <!-- Printable Emergency Notice Content -->
+      <div id="nwbdcpEmergencyNoticeContent" style="padding:24px; font-family:'Noto Sans Devanagari', Arial, sans-serif; color:#000000; line-height:1.7; background:#ffffff; border:2px solid #dc2626; border-radius:10px;">
+        <!-- Dynamically rendered -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Create 2nd Follow-up Re-Test Modal -->
+  <div id="nwbdcpModalCreateFollowupRetest" class="sheet-modal">
+    <div class="sheet-modal-body" style="max-width:600px; padding:24px; border-radius:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:2px solid #dc2626; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#dc2626; display:flex; align-items:center; gap:8px;">
+          <span>⚡ द्वितीय पुनर्तपासणी (2nd Round Re-Test & Chlorination)</span>
+        </h3>
+        <button type="button" onclick="closeNwbdcpFollowupRetestModal()" style="background:#edf2f7; border:none; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; color:#4a5568;">✕</button>
+      </div>
+
+      <input type="hidden" id="nwbdcpFollowupParentRetestId">
+      <input type="hidden" id="nwbdcpFollowupOrigSampleId">
+
+      <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:14px; margin-bottom:16px; font-size:13px; color:#991b1b;">
+        <div style="font-weight:800; margin-bottom:4px;">🚨 पुनर्तपासणीतही जलस्त्रोत दूषित आढळला:</div>
+        <div>१ ली पुनर्तपासणी आयडी: <b id="nwbdcpFollowupDispRetestId">--</b></div>
+        <div>गाव व जलस्त्रोत: <b id="nwbdcpFollowupDispSource">--</b></div>
+        <div>१ ल्या पुनर्तपासणीचा निकाल: <b style="color:#dc2626;">🔴 पिण्यास अयोग्य (Contaminated)</b></div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:16px;">
+        <div>
+          <label style="font-weight:700; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">२ री पुनर्तपासणी संकलन दिनांक:</label>
+          <input type="date" id="nwbdcpFollowupCollectionDate" class="mui-form-control" style="font-weight:700;">
+        </div>
+        <div>
+          <label style="font-weight:700; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">२ री पुनर्तपासणी पाठवणी दिनांक:</label>
+          <input type="date" id="nwbdcpFollowupDispatchDate" class="mui-form-control" style="font-weight:700;">
+        </div>
+      </div>
+
+      <div style="margin-bottom:20px;">
+        <label style="font-weight:700; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">द्वितीय तातडीची सुधारणा / तीव्र क्लोरीनेशन उपाययोजना: <span style="color:#e53e3e;">*</span></label>
+        <textarea id="nwbdcpFollowupActionTaken" rows="3" class="mui-form-control" style="font-weight:600;">स्त्रोताची संपूर्ण स्वच्छता करून २ री वेळ तीव्र डोस टीसीएल ब्लिचिंग पावडरद्वारे निर्जंतुकीकरण करण्यात आले व २ रा पुनर्तपासणी नमुना घेण्यात आला.</textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid #f1f5f9; padding-top:16px;">
+        <button type="button" onclick="closeNwbdcpFollowupRetestModal()" class="mui-btn mui-btn-contained-secondary">
+          रद्द करा
+        </button>
+        <button type="button" onclick="submitNwbdcpCreateFollowupRetest()" class="mui-btn mui-btn-contained-primary" style="background:#dc2626; font-weight:800;">
+          🚀 २ री पुनर्तपासणी नोंदवा (Create 2nd Re-Test)
+        </button>
+      </div>
+    </div>
+  </div>
+
 
   <!-- ========================================================================= -->
   <!-- NWBDCP DYNAMIC JAVASCRIPT CONTROLLER                                      -->
@@ -20966,10 +21144,90 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       });
     }
 
+    // Universal Date Formatting & Normalization Helpers
+    function nwbdcpNormalizeDateYMD(dateStr) {
+      if (!dateStr) return '';
+      const str = String(dateStr).trim();
+      // Match YYYY-MM-DD or YYYY/MM/DD
+      const m1 = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+      if (m1) {
+        return `${m1[1]}-${m1[2].padStart(2, '0')}-${m1[3].padStart(2, '0')}`;
+      }
+      // Match DD-MM-YYYY or DD/MM/YYYY
+      const m2 = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+      if (m2) {
+        return `${m2[3]}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`;
+      }
+      return str.slice(0, 10);
+    }
+
+    function nwbdcpFormatDateForDisplay(dateStr) {
+      if (!dateStr) return '';
+      const ymd = nwbdcpNormalizeDateYMD(dateStr);
+      const parts = ymd.split('-');
+      if (parts.length === 3 && parts[0].length === 4) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return String(dateStr).trim();
+    }
+
+    function nwbdcpDatesMatch(d1, d2) {
+      if (!d1 || !d2) return false;
+      const n1 = nwbdcpNormalizeDateYMD(d1);
+      const n2 = nwbdcpNormalizeDateYMD(d2);
+      if (n1 && n2 && n1 === n2) return true;
+      return String(d1).trim() === String(d2).trim();
+    }
+
+    window.nwbdcpNormalizeDateYMD = nwbdcpNormalizeDateYMD;
+    window.nwbdcpFormatDateForDisplay = nwbdcpFormatDateForDisplay;
+    window.nwbdcpDatesMatch = nwbdcpDatesMatch;
+
     // =========================================================================
     // DISPATCH REGISTER & STICKERS / GOV LETTER
     // =========================================================================
     let checkedRegisterSamples = new Set();
+
+    function populateNwbdcpRegDateDropdown() {
+      const selectEl = document.getElementById('nwbdcpRegDateSelect');
+      if (!selectEl) return;
+      const prevVal = selectEl.value;
+      const dateCountMap = {};
+
+      (nwbdcpDispatchedSamplesList || []).forEach(d => {
+        const raw = nwbdcpNormalizeDateYMD(d.dispatchDate || d.createdDate);
+        if (raw) {
+          dateCountMap[raw] = (dateCountMap[raw] || 0) + 1;
+        }
+      });
+
+      const sortedDates = Object.keys(dateCountMap).sort((a, b) => b.localeCompare(a));
+      let html = '<option value="ALL">-- सर्व पाठवणी दिनांक (All Sending Dates) --</option>';
+      sortedDates.forEach(d => {
+        html += `<option value="${d}">${nwbdcpFormatDateForDisplay(d)} (${dateCountMap[d]} नमुने)</option>`;
+      });
+      selectEl.innerHTML = html;
+
+      if (sortedDates.includes(prevVal) || prevVal === 'ALL') {
+        selectEl.value = prevVal;
+      }
+    }
+
+    function onNwbdcpRegDateSelectChange(val) {
+      const dateEl = document.getElementById('nwbdcpRegFilterDate');
+      if (dateEl) {
+        dateEl.value = (val === 'ALL' ? '' : val);
+      }
+      renderNwbdcpRegisterTable();
+    }
+
+    function onNwbdcpRegFilterDateInput(val) {
+      const selectEl = document.getElementById('nwbdcpRegDateSelect');
+      if (selectEl) {
+        selectEl.value = (val ? val : 'ALL');
+      }
+      renderNwbdcpRegisterTable();
+    }
 
     function loadNwbdcpDispatchedSamples() {
       fetch('/api/nwbdcp/dispatched-samples')
@@ -20977,6 +21235,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         .then(res => {
           if (res && res.success) {
             nwbdcpDispatchedSamplesList = res.samples || [];
+            populateNwbdcpRegDateDropdown();
             renderNwbdcpRegisterTable();
             renderNwbdcpLabResultsTable();
           }
@@ -20984,6 +21243,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     }
 
     function renderNwbdcpRegisterTable() {
+      const filterDate = document.getElementById('nwbdcpRegFilterDate')?.value || '';
       const sc = document.getElementById('nwbdcpRegFilterSubcenter')?.value || 'ALL';
       const vil = document.getElementById('nwbdcpRegFilterVillage')?.value || 'ALL';
       const st = document.getElementById('nwbdcpRegFilterStatus')?.value || 'ALL';
@@ -20991,16 +21251,35 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       let list = [...nwbdcpDispatchedSamplesList];
 
+      // 1. Filter by Sending Date (dispatchDate / createdDate)
+      if (filterDate) {
+        list = list.filter(d => nwbdcpDatesMatch(d.dispatchDate, filterDate) || nwbdcpDatesMatch(d.createdDate, filterDate));
+      }
       if (sc !== 'ALL') list = list.filter(d => d.subcenter === sc);
       if (vil !== 'ALL') list = list.filter(d => d.village === vil);
       if (st !== 'ALL') list = list.filter(d => d.status === st || d.result === st);
+
+      // 2. Comprehensive Search Filter (Sample ID, Sending Date in any format, Village, Source)
       if (q) {
-        list = list.filter(d => 
-          (d.sampleId && d.sampleId.toLowerCase().includes(q)) ||
-          (d.sourceCode && d.sourceCode.toLowerCase().includes(q)) ||
-          (d.sourceName && d.sourceName.toLowerCase().includes(q)) ||
-          (d.village && d.village.toLowerCase().includes(q))
-        );
+        list = list.filter(d => {
+          const dRaw = (d.dispatchDate || '').toLowerCase();
+          const dFmt = nwbdcpFormatDateForDisplay(d.dispatchDate).toLowerCase();
+          const dNorm = nwbdcpNormalizeDateYMD(d.dispatchDate).toLowerCase();
+          const cFmt = nwbdcpFormatDateForDisplay(d.createdDate).toLowerCase();
+
+          return (
+            ((d.sampleId || '').toLowerCase().includes(q)) ||
+            dRaw.includes(q) ||
+            dFmt.includes(q) ||
+            dNorm.includes(q) ||
+            cFmt.includes(q) ||
+            ((d.sourceCode || '').toLowerCase().includes(q)) ||
+            ((d.sourceId || '').toLowerCase().includes(q)) ||
+            ((d.sourceName || '').toLowerCase().includes(q)) ||
+            ((d.village || '').toLowerCase().includes(q)) ||
+            ((d.subcenter || '').toLowerCase().includes(q))
+          );
+        });
       }
 
       const tbody = document.getElementById('nwbdcpRegisterTableBody');
@@ -21020,21 +21299,23 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         if (d.result === 'पिण्यास योग्य') resultBadgeClass = 'mui-chip-success';
         else if (d.result === 'पिण्यास अयोग्य') resultBadgeClass = 'mui-chip-danger';
 
+        const displayDate = nwbdcpFormatDateForDisplay(d.dispatchDate || d.createdDate) || '-';
+
         return `
           <tr style="${isChecked ? 'background:#f0f9ff;' : ''}">
             <td style="text-align:center;">
               <input type="checkbox" value="${d.sampleId}" ${isChecked ? 'checked' : ''} onchange="onNwbdcpRegCheckboxChange('${d.sampleId}', this.checked)">
             </td>
             <td style="font-family:monospace; font-weight:800; color:#0369a1;">${d.sampleId}</td>
-            <td><b>${d.dispatchDate}</b></td>
-            <td>${d.subcenter}</td>
-            <td><b>${d.village}</b></td>
+            <td><b>${displayDate}</b></td>
+            <td>${d.subcenter || ''}</td>
+            <td><b>${d.village || ''}</b></td>
             <td style="font-weight:700;">
               <span style="font-family:monospace; font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 5px; border-radius:4px; margin-right:5px; border:1px solid #bae6fd;">${d.sourceCode || d.sourceId || ''}</span>
-              ${d.sourceName}
+              ${d.sourceName || ''}
             </td>
-            <td><span class="mui-chip mui-chip-info">${d.sourceType}</span></td>
-            <td><span class="mui-chip mui-chip-primary">${d.ownership}</span></td>
+            <td><span class="mui-chip mui-chip-info">${d.sourceType || ''}</span></td>
+            <td><span class="mui-chip mui-chip-primary">${d.ownership || ''}</span></td>
             <td><span class="mui-chip ${resultBadgeClass}">${d.result || d.status}</span></td>
             <td style="text-align:center;">
               <button type="button" onclick="openNwbdcpSingleStickerModal('${d.sampleId}')" style="background:#f1f5f9; border:none; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11.5px; cursor:pointer;" title="नमुना स्टिकर">🖨️ स्टिकर</button>
@@ -21043,6 +21324,39 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         `;
       }).join('');
     }
+
+    function clearNwbdcpRegDateFilter() {
+      const dateEl = document.getElementById('nwbdcpRegFilterDate');
+      if (dateEl) dateEl.value = '';
+      const selectEl = document.getElementById('nwbdcpRegDateSelect');
+      if (selectEl) selectEl.value = 'ALL';
+      renderNwbdcpRegisterTable();
+    }
+
+    function filterNwbdcpRegisterTable() {
+      renderNwbdcpRegisterTable();
+    }
+
+    function onNwbdcpRegFilterSubcenterChange(scName) {
+      const filterVEl = document.getElementById('nwbdcpRegFilterVillage');
+      if (!filterVEl) return;
+      if (scName === 'ALL') {
+        filterVEl.innerHTML = '<option value="ALL">-- सर्व गावे --</option>' + 
+          (nwbdcpMasterData.villages || []).map(v => `<option value="${v.villageName}">${v.villageName}</option>`).join('');
+      } else {
+        const filteredV = (nwbdcpMasterData.villages || []).filter(v => v.subcenter === scName);
+        filterVEl.innerHTML = '<option value="ALL">-- सर्व गावे --</option>' + 
+          filteredV.map(v => `<option value="${v.villageName}">${v.villageName}</option>`).join('');
+      }
+      renderNwbdcpRegisterTable();
+    }
+
+    window.filterNwbdcpRegisterTable = renderNwbdcpRegisterTable;
+    window.renderNwbdcpRegisterTable = renderNwbdcpRegisterTable;
+    window.clearNwbdcpRegDateFilter = clearNwbdcpRegDateFilter;
+    window.onNwbdcpRegDateSelectChange = onNwbdcpRegDateSelectChange;
+    window.onNwbdcpRegFilterDateInput = onNwbdcpRegFilterDateInput;
+    window.onNwbdcpRegFilterSubcenterChange = onNwbdcpRegFilterSubcenterChange;
 
     function onNwbdcpRegCheckboxChange(sampleId, isChecked) {
       if (isChecked) checkedRegisterSamples.add(sampleId);
@@ -21222,24 +21536,6 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     let checkedLabSamples = new Set();
     let selectedLabReportFileObj = null;
 
-    function nwbdcpFormatDateForDisplay(dateStr) {
-      if (!dateStr) return '';
-      const str = String(dateStr).trim();
-      if (str.includes('-')) {
-        const parts = str.split('-');
-        if (parts.length === 3 && parts[0].length === 4) {
-          return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
-        }
-      }
-      return str;
-    }
-
-    function nwbdcpDatesMatch(d1, d2) {
-      if (!d1 || !d2) return false;
-      if (d1 === d2) return true;
-      return nwbdcpFormatDateForDisplay(d1) === nwbdcpFormatDateForDisplay(d2);
-    }
-
     function onNwbdcpLabReportFileSelected(inputEl) {
       if (inputEl.files && inputEl.files[0]) {
         const file = inputEl.files[0];
@@ -21298,7 +21594,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const dateMap = {};
 
       (nwbdcpDispatchedSamplesList || []).forEach(d => {
-        const rawDate = d.dispatchDate || 'अज्ञात';
+        const rawDate = nwbdcpNormalizeDateYMD(d.dispatchDate || d.createdDate) || 'अज्ञात';
         if (!dateMap[rawDate]) {
           dateMap[rawDate] = { 
             rawDate, 
@@ -21317,51 +21613,102 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         }
       });
 
-      // Filter ONLY dates where pending > 0
-      const pendingDateObjs = Object.values(dateMap)
-        .filter(obj => obj.pending > 0)
-        .sort((a, b) => b.rawDate.localeCompare(a.rawDate)); // Descending order (newest date first)
+      const allDateObjs = Object.values(dateMap).sort((a, b) => b.rawDate.localeCompare(a.rawDate));
+      const pendingDateObjs = allDateObjs.filter(obj => obj.pending > 0);
 
       let html = '';
+      const totalPendingCount = pendingDateObjs.reduce((acc, curr) => acc + curr.pending, 0);
 
-      if (pendingDateObjs.length === 0) {
-        html = `<option value="NONE">✅ सर्व नमुन्यांचे प्रयोगशाळा अहवाल व प्रती सेव्ह झाल्या आहेत (No Pending Dates)</option>`;
-      } else {
-        const totalPendingCount = pendingDateObjs.reduce((acc, curr) => acc + curr.pending, 0);
-        html += `<option value="ALL_PENDING">-- सर्व प्रलंबित दिनांकांचे नमुने (All Pending Dates: ${totalPendingCount}) --</option>`;
-        
+      html += `<option value="ALL_PENDING">-- सर्व प्रलंबित दिनांकांचे नमुने (All Pending: ${totalPendingCount}) --</option>`;
+      html += `<option value="ALL">-- सर्व पाठवणी दिनांक (सर्व नमुने / All Dates: ${allDateObjs.reduce((a, c) => a + c.total, 0)}) --</option>`;
+
+      if (pendingDateObjs.length > 0) {
+        html += `<optgroup label="⚠️ प्रलंबित अहवाल असलेले पाठवणी दिनांक (Pending Dates)">`;
         pendingDateObjs.forEach(obj => {
-          html += `<option value="${obj.rawDate}">${obj.displayDate} — ${obj.pending} Pending (${obj.pending} प्रलंबित)</option>`;
+          html += `<option value="${obj.rawDate}">${obj.displayDate} — ${obj.pending} प्रलंबित / ${obj.total} एकूण</option>`;
         });
+        html += `</optgroup>`;
+      }
+
+      if (allDateObjs.length > 0) {
+        html += `<optgroup label="📅 सर्व पाठवणी दिनांक यादी (All Sending Dates)">`;
+        allDateObjs.forEach(obj => {
+          html += `<option value="${obj.rawDate}">${obj.displayDate} (एकूण ${obj.total} | पूर्ण ${obj.updated})</option>`;
+        });
+        html += `</optgroup>`;
       }
 
       selectEl.innerHTML = html;
 
-      // Preserve previous value if still valid in pendingDateObjs
-      const hasPrev = pendingDateObjs.some(o => o.rawDate === prevValue);
+      // Preserve previous selection if valid
+      const hasPrev = allDateObjs.some(o => o.rawDate === prevValue);
       if (hasPrev) {
         selectEl.value = prevValue;
-      } else if (prevValue === 'ALL_PENDING' || prevValue === 'NONE') {
+      } else if (prevValue === 'ALL' || prevValue === 'ALL_PENDING') {
         selectEl.value = prevValue;
       } else if (pendingDateObjs.length > 0) {
         selectEl.value = pendingDateObjs[0].rawDate;
+      } else {
+        selectEl.value = 'ALL_PENDING';
       }
     }
+
+    function onNwbdcpLabDispatchDateSelectChange(val) {
+      const filterDateEl = document.getElementById('nwbdcpLabFilterDate');
+      if (filterDateEl) {
+        if (val && val !== 'ALL' && val !== 'ALL_PENDING' && val !== 'NONE') {
+          filterDateEl.value = nwbdcpNormalizeDateYMD(val);
+        } else {
+          filterDateEl.value = '';
+        }
+      }
+      renderNwbdcpLabResultsTable();
+    }
+
+    function onNwbdcpLabFilterDateChange(val) {
+      const selectEl = document.getElementById('nwbdcpLabDispatchDateSelect');
+      if (selectEl) {
+        if (val) {
+          selectEl.value = nwbdcpNormalizeDateYMD(val);
+        } else {
+          selectEl.value = 'ALL_PENDING';
+        }
+      }
+      renderNwbdcpLabResultsTable();
+    }
+
+    function clearNwbdcpLabDateFilter() {
+      const filterDateEl = document.getElementById('nwbdcpLabFilterDate');
+      if (filterDateEl) filterDateEl.value = '';
+      const selectEl = document.getElementById('nwbdcpLabDispatchDateSelect');
+      if (selectEl) selectEl.value = 'ALL_PENDING';
+      renderNwbdcpLabResultsTable();
+    }
+
+    window.onNwbdcpLabDispatchDateSelectChange = onNwbdcpLabDispatchDateSelectChange;
+    window.onNwbdcpLabFilterDateChange = onNwbdcpLabFilterDateChange;
+    window.clearNwbdcpLabDateFilter = clearNwbdcpLabDateFilter;
 
     function renderNwbdcpLabResultsTable() {
       updateNwbdcpPendingDispatchDateDropdown();
 
       const dateSelectEl = document.getElementById('nwbdcpLabDispatchDateSelect');
       const selectedDate = dateSelectEl ? dateSelectEl.value : 'ALL_PENDING';
+      const filterDateInput = document.getElementById('nwbdcpLabFilterDate')?.value || '';
 
       const stFilter = document.getElementById('nwbdcpLabFilterStatus')?.value || 'अहवाल अप्राप्त';
       const q = (document.getElementById('nwbdcpLabSearchInput')?.value || '').toLowerCase().trim();
 
       let list = [...nwbdcpDispatchedSamplesList];
 
-      // 1. Filter by Selected Dispatch Date
-      if (selectedDate && selectedDate !== 'ALL_PENDING' && selectedDate !== 'NONE') {
-        list = list.filter(d => nwbdcpDatesMatch(d.dispatchDate, selectedDate));
+      // 1. Filter by Sending Date (either from date input or dropdown)
+      const activeDateFilter = filterDateInput || (selectedDate !== 'ALL_PENDING' && selectedDate !== 'ALL' && selectedDate !== 'NONE' ? selectedDate : '');
+
+      if (activeDateFilter) {
+        list = list.filter(d => nwbdcpDatesMatch(d.dispatchDate, activeDateFilter) || nwbdcpDatesMatch(d.createdDate, activeDateFilter));
+      } else if (selectedDate === 'ALL_PENDING') {
+        // When viewing all pending dates, prioritize pending samples
+        list = list.filter(d => !d.result || d.result === 'अहवाल अप्राप्त' || d.result === 'Pending' || d.result === 'Awaited' || (!d.reportFileUrl && !d.reportFileName));
       }
 
       // 2. Filter by Result Status
@@ -21369,14 +21716,26 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         list = list.filter(d => d.result === stFilter || d.status === stFilter);
       }
 
-      // 3. Filter by Search Query
+      // 3. Filter by Comprehensive Search Query (Sample ID, Sending Date in any format, Village, Source)
       if (q) {
-        list = list.filter(d => 
-          d.sampleId.toLowerCase().includes(q) || 
-          (d.sourceCode && d.sourceCode.toLowerCase().includes(q)) ||
-          d.sourceName.toLowerCase().includes(q) ||
-          d.village.toLowerCase().includes(q)
-        );
+        list = list.filter(d => {
+          const dRaw = (d.dispatchDate || '').toLowerCase();
+          const dFmt = nwbdcpFormatDateForDisplay(d.dispatchDate).toLowerCase();
+          const dNorm = nwbdcpNormalizeDateYMD(d.dispatchDate).toLowerCase();
+          const cFmt = nwbdcpFormatDateForDisplay(d.createdDate).toLowerCase();
+
+          return (
+            d.sampleId.toLowerCase().includes(q) || 
+            dRaw.includes(q) ||
+            dFmt.includes(q) ||
+            dNorm.includes(q) ||
+            cFmt.includes(q) ||
+            (d.sourceCode && d.sourceCode.toLowerCase().includes(q)) ||
+            d.sourceName.toLowerCase().includes(q) ||
+            d.village.toLowerCase().includes(q) ||
+            (d.subcenter && d.subcenter.toLowerCase().includes(q))
+          );
+        });
       }
 
       // Update total pending badge
@@ -21387,12 +21746,12 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       // Update Dispatch Date Summary Badge
       const summaryEl = document.getElementById('nwbdcpLabDispatchDateSummary');
       if (summaryEl) {
-        if (selectedDate && selectedDate !== 'ALL_PENDING' && selectedDate !== 'NONE') {
-          const samplesOnDate = nwbdcpDispatchedSamplesList.filter(d => nwbdcpDatesMatch(d.dispatchDate, selectedDate));
+        if (activeDateFilter) {
+          const samplesOnDate = nwbdcpDispatchedSamplesList.filter(d => nwbdcpDatesMatch(d.dispatchDate, activeDateFilter));
           const totalOnDate = samplesOnDate.length;
           const updatedOnDate = samplesOnDate.filter(d => d.result && d.result !== 'अहवाल अप्राप्त' && d.result !== 'Pending' && (d.reportFileUrl || d.reportFileName)).length;
           const pendingOnDate = totalOnDate - updatedOnDate;
-          summaryEl.innerText = `दिनांक ${nwbdcpFormatDateForDisplay(selectedDate)}: पाठवले ${totalOnDate} | अपडेट पूर्ण ${updatedOnDate} | प्रलंबित ${pendingOnDate}`;
+          summaryEl.innerText = `दिनांक ${nwbdcpFormatDateForDisplay(activeDateFilter)}: पाठवले ${totalOnDate} | अपडेट पूर्ण ${updatedOnDate} | प्रलंबित ${pendingOnDate}`;
         } else {
           summaryEl.innerText = `एकूण प्रलंबित अहवाल: ${pendingCount} नमुने`;
         }
@@ -21806,51 +22165,342 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         });
     }
 
+    function clearNwbdcpRetestDateFilter() {
+      const dateEl = document.getElementById('nwbdcpRetestFilterDate');
+      if (dateEl) dateEl.value = '';
+      renderNwbdcpRetestsTable();
+    }
+    window.clearNwbdcpRetestDateFilter = clearNwbdcpRetestDateFilter;
+
     function renderNwbdcpRetestsTable() {
       const tbody = document.getElementById('nwbdcpRetestsTableBody');
+      const countBadge = document.getElementById('nwbdcpRetestCountBadge');
+      const alertBanner = document.getElementById('nwbdcpRetestsAlertBanner');
       if (!tbody) return;
 
-      if (nwbdcpRetestsList.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center; padding:30px; color:#64748b;">कोणतीही पुनर्तपासणी नोंद उपलब्ध नाही.</td></tr>`;
+      const filterDate = document.getElementById('nwbdcpRetestFilterDate')?.value || '';
+      const q = (document.getElementById('nwbdcpRetestSearchInput')?.value || '').toLowerCase().trim();
+
+      let list = [...nwbdcpRetestsList];
+
+      if (filterDate) {
+        list = list.filter(rt => nwbdcpDatesMatch(rt.retestDispatchDate, filterDate));
+      }
+
+      if (q) {
+        list = list.filter(rt => {
+          const dRaw = (rt.retestDispatchDate || '').toLowerCase();
+          const dFmt = nwbdcpFormatDateForDisplay(rt.retestDispatchDate).toLowerCase();
+          const dNorm = nwbdcpNormalizeDateYMD(rt.retestDispatchDate).toLowerCase();
+
+          return (
+            (rt.retestId && rt.retestId.toLowerCase().includes(q)) ||
+            (rt.originalSampleId && rt.originalSampleId.toLowerCase().includes(q)) ||
+            (rt.village && rt.village.toLowerCase().includes(q)) ||
+            (rt.subcenter && rt.subcenter.toLowerCase().includes(q)) ||
+            (rt.sourceName && rt.sourceName.toLowerCase().includes(q)) ||
+            dRaw.includes(q) ||
+            dFmt.includes(q) ||
+            dNorm.includes(q)
+          );
+        });
+      }
+
+      // Check if any re-test is STILL contaminated (Unfit)
+      const hasUnfitRetest = nwbdcpRetestsList.some(rt => rt.retestResult === 'पिण्यास अयोग्य' || rt.retestResult === 'Unfit');
+      if (alertBanner) {
+        alertBanner.style.display = hasUnfitRetest ? 'flex' : 'none';
+      }
+
+      if (countBadge) countBadge.innerText = `${list.length} नोंदी`;
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">कोणतीही पुनर्तपासणी नोंद उपलब्ध नाही.</td></tr>`;
         return;
       }
 
-      tbody.innerHTML = nwbdcpRetestsList.map(rt => `
-        <tr>
+      tbody.innerHTML = list.map(rt => {
+        const displayDate = nwbdcpFormatDateForDisplay(rt.retestDispatchDate) || rt.retestDispatchDate || '-';
+        const isUnfit = rt.retestResult === 'पिण्यास अयोग्य' || rt.retestResult === 'Unfit';
+
+        let resultBadgeHtml = '<span class="mui-chip mui-chip-warning" style="font-weight:800;">🟡 अहवाल अप्राप्त</span>';
+        if (rt.retestResult === 'पिण्यास योग्य' || rt.retestResult === 'Safe') {
+          resultBadgeHtml = '<span class="mui-chip mui-chip-success" style="font-weight:800;">🟢 पिण्यास योग्य (Safe)</span>';
+        } else if (isUnfit) {
+          resultBadgeHtml = '<span class="mui-chip mui-chip-danger" style="font-weight:800; background:#dc2626; color:#ffffff; padding:4px 10px; border-radius:6px; font-size:11.5px; display:inline-flex; align-items:center; gap:4px;">🚨 🔴 अद्यापही दूषित</span>';
+        }
+
+        const hasReportCopy = Boolean(rt.retestReportFileUrl || rt.retestReportFileName);
+        const reportCopyHtml = hasReportCopy ?
+          `<a href="${rt.retestReportFileUrl || '#'}" target="_blank" style="background:#e0f2fe; color:#0369a1; border:1px solid #bae6fd; font-weight:800; font-size:11px; padding:3px 8px; border-radius:6px; text-decoration:none; display:inline-flex; align-items:center; gap:4px;" title="प्रयोगशाळा अहवाल प्रत पहा">📄 अहवाल पहा</a>` :
+          `<span style="font-size:11.5px; color:#94a3b8;">--</span>`;
+
+        return `
+        <tr style="${isUnfit ? 'background:#fef2f2;' : ''}">
           <td style="font-family:monospace; font-weight:800; color:#dc2626;">${rt.retestId}</td>
           <td style="font-family:monospace; font-weight:700;">${rt.originalSampleId}</td>
-          <td>${rt.subcenter}</td>
-          <td><b>${rt.village}</b></td>
-          <td style="font-weight:700;">${rt.sourceName}</td>
-          <td style="font-size:12.5px; color:#475569;">${rt.actionTaken}</td>
-          <td><b>${rt.retestDispatchDate}</b></td>
-          <td><span class="mui-chip ${rt.retestResult === 'पिण्यास योग्य' ? 'mui-chip-success' : 'mui-chip-danger'}">${rt.retestResult}</span></td>
-          <td style="text-align:center;">
-            <button type="button" onclick="quickUpdateRetestResultPrompt('${rt.retestId}')" style="background:#e0f2fe; color:#0369a1; border:none; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11.5px; cursor:pointer;">✏️ निकाल नोंदवा</button>
+          <td>${rt.subcenter || '--'}</td>
+          <td><b>${rt.village || '--'}</b></td>
+          <td style="font-weight:700;">${rt.sourceName || '--'}</td>
+          <td style="font-size:12.5px; color:#475569;">${rt.actionTaken || '--'}</td>
+          <td><b>${displayDate}</b></td>
+          <td>${resultBadgeHtml}</td>
+          <td>${reportCopyHtml}</td>
+          <td style="text-align:center; white-space:nowrap;">
+            <button type="button" onclick="openNwbdcpUpdateRetestResultModal('${rt.retestId}')" style="background:#0284c7; color:#ffffff; border:none; padding:5px 10px; border-radius:6px; font-weight:800; font-size:11.5px; cursor:pointer;" title="निकाल व अहवाल सेव्ह करा">
+              ✏️ निकाल नोंदवा
+            </button>
+            ${isUnfit ? `
+              <button type="button" onclick="openNwbdcpEmergencyNoticeModal('${rt.retestId}')" style="background:#dc2626; color:#ffffff; border:none; padding:5px 10px; border-radius:6px; font-weight:800; font-size:11.5px; cursor:pointer; margin-left:4px;" title="ग्रामपंचायतीस तातडीचा बंद व दुरुस्ती आदेश काढा">
+                🚨 तातडीची नोटीस
+              </button>
+              <button type="button" onclick="openNwbdcpFollowupRetestModal('${rt.retestId}')" style="background:#7c2d12; color:#ffffff; border:none; padding:5px 10px; border-radius:6px; font-weight:800; font-size:11.5px; cursor:pointer; margin-left:4px;" title="२ री तीव्र क्लोरीनेशन पुनर्तपासणी नोंदवा">
+                ⚡ २ री पुनर्तपासणी
+              </button>
+            ` : ''}
           </td>
         </tr>
-      `).join('');
+      `;
+      }).join('');
     }
 
-    function quickUpdateRetestResultPrompt(retestId) {
-      const result = prompt("पुनर्तपासणी निकाल प्रविष्ट करा:\n1. पिण्यास योग्य\n2. पिण्यास अयोग्य", "पिण्यास योग्य");
-      if (!result) return;
+    let selectedRetestReportFileObj = null;
 
-      const cleanRes = (result.includes('योग्य') && !result.includes('अयोग्य')) ? "पिण्यास योग्य" : "पिण्यास अयोग्य";
+    function openNwbdcpUpdateRetestResultModal(retestId) {
+      const rt = nwbdcpRetestsList.find(r => r.retestId === retestId);
+      if (!rt) {
+        alert('⚠️ पुनर्तपासणी नोंद सापडली नाही.');
+        return;
+      }
+      document.getElementById('nwbdcpUpdateRetestId').value = rt.retestId;
+      document.getElementById('nwbdcpUpdateRetestDispId').innerText = rt.retestId;
+      document.getElementById('nwbdcpUpdateRetestDispOrigId').innerText = rt.originalSampleId;
+      document.getElementById('nwbdcpUpdateRetestDispSource').innerText = `${rt.subcenter || ''} / ${rt.village || ''} - ${rt.sourceName || ''}`;
+      document.getElementById('nwbdcpUpdateRetestDispAction').innerText = rt.actionTaken || '--';
+
+      document.getElementById('nwbdcpUpdateRetestResultSelect').value = rt.retestResult || 'पिण्यास योग्य';
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('nwbdcpUpdateRetestReceivedDate').value = rt.retestReportReceivedDate || today;
+      document.getElementById('nwbdcpUpdateRetestLabRefNo').value = rt.retestLabRefNo || '';
+      document.getElementById('nwbdcpUpdateRetestRemarks').value = rt.labRemarks || rt.remarks || '';
+
+      selectedRetestReportFileObj = null;
+      document.getElementById('nwbdcpRetestReportFileName').innerText = rt.retestReportFileName ? `सद्य फाईल: ${rt.retestReportFileName}` : 'कोणतीही फाईल निवडलेली नाही';
+
+      document.getElementById('nwbdcpModalUpdateRetestResult').classList.add('open');
+    }
+
+    function closeNwbdcpUpdateRetestResultModal() {
+      document.getElementById('nwbdcpModalUpdateRetestResult').classList.remove('open');
+    }
+
+    function onNwbdcpRetestReportFileSelected(inputEl) {
+      if (inputEl.files && inputEl.files[0]) {
+        const file = inputEl.files[0];
+        const allowed = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!allowed.includes(ext)) {
+          alert(`⚠️ अवैध फाईल प्रकार (.${ext}). फक्त PDF, JPG, JPEG, PNG किंवा WEBP फाईल निवडा.`);
+          inputEl.value = '';
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          selectedRetestReportFileObj = {
+            fileName: file.name,
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            fileType: ext.toUpperCase(),
+            fileData: e.target.result
+          };
+          document.getElementById('nwbdcpRetestReportFileName').innerText = `✓ निवडली: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    function submitNwbdcpUpdateRetestResult() {
+      const retestId = document.getElementById('nwbdcpUpdateRetestId').value;
+      const retestResult = document.getElementById('nwbdcpUpdateRetestResultSelect').value;
+      const retestReportReceivedDate = document.getElementById('nwbdcpUpdateRetestReceivedDate').value;
+      const retestLabRefNo = document.getElementById('nwbdcpUpdateRetestLabRefNo').value;
+      const labRemarks = document.getElementById('nwbdcpUpdateRetestRemarks').value;
+
+      const payload = {
+        retestId,
+        retestResult,
+        retestReportReceivedDate,
+        retestLabRefNo,
+        labRemarks,
+        reportCopy: selectedRetestReportFileObj
+      };
 
       nwbdcpFetch('/api/nwbdcp/update-retest-result', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ retestId, retestResult: cleanRes })
+        body: JSON.stringify(payload)
       })
       .then(r => r.json())
       .then(res => {
         if (res && res.success) {
           showToast(res.message);
+          closeNwbdcpUpdateRetestResultModal();
           loadNwbdcpRetests();
+          loadNwbdcpDispatchedSamples();
+
+          if (retestResult === 'पिण्यास अयोग्य') {
+            setTimeout(() => {
+              if (confirm('🚨 लक्ष द्या! पुनर्तपासणीत नमुना अजूनही दूषित आढळला आहे.\n\nग्रामपंचायतीस तातडीचा बंद व दुरुस्ती आदेश (Emergency Notice) आताच पाहायचा / प्रिंट करायचा आहे का?')) {
+                openNwbdcpEmergencyNoticeModal(retestId);
+              }
+            }, 300);
+          }
+        } else {
+          alert('⚠️ एरर: ' + (res.error || res.message));
         }
       });
     }
+
+    function openNwbdcpEmergencyNoticeModal(retestId) {
+      const rt = nwbdcpRetestsList.find(r => r.retestId === retestId);
+      if (!rt) {
+        alert('⚠️ पुनर्तपासणी नोंद सापडली नाही.');
+        return;
+      }
+
+      const todayStr = nwbdcpFormatDateForDisplay(new Date().toISOString().slice(0, 10));
+      const currentYear = new Date().getFullYear();
+      const reportDateFmt = nwbdcpFormatDateForDisplay(rt.retestReportReceivedDate || rt.updatedDate || new Date().toISOString().slice(0, 10));
+
+      const html = `
+        <div style="text-align:center; border-bottom:2px solid #dc2626; padding-bottom:12px; margin-bottom:16px;">
+          <div style="font-size:16px; font-weight:800; color:#dc2626;">🚨 तातडीचा आरोग्य व सुधारणा आदेश / नोटीस 🚨</div>
+          <div style="font-size:17px; font-weight:800; color:#0f172a; margin:4px 0;">प्राथमिक आरोग्य केंद्र, भादा (सार्वजनिक आरोग्य विभाग)</div>
+          <div style="font-size:12.5px; color:#475569;">तालुका: औसा, जिल्हा: धाराशीव | जल गुणवत्ता नियंत्रण कक्ष</div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin-bottom:16px;">
+          <div>जा.क्र./प्राआकेभा/NWBDCP/दूषित-जलस्त्रोत-नोटीस/${currentYear}/${rt.retestId.replace('NWBDCP-RT-', '')}</div>
+          <div>दिनांक: ${todayStr}</div>
+        </div>
+
+        <div style="font-size:13.5px; margin-bottom:14px; line-height:1.6;">
+          प्रति,<br>
+          <b>मा. सरपंच / ग्रामविकास अधिकारी / ग्रामसेवक,</b><br>
+          ग्रामपंचायत <b>${rt.village || 'भादा'}</b> (उपकेंद्र: ${rt.subcenter || '--'}).<br>
+          तालुका: औसा, जिल्हा: धाराशीव.
+        </div>
+
+        <div style="font-size:14px; font-weight:800; margin-bottom:14px; background:#fef2f2; padding:10px 14px; border-left:5px solid #dc2626; color:#991b1b;">
+          विषय: ग्रामपंचायत क्षेत्रातील पिण्याच्या पाण्याचा जलस्त्रोत पुनर्तपासणीतही 'पिण्यास अयोग्य' (दूषित) आढळल्याने तातडीने बंद करण्याबाबत व सुधारणा आदेश.
+        </div>
+
+        <div style="font-size:13.5px; margin-bottom:16px; text-align:justify; line-height:1.7;">
+          महोदय,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;आपल्या ग्रामपंचायत क्षेत्रातील <b>'${rt.village}'</b> येथील जलस्त्रोत <b>'${rt.sourceName}'</b> मधील पाणी नमुना (मूळ नमुना आयडी: <code>${rt.originalSampleId}</code>) यापूर्वी रासायनिक व जैविक तपासणीत 'पिण्यास अयोग्य' आढळला होता. त्यावर टीसीएल ब्लिचिंग पावडरद्वारे सुपर क्लोरीनेशन उपाययोजना करून पुनर्तपासणी नमुना (पुनर्तपासणी आयडी: <code>${rt.retestId}</code>) घेण्यात आला होता.
+          <br><br>
+          परंतु प्रयोगशाळा अहवाल दिनांक <b>${reportDateFmt}</b> (जावक क्र. ${rt.retestLabRefNo || 'जावक प्राआके/102'}) नुसार <b>पुनर्तपासणीनंतरही सदर पाणी नमुना 'पिण्यास अयोग्य' (Contaminated / Unfit)</b> आढळला आहे. दूषित पाण्यामुळे गावात जलजन्य आजारांचा (उदा. अतिसार, काविळ, गॅस्ट्रो, टायफॉईड) प्रादुर्भाव पसरण्याची तीव्र शक्यता आहे.
+        </div>
+
+        <div style="background:#fff5f5; border:1.5px solid #fecaca; border-radius:8px; padding:14px 18px; margin-bottom:18px;">
+          <div style="font-weight:800; font-size:14px; color:#dc2626; margin-bottom:8px;">⚠️ ग्रामपंचायतीने तातडीने खालील ३ अत्यंत महत्त्वाच्या उपाययोजना कराव्यात:</div>
+          <ol style="margin:0; padding-left:20px; font-size:13px; color:#1e293b; line-height:1.7;">
+            <li><b>जलस्त्रोत तातडीने बंद करा:</b> <b>'${rt.sourceName}'</b> हा जलस्त्रोत तात्काळ बंद करण्यात यावा व त्या ठिकाणी <i>'हे पाणी पिण्यास अयोग्य आहे'</i> असा स्पष्ट लाल रंगाचा फलक लावावा.</li>
+            <li><b>द्वितीय तीव्र सुपर क्लोरीनेशन व विहीर/टाकी सफाई:</b> जलकुंभाची/विहिरीची संपूर्ण गाळ सफाई करून उच्च डोस टीसीएल ब्लिचिंग पावडरद्वारे पुन्हा निर्जंतुकीकरण करण्यात यावे.</li>
+            <li><b>पर्यायी स्वच्छ पाणीपुरवठा:</b> ग्रामस्थांना २ री पुनर्तपासणी 'पिण्यास योग्य' येईपर्यंत उकळून पाणी पिण्याचे दवंडीद्वारे आवाहन करावे व पर्यायी स्वच्छ पाणी पुरवावे.</li>
+          </ol>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:35px; padding-top:15px; font-size:13px;">
+          <div>
+            <b>प्रत माहिती व पुढील कार्यवाहीसाठी सस्नेह रवाना:</b><br>
+            १. मा. गट विकास अधिकारी (BDO), पंचायत समिती औसा.<br>
+            २. मा. तालुका आरोग्य अधिकारी (THO), औसा.<br>
+            ३. आरोग्य निरीक्षक / आरोग्य सेवक, उपकेंद्र ${rt.subcenter}.
+          </div>
+          <div style="text-align:center;">
+            <br><br>
+            <b>वैद्यकीय अधिकारी</b><br>
+            प्राथमिक आरोग्य केंद्र, भादा<br>
+            ता. औसा, जि. धाराशीव
+          </div>
+        </div>
+      `;
+
+      document.getElementById('nwbdcpEmergencyNoticeContent').innerHTML = html;
+      document.getElementById('nwbdcpModalEmergencyNotice').classList.add('open');
+    }
+
+    function closeNwbdcpEmergencyNoticeModal() {
+      document.getElementById('nwbdcpModalEmergencyNotice').classList.remove('open');
+    }
+
+    function openNwbdcpFollowupRetestModal(retestId) {
+      const rt = nwbdcpRetestsList.find(r => r.retestId === retestId);
+      if (!rt) {
+        alert('⚠️ पुनर्तपासणी नोंद सापडली नाही.');
+        return;
+      }
+      document.getElementById('nwbdcpFollowupParentRetestId').value = rt.retestId;
+      document.getElementById('nwbdcpFollowupOrigSampleId').value = rt.originalSampleId;
+      document.getElementById('nwbdcpFollowupDispRetestId').innerText = rt.retestId;
+      document.getElementById('nwbdcpFollowupDispSource').innerText = `${rt.village} - ${rt.sourceName}`;
+
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('nwbdcpFollowupCollectionDate').value = today;
+      document.getElementById('nwbdcpFollowupDispatchDate').value = today;
+
+      document.getElementById('nwbdcpModalCreateFollowupRetest').classList.add('open');
+    }
+
+    function closeNwbdcpFollowupRetestModal() {
+      document.getElementById('nwbdcpModalCreateFollowupRetest').classList.remove('open');
+    }
+
+    function submitNwbdcpCreateFollowupRetest() {
+      const parentRetestId = document.getElementById('nwbdcpFollowupParentRetestId').value;
+      const originalSampleId = document.getElementById('nwbdcpFollowupOrigSampleId').value;
+      const retestCollectionDate = document.getElementById('nwbdcpFollowupCollectionDate').value;
+      const retestDispatchDate = document.getElementById('nwbdcpFollowupDispatchDate').value;
+      const actionTaken = document.getElementById('nwbdcpFollowupActionTaken').value;
+
+      if (!actionTaken || !actionTaken.trim()) {
+        alert('⚠️ कृपया २ री तीव्र टीसीएल क्लोरीनेशन उपाययोजना प्रविष्ट करा.');
+        return;
+      }
+
+      const payload = {
+        originalSampleId,
+        parentRetestId,
+        retestCollectionDate,
+        retestDispatchDate,
+        actionTaken: `[२ री पुनर्तपासणी] ${actionTaken}`
+      };
+
+      nwbdcpFetch('/api/nwbdcp/retest-sample', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && res.success) {
+          showToast(res.message || '✅ २ री पुनर्तपासणी यशस्वीरित्या नोंदवली गेली!');
+          closeNwbdcpFollowupRetestModal();
+          loadNwbdcpRetests();
+        } else {
+          alert('⚠️ एरर: ' + (res.error || res.message));
+        }
+      });
+    }
+
+    window.openNwbdcpUpdateRetestResultModal = openNwbdcpUpdateRetestResultModal;
+    window.closeNwbdcpUpdateRetestResultModal = closeNwbdcpUpdateRetestResultModal;
+    window.onNwbdcpRetestReportFileSelected = onNwbdcpRetestReportFileSelected;
+    window.submitNwbdcpUpdateRetestResult = submitNwbdcpUpdateRetestResult;
+    window.openNwbdcpEmergencyNoticeModal = openNwbdcpEmergencyNoticeModal;
+    window.closeNwbdcpEmergencyNoticeModal = closeNwbdcpEmergencyNoticeModal;
+    window.openNwbdcpFollowupRetestModal = openNwbdcpFollowupRetestModal;
+    window.closeNwbdcpFollowupRetestModal = closeNwbdcpFollowupRetestModal;
+    window.submitNwbdcpCreateFollowupRetest = submitNwbdcpCreateFollowupRetest;
 
     // =========================================================================
     // DYNAMIC NWBDCP REPORTS CONTROLLER

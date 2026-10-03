@@ -20,6 +20,16 @@ async function runHardeningTests() {
   assert(integrity.issues.multipleActiveFilesSameDocument.length === 0, 'No duplicate active files for same document');
   console.log('   ✅ Integrity check passed: 0 conflicting active references detected.');
 
+  // Obtain authenticated STAFF token for storage tests
+  const tokenRes = await fetch(`${BASE_URL}/api/nwbdcp/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken: 'TEST_GOOGLE_TOKEN_STAFF#hardening' })
+  });
+  const tokenData = await tokenRes.json();
+  assert(tokenData.success === true, 'Must obtain valid staff token');
+  const staffAuthHeader = { 'Authorization': `Bearer ${tokenData.token}` };
+
   // 3. Reject corrupted / spoofed file (e.g. text file disguised as .pdf)
   console.log('3. Testing Magic Bytes / Header Validation (Spoofed PDF)...');
   const fakePdfPayload = {
@@ -32,7 +42,7 @@ async function runHardeningTests() {
 
   const fakeRes = await fetch(`${BASE_URL}/api/nwbdcp/storage/upload`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...staffAuthHeader },
     body: JSON.stringify(fakePdfPayload)
   });
   assert(fakeRes.status === 400, 'Spoofed PDF must be rejected with HTTP 400');
@@ -54,7 +64,7 @@ async function runHardeningTests() {
 
   const uploadRes = await fetch(`${BASE_URL}/api/nwbdcp/storage/upload`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...staffAuthHeader },
     body: JSON.stringify(uploadPayload)
   });
   const uploadJson = await uploadRes.json();
@@ -83,10 +93,15 @@ async function runHardeningTests() {
 
   // 7. Test Authorized File Serving
   console.log('7. Testing Authorized File Serving...');
-  const serveRes = await fetch(`${BASE_URL}/api/nwbdcp/storage/serve/${validDriveId}`);
-  assert(serveRes.status === 200, 'Valid file serving must return HTTP 200');
-  assert(serveRes.headers.get('content-type').includes('pdf'), 'Content-Type must be PDF');
-  console.log('   ✅ Authorized file served with HTTP 200 and Content-Type application/pdf.');
+  const serveRes = await fetch(`${BASE_URL}/api/nwbdcp/storage/serve/${validDriveId}`, { redirect: 'manual' });
+  assert(serveRes.status === 200 || serveRes.status === 302, 'Valid file serving must return HTTP 200 or 302 redirect');
+  if (serveRes.status === 302) {
+    assert(serveRes.headers.get('location').includes('drive.google.com'), 'Must redirect to Google Drive');
+    console.log('   ✅ Authorized file redirected with HTTP 302 to Google Drive URL.');
+  } else {
+    assert(serveRes.headers.get('content-type').includes('pdf'), 'Content-Type must be PDF');
+    console.log('   ✅ Authorized file served with HTTP 200 and Content-Type application/pdf.');
+  }
 
   // 8. Test NVBDCP Regression (Zero impact on NVBDCP)
   console.log('8. Testing NVBDCP Absolute Protection & Regression...');

@@ -1352,10 +1352,17 @@ export function generateNwbdcpReports(reportType, options = {}) {
 
   // Apply Date / Period Filters
   if (fromDate && toDate) {
-    samples = samples.filter(s => s.dispatchDate >= fromDate && s.dispatchDate <= toDate);
+    samples = samples.filter(s => {
+      const d = s.dispatchDate || '';
+      return d >= fromDate && d <= toDate;
+    });
+  } else if (fromDate) {
+    samples = samples.filter(s => (s.dispatchDate || '') >= fromDate);
+  } else if (toDate) {
+    samples = samples.filter(s => (s.dispatchDate || '') <= toDate);
   } else if (month && month !== 'ALL' && year) {
     const monthNumStr = String(month).padStart(2, '0');
-    samples = samples.filter(s => s.dispatchDate.startsWith(`${year}-${monthNumStr}`));
+    samples = samples.filter(s => (s.dispatchDate || '').startsWith(`${year}-${monthNumStr}`));
   }
 
   if (subcenter && subcenter !== 'ALL') samples = samples.filter(s => s.subcenter === subcenter);
@@ -1365,13 +1372,24 @@ export function generateNwbdcpReports(reportType, options = {}) {
   if (resultStatus && resultStatus !== 'ALL') samples = samples.filter(s => s.result === resultStatus || s.status === resultStatus);
   if (search) {
     const q = search.toLowerCase().trim();
-    samples = samples.filter(s =>
-      (s.sampleId && s.sampleId.toLowerCase().includes(q)) ||
-      (s.sourceCode && s.sourceCode.toLowerCase().includes(q)) ||
-      (s.sourceId && s.sourceId.toLowerCase().includes(q)) ||
-      (s.sourceName && s.sourceName.toLowerCase().includes(q)) ||
-      (s.village && s.village.toLowerCase().includes(q))
-    );
+    samples = samples.filter(s => {
+      const d = (s.dispatchDate || '').toLowerCase();
+      let dDisplay = '';
+      if (d.includes('-')) {
+        const p = d.split('-');
+        if (p.length === 3) dDisplay = `${p[2]}/${p[1]}/${p[0]}`;
+      }
+      return (
+        (s.sampleId && s.sampleId.toLowerCase().includes(q)) ||
+        (s.sourceCode && s.sourceCode.toLowerCase().includes(q)) ||
+        (s.sourceId && s.sourceId.toLowerCase().includes(q)) ||
+        (s.sourceName && s.sourceName.toLowerCase().includes(q)) ||
+        (s.village && s.village.toLowerCase().includes(q)) ||
+        (s.subcenter && s.subcenter.toLowerCase().includes(q)) ||
+        d.includes(q) ||
+        (dDisplay && dDisplay.includes(q))
+      );
+    });
   }
 
   // Universal Helper to parse dates into timestamp numbers for true DESCENDING date sorting

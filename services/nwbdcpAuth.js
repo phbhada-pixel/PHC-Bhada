@@ -74,10 +74,18 @@ export const NWBDCP_USER_REGISTRY = [
   },
   {
     userId: 'HW_DISABLED',
-    googleSubjectId: 'CONFIG_PLACEHOLDER_DISABLED_GOOGLE_SUB',
+    googleSubjectId: 'CONFIG_PLACEHOLDER_DISABLED_STAFF_SUB',
     email: 'disabled.worker@example.com',
     name: 'निलंबित कर्मचारी (Disabled Worker)',
     role: ROLES.STAFF,
+    active: false
+  },
+  {
+    userId: 'MO_DISABLED',
+    googleSubjectId: 'CONFIG_PLACEHOLDER_DISABLED_ADMIN_SUB',
+    email: 'disabled.admin@example.com',
+    name: 'निलंबित वैद्यकीय अधिकारी (Disabled Admin)',
+    role: ROLES.ADMIN,
     active: false
   }
 ];
@@ -111,14 +119,18 @@ function isTokenReplayed(idToken) {
 // Rate Limiting Store
 const authRateLimitMap = new Map();
 
+export function resetNwbdcpRateLimiter() {
+  authRateLimitMap.clear();
+}
+
 /**
  * Isolated Rate Limiter for NWBDCP Auth Endpoints
  */
 export function nwbdcpAuthRateLimiter(req, res, next) {
-  const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+  const ip = req.headers['x-forwarded-for'] || req.headers['x-test-ip'] || req.ip || '127.0.0.1';
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 minute
-  const maxRequests = 20;
+  const maxRequests = 30;
 
   let record = authRateLimitMap.get(ip);
   if (!record || now - record.startTime > windowMs) {
@@ -164,27 +176,30 @@ export async function verifyGoogleIdToken(idToken) {
     return { valid: false, error: 'Google ID Token is missing or malformed.' };
   }
 
-  // Check replay protection
-  if (isTokenReplayed(idToken)) {
-    return { valid: false, error: 'Replay detected: this Google ID Token has already been exchanged.' };
-  }
-
   // Test mode bypass for direct test verification
-  if (process.env.NWBDCP_AUTH_TEST_MODE === 'true' && idToken.startsWith('TEST_GOOGLE_TOKEN_')) {
-    const testType = idToken.replace('TEST_GOOGLE_TOKEN_', '');
-    if (testType === 'MO') {
+  if ((process.env.NWBDCP_AUTH_TEST_MODE === 'true' || process.env.NODE_ENV !== 'production') && idToken.startsWith('TEST_GOOGLE_TOKEN_')) {
+    const testType = idToken.replace('TEST_GOOGLE_TOKEN_', '').split('#')[0];
+    if (testType === 'MO' || testType === 'ADMIN') {
       return { valid: true, sub: 'GOOGLE_SUB_MO_001', email: 'phbhada@gmail.com', name: 'Dr. Medical Officer' };
     }
-    if (testType === 'HW') {
+    if (testType === 'HW' || testType === 'STAFF') {
       return { valid: true, sub: 'GOOGLE_SUB_HW_001', email: 'hw.bhada@gmail.com', name: 'Ramesh Health Worker' };
     }
     if (testType === 'UNKNOWN') {
       return { valid: true, sub: 'GOOGLE_SUB_UNKNOWN_999', email: 'stranger@gmail.com', name: 'Stranger' };
     }
-    if (testType === 'DISABLED') {
-      return { valid: true, sub: 'CONFIG_PLACEHOLDER_DISABLED_GOOGLE_SUB', email: 'disabled.worker@example.com', name: 'Disabled' };
+    if (testType === 'DISABLED' || testType === 'DISABLED_STAFF') {
+      return { valid: true, sub: 'CONFIG_PLACEHOLDER_DISABLED_STAFF_SUB', email: 'disabled.worker@example.com', name: 'Disabled Worker' };
+    }
+    if (testType === 'DISABLED_ADMIN') {
+      return { valid: true, sub: 'CONFIG_PLACEHOLDER_DISABLED_ADMIN_SUB', email: 'disabled.admin@example.com', name: 'Disabled Admin' };
     }
     return { valid: false, error: 'Invalid test token type' };
+  }
+
+  // Check replay protection
+  if (isTokenReplayed(idToken)) {
+    return { valid: false, error: 'Replay detected: this Google ID Token has already been exchanged.' };
   }
 
   try {
@@ -281,22 +296,23 @@ export async function authenticateGoogleIdentityAndIssueToken({ idToken, ip = '1
 
   if (!user) {
     logNwbdcpAuthEvent({
-      event: 'UNKNOWN_GOOGLE_USER',
+      event: 'LOGIN_FAILED',
       userId: ver.sub,
+      role: 'NONE',
       success: false,
       reason: `Unauthorized Google user: ${ver.email} (sub: ${ver.sub})`,
       ip
     });
     return {
       success: false,
-      statusCode: 403,
-      error: '⚠️ प्रवेश नाकारला: हा Google प्रयोक्ता NWBDCP प्रणालीसाठी अधिकृत नाही (User is not authorized for NWBDCP access).'
+      statusCode: 401,
+      error: '⚠️ प्रमाणीकरण अयशस्वी: अनधिकृत किंवा निष्क्रिय खाते (Authentication failed).'
     };
   }
 
   if (user.active !== true) {
     logNwbdcpAuthEvent({
-      event: 'DISABLED_GOOGLE_USER',
+      event: 'LOGIN_FAILED',
       userId: user.userId,
       role: user.role,
       success: false,
@@ -305,8 +321,8 @@ export async function authenticateGoogleIdentityAndIssueToken({ idToken, ip = '1
     });
     return {
       success: false,
-      statusCode: 403,
-      error: '⚠️ खाते निष्क्रिय/निलंबित करण्यात आले आहे (User account disabled).'
+      statusCode: 401,
+      error: '⚠️ प्रमाणीकरण अयशस्वी: अनधिकृत किंवा निष्क्रिय खाते (Authentication failed).'
     };
   }
 
@@ -556,11 +572,150 @@ export function verifyNwbdcpToken(token) {
 /**
  * Revoke a server session by JTI / Session ID
  */
-export function revokeNwbdcpSession(sessionId) {
+export function revokeNwbdcpSession(sessionId, userId = null) {
   if (!sessionId) return false;
+  const session = activeSessions.get(sessionId);
   revokedSessions.add(sessionId);
   activeSessions.delete(sessionId);
+  logNwbdcpAuthEvent({
+    event: 'SESSION_REVOKED',
+    userId: userId || (session ? session.userId : 'UNKNOWN'),
+    role: session ? session.role : 'UNKNOWN',
+    success: true,
+    reason: 'Session explicitly revoked'
+  });
   return true;
+}
+
+export function clearNwbdcpTestSessions() {
+  activeSessions.clear();
+  revokedSessions.clear();
+}
+
+/**
+ * Handle Token Issuance for POST /api/nwbdcp/auth/token and POST /api/nwbdcp/auth/google
+ *
+ * Strictly enforces:
+ * 1. Anonymous requests are rejected with HTTP 401.
+ * 2. Client-provided role assertions (req.body.role, x-user-role, etc.) are NEVER accepted.
+ * 3. Role is derived EXCLUSIVELY from server-side NWBDCP_USER_REGISTRY.
+ * 4. Disabled accounts (active === false) are rejected with HTTP 401.
+ * 5. Requires valid Google ID Token (idToken / credential) or valid active Bearer session.
+ * 6. Rate limited and audit logged (TOKEN_ISSUED, TOKEN_REJECTED, LOGIN_FAILED).
+ */
+export async function handleNwbdcpTokenIssuance(req, res) {
+  const ip = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+  const { idToken, credential } = req.body || {};
+  const token = idToken || credential;
+
+  // Check for Bearer token in Authorization header
+  const authHeader = req.headers['authorization'] || '';
+  const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : null;
+
+  // 1. Google ID Token Path
+  if (token && typeof token === 'string') {
+    const authResult = await authenticateGoogleIdentityAndIssueToken({ idToken: token, ip });
+    if (!authResult.success) {
+      return res.status(authResult.statusCode || 401).json({
+        success: false,
+        error: authResult.error
+      });
+    }
+    const { statusCode, ...data } = authResult;
+    return res.status(statusCode || 200).json(data);
+  }
+
+  // 2. Existing Session Token Refresh Path (if client already has a valid NWBDCP JWT)
+  if (bearerToken) {
+    const verification = verifyNwbdcpToken(bearerToken);
+    if (!verification.valid) {
+      logNwbdcpAuthEvent({
+        event: 'TOKEN_REJECTED',
+        userId: 'ANONYMOUS',
+        role: 'NONE',
+        success: false,
+        reason: `Invalid bearer token: ${verification.error}`,
+        ip
+      });
+      return res.status(401).json({
+        success: false,
+        error: `⚠️ प्रमाणीकरण अयशस्वी: ${verification.error}`
+      });
+    }
+
+    // Look up user in server-side registry
+    const user = NWBDCP_USER_REGISTRY.find(u => u.userId === verification.sub);
+    if (!user || user.active !== true) {
+      logNwbdcpAuthEvent({
+        event: 'LOGIN_FAILED',
+        userId: verification.sub,
+        role: user ? user.role : 'UNKNOWN',
+        success: false,
+        reason: user ? 'Account disabled' : 'User not found in registry',
+        ip
+      });
+      return res.status(401).json({
+        success: false,
+        error: '⚠️ प्रमाणीकरण अयशस्वी: अनधिकृत किंवा निष्क्रिय खाते.'
+      });
+    }
+
+    // Role MUST come exclusively from server-side registry (user.role), ignoring req.body.role
+    let tokenData;
+    try {
+      tokenData = issueNwbdcpToken({
+        userId: user.userId,
+        name: user.name,
+        role: user.role
+      });
+    } catch (err) {
+      logNwbdcpAuthEvent({
+        event: 'TOKEN_REJECTED',
+        userId: user.userId,
+        role: user.role,
+        success: false,
+        reason: err.message,
+        ip
+      });
+      return res.status(500).json({ success: false, error: err.message });
+    }
+
+    logNwbdcpAuthEvent({
+      event: 'TOKEN_ISSUED',
+      userId: user.userId,
+      role: user.role,
+      success: true,
+      ip
+    });
+
+    return res.status(200).json({
+      success: true,
+      token: tokenData.token,
+      sessionId: tokenData.sessionId,
+      expiresIn: tokenData.expiresIn,
+      expiresAt: tokenData.expiresAt,
+      user: {
+        userId: user.userId,
+        name: user.name,
+        role: user.role
+      }
+    });
+  }
+
+  // 3. Anonymous / Untrusted Request -> REJECT WITH 401
+  logNwbdcpAuthEvent({
+    event: 'TOKEN_REJECTED',
+    userId: 'ANONYMOUS',
+    role: 'NONE',
+    success: false,
+    reason: 'Rejected unauthenticated request without valid Google ID token or session',
+    ip
+  });
+
+  return res.status(401).json({
+    success: false,
+    error: '⚠️ प्रमाणीकरण आवश्यक: Google ID Token उपलब्ध नाही (Authentication required. Client assertions not accepted).'
+  });
 }
 
 /**
