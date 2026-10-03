@@ -18,8 +18,22 @@ export const ROLES = {
   SYSTEM: 'SYSTEM'         // System background process
 };
 
-// Cryptographic signing secret from environment variable (Never hardcoded)
-const NWBDCP_AUTH_SECRET = process.env.NWBDCP_AUTH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'nwbdcp_crypto_secret_key_phc_bhada_2026_secured';
+// Independent cryptographic signing secret for NWBDCP JWT tokens
+// SUPABASE_SERVICE_ROLE_KEY is strictly forbidden from being used as a JWT signing fallback.
+export function getNwbdcpAuthSecret() {
+  const secret = process.env.NWBDCP_AUTH_SECRET;
+  if (secret && typeof secret === 'string' && secret.trim() !== '') {
+    return secret.trim();
+  }
+
+  // Strict Fail-Closed in Production: No token issuance or verification allowed without dedicated secret
+  if (process.env.NODE_ENV === 'production') {
+    return null;
+  }
+
+  // Local development/test fallback ONLY (isolated and strictly independent of any other service secret)
+  return 'nwbdcp_crypto_secret_key_phc_bhada_2026_secured';
+}
 
 // Read Google OAuth Client ID from firebase-applet-config.json or environment
 const __filename = fileURLToPath(import.meta.url);
@@ -297,11 +311,28 @@ export async function authenticateGoogleIdentityAndIssueToken({ idToken, ip = '1
   }
 
   // Issue NWBDCP JWT
-  const tokenData = issueNwbdcpToken({
-    userId: user.userId,
-    name: user.name,
-    role: user.role
-  });
+  let tokenData;
+  try {
+    tokenData = issueNwbdcpToken({
+      userId: user.userId,
+      name: user.name,
+      role: user.role
+    });
+  } catch (err) {
+    logNwbdcpAuthEvent({
+      event: 'TOKEN_ISSUANCE_FAILED',
+      userId: user.userId,
+      role: user.role,
+      success: false,
+      reason: err.message,
+      ip
+    });
+    return {
+      success: false,
+      statusCode: 500,
+      error: '⚠️ प्रमाणीकरण सेवा त्रुटी: ' + err.message
+    };
+  }
 
   logNwbdcpAuthEvent({
     event: 'TOKEN_ISSUED',
@@ -376,8 +407,12 @@ function base64UrlDecode(str) {
  * Compute HMAC SHA-256 signature
  */
 function computeHmacSignature(headerAndPayload) {
+  const secret = getNwbdcpAuthSecret();
+  if (!secret) {
+    throw new Error('NWBDCP_AUTH_SECRET is not configured for production. (NWBDCP प्रमाणीकरण secret अनुपलब्ध आहे.)');
+  }
   return crypto
-    .createHmac('sha256', NWBDCP_AUTH_SECRET)
+    .createHmac('sha256', secret)
     .update(headerAndPayload)
     .digest('base64')
     .replace(/=/g, '')
@@ -389,6 +424,12 @@ function computeHmacSignature(headerAndPayload) {
  * Issue a cryptographically signed JWT Access Token
  */
 export function issueNwbdcpToken({ userId, name, role, expiresInSeconds = 900 }) {
+  const secret = getNwbdcpAuthSecret();
+  if (!secret) {
+    console.error('[NWBDCP Auth] Production Error: NWBDCP_AUTH_SECRET is not configured.');
+    throw new Error('NWBDCP authentication secret is not configured for production. (NWBDCP_AUTH_SECRET आवश्यक आहे.)');
+  }
+
   const now = Math.floor(Date.now() / 1000);
   const jti = crypto.randomUUID();
 
@@ -443,6 +484,12 @@ export function verifyNwbdcpToken(token) {
     return { valid: false, error: '⚠️ टोकन उपलब्ध नाही (Token missing).' };
   }
 
+  const secret = getNwbdcpAuthSecret();
+  if (!secret) {
+    console.error('[NWBDCP Auth] Production Error: NWBDCP_AUTH_SECRET is not configured.');
+    return { valid: false, error: '⚠️ NWBDCP प्रमाणीकरण secret कॉन्फिगर केलेले नाही.' };
+  }
+
   const parts = token.split('.');
   if (parts.length !== 3) {
     return { valid: false, error: '⚠️ अवैध टोकन स्वरूप (Malformed token format).' };
@@ -452,7 +499,12 @@ export function verifyNwbdcpToken(token) {
   const headerAndPayload = `${encodedHeader}.${encodedPayload}`;
 
   // 1. Verify Cryptographic HMAC Signature using timingSafeEqual
-  const expectedSignature = computeHmacSignature(headerAndPayload);
+  let expectedSignature;
+  try {
+    expectedSignature = computeHmacSignature(headerAndPayload);
+  } catch (err) {
+    return { valid: false, error: err.message };
+  }
   const sigBuf = Buffer.from(signature);
   const expectedSigBuf = Buffer.from(expectedSignature);
 

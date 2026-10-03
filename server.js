@@ -348,6 +348,57 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.options('*', cors());
+
+// Hardened CORS Origin Guard strictly for NWBDCP APIs (/api/nwbdcp/*)
+// Preserves existing shared global CORS for NVBDCP while restricting NWBDCP to trusted origins
+const nwbdcpCorsGuard = (req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Requests without origin header (same-origin, curl, server-to-server) are allowed
+  if (!origin) {
+    return next();
+  }
+
+  const isProd = process.env.NODE_ENV === 'production';
+  const allowedExplicit = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(',').map(s => s.trim().toLowerCase())
+    : [];
+
+  const originLower = origin.toLowerCase();
+
+  // 1. Explicitly configured production origins
+  const isExplicitAllowed = allowedExplicit.includes(originLower);
+
+  // 2. Trusted Google Cloud Run and Google AI Studio application domains
+  const isTrustedCloudDomain =
+    originLower.endsWith('.run.app') ||
+    originLower.endsWith('.aistudio.google.com') ||
+    originLower === 'https://aistudio.google.com';
+
+  // 3. Localhost origins (allowed ONLY when development mode is active)
+  const isLocalhost =
+    originLower.startsWith('http://localhost:') ||
+    originLower === 'http://localhost' ||
+    originLower.startsWith('http://127.0.0.1:') ||
+    originLower === 'http://127.0.0.1';
+  const isDevLocalhostAllowed = !isProd && isLocalhost;
+
+  if (isExplicitAllowed || isTrustedCloudDomain || isDevLocalhostAllowed) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(204);
+    }
+    return next();
+  }
+
+  // Reject untrusted/unknown cross-origin requests
+  return res.status(403).json({ error: 'CORS origin not allowed.' });
+};
+
+app.use('/api/nwbdcp', nwbdcpCorsGuard);
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
