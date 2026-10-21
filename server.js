@@ -68,6 +68,12 @@ import {
   updateEmployeeVillages,
   saveEmployee,
   deleteEmployee,
+  FIXED_BS_CODES,
+  bsServiceTenureHistory,
+  endEmployeeService,
+  attachEmployeeToBsCode,
+  getBsCodeRegistry,
+  getBsServiceTenureHistory,
   saveSubcenter,
   deleteSubcenter,
   saveVillage,
@@ -162,8 +168,27 @@ import {
   generateEmployeeVillageMonthlyReportWebApp,
   getEmployeeVillageMonthlyData,
   generateGmcForwardingLetter,
-  generateNivCaseHistorySheets
+  generateNivCaseHistorySheets,
+  findMonthInMaster
 } from './services/reports.js';
+
+import {
+  initNcdStore,
+  getNcdDashboardStats,
+  getNcdSubcenterReport,
+  getNcdVillageReport,
+  getNcdDiseaseReport,
+  getNcdLineListing,
+  previewNcdCsvImport,
+  processNcdCsvImport,
+  previewNcdMultiFileImport,
+  replaceNcdDataset,
+  stageNcdCsvChunk,
+  clearNcdStagedSession,
+  getActiveDatasetInfo,
+  ncdImportBatches,
+  ncdIndividuals
+} from './services/ncdStore.js';
 
 import {
   syncDengueEntryToFirestore,
@@ -186,7 +211,9 @@ import {
   syncBatchEmployeesToFirestore,
   syncBatchSubcentersToFirestore,
   syncBatchVillagesToFirestore,
-  syncBatchTransferHistoryToFirestore
+  syncBatchTransferHistoryToFirestore,
+  syncBsTenureHistoryToFirestore,
+  syncBatchBsTenureHistoryToFirestore
 } from './services/firebaseStore.js';
 
 import {
@@ -210,13 +237,25 @@ import {
   syncTransferHistoryToSupabase,
   fetchDengueChikungunyaFromSupabase,
   syncDengueEntryToSupabase,
-  deleteDengueEntryFromSupabase
+  deleteDengueEntryFromSupabase,
+  isSupabaseOnline as isNvbdcpSupabaseOnline
 } from './services/nvbdcpSupabase.js';
 
 let lastFsSyncTime = 0;
 const FS_SYNC_CACHE_MS = 1000; // 1-second debounce to avoid redundant concurrent network calls
 
-export async function syncAllDataFromSupabase() {
+let lastSbSyncTime = 0;
+const SB_SYNC_CACHE_MS = 30000;
+
+export async function syncAllDataFromSupabase(force = false) {
+  if (!isNvbdcpSupabaseOnline()) {
+    return { success: false, reason: 'SUPABASE_OFFLINE' };
+  }
+  const now = Date.now();
+  if (!force && bsDataEntry.length > 0 && (now - lastSbSyncTime < SB_SYNC_CACHE_MS)) {
+    return { success: true, cached: true };
+  }
+  lastSbSyncTime = now;
   try {
     const [subcenters, villages, employees, months, bsData, vDetails, transfers, dengue] = await Promise.all([
       fetchSubcentersFromSupabase(),
@@ -542,8 +581,11 @@ const nwbdcpCorsGuard = (req, res, next) => {
 };
 
 app.use('/api/nwbdcp', nwbdcpCorsGuard);
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '200mb' }));
+app.use(express.urlencoded({ extended: true, limit: '200mb' }));
+
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 // Serve static NWBDCP uploaded laboratory reports
 const nwbdcpReportsDir = path.join(__dirname, 'public/uploads/nwbdcp_reports');
@@ -758,6 +800,48 @@ app.get(['/api/export/transfers.csv', '/api/export/transfers.xlsx'], (req, res) 
   ]);
 
   sendExportData(req, res, 'TransferHistory_PHC_Bhada', headers, rows, 'TransferHistory');
+});
+
+// Export BS Code Registry (Fixed Codes & Current Attachments)
+app.get(['/api/export/bs-registry.csv', '/api/export/bs-registry.xlsx'], (req, res) => {
+  const registry = getBsCodeRegistry();
+  const headers = ['अ.क्र.', 'उपकेंद्र', 'BS Code', 'पदनाम/संवर्ग', 'कार्यक्षेत्र गावे', 'स्थिती (Status)', 'सध्या जोडलेले कर्मचारी', 'पदभार प्रकार', 'संलग्न दिनांक', 'मोबाईल क्र.'];
+  const rows = registry.map((r, i) => [
+    i + 1,
+    r.upkendra,
+    r.bsCode,
+    r.designation,
+    r.village || '',
+    r.isVacant ? 'रिक्त / उपलब्ध' : 'कार्यरत',
+    r.attachedEmployee ? r.attachedEmployee.employeeName : '-',
+    r.attachedEmployee ? (r.attachedEmployee.chargeType === 'ADDITIONAL' ? 'अतिरिक्त पदभार' : r.attachedEmployee.chargeType === 'TRANSFER' ? 'बदली' : 'नियमित') : '-',
+    r.attachedEmployee ? (r.attachedEmployee.attachDate || '-') : '-',
+    r.attachedEmployee ? (r.attachedEmployee.mobile || '-') : '-'
+  ]);
+
+  sendExportData(req, res, 'BsCodeRegistry_PHC_Bhada', headers, rows, 'BsCodeRegistry');
+});
+
+// Export BS Service Tenure & End Service History Log
+app.get(['/api/export/bs-tenure-history.csv', '/api/export/bs-tenure-history.xlsx'], (req, res) => {
+  const headers = ['नोंद आयडी', 'BS Code', 'उपकेंद्र', 'कर्मचारी नाव', 'पदनाम', 'संवर्ग', 'पदभार प्रकार', 'सुरुवात दिनांक', 'सेवा समाप्ती दिनांक', 'स्थिती', 'समाप्तीचे कारण', 'आदेश क्र', 'शेरा/तपशील'];
+  const rows = bsServiceTenureHistory.map(t => [
+    t.id,
+    t.bsCode,
+    t.upkendra,
+    t.employeeName,
+    t.designation,
+    t.category,
+    t.chargeType === 'ADDITIONAL' ? 'अतिरिक्त पदभार' : t.chargeType === 'TRANSFER' ? 'बदली' : 'नियमित',
+    t.startDate || '',
+    t.endDate || '-',
+    t.status === 'ENDED' ? 'सेवा समाप्त' : 'सक्रिय',
+    t.endReason || '-',
+    t.orderNo || '-',
+    t.remarks || '-'
+  ]);
+
+  sendExportData(req, res, 'BsTenureHistory_PHC_Bhada', headers, rows, 'BsTenureHistory');
 });
 
 // Export Monthly Indicators
@@ -1034,9 +1118,9 @@ app.post('/api/rpc', async (req, res) => {
       'getMonthlyReportDashboardData', 'getMonthIndicators',
       'getDengueEntries', 'getDashboardStats',
       'generateDailyMalariaReportWebApp', 'generateMonthlyReportWebApp',
-      'generateEmployeeRegisterWebApp', 'getDefaulterListForMonth',
+      'generateEmployeeRegisterWebApp', 'getEmployeeRegisterData', 'getDefaulterListForMonth',
       'generateEmployeeNoticesWebApp', 'generateLowPerformanceReportWebApp',
-      'generateEmployeeVillageMonthlyReportWebApp', 'getEmployeeVillageMonthlyData',
+      'generateEmployeeVillageMonthlyReportWebApp', 'getEmployeeVillageMonthlyData', 'getVillageAnalyticsData', 'getFormWiseData',
       'getEmployeeVillageDistributionSummary', 'getSubcenterMaster',
       'getVillagesMaster', 'getEmployeeMaster', 'getMasterData',
       'getLatestBundleNumber', 'getLastParayntValue',
@@ -1044,7 +1128,7 @@ app.post('/api/rpc', async (req, res) => {
     ]);
 
     if (READ_OR_REPORT_METHODS.has(method)) {
-      await syncAllDataFromFirestore(method === 'syncFromFirestore' || method === 'refreshFirestoreData');
+      await syncAllDataFromSupabase();
     }
 
     switch (method) {
@@ -1373,20 +1457,20 @@ app.post('/api/rpc', async (req, res) => {
       }
 
       case 'getDashboardStats': {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        let startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-        let endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
-
-        for (let i = 0; i < monthMaster.length; i++) {
-          const m = monthMaster[i];
-          if (today >= m.f1Start && today <= m.f2End) {
-            startDate = m.f1Start;
-            endDate = m.f2End;
-            break;
-          }
+        const [targetMonth] = args;
+        let monthObj = findMonthInMaster(targetMonth);
+        if (!monthObj) {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          monthObj = monthMaster.find(m => {
+            const s = m.f1Start ? new Date(m.f1Start) : null;
+            const e = m.f2End ? new Date(m.f2End) : null;
+            return s && e && today >= s && today <= e;
+          }) || monthMaster[8] || monthMaster[0];
         }
+
+        const startDate = monthObj && monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 8, 1);
+        const endDate = monthObj && monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 8, 30, 23, 59, 59, 999);
 
         let total = 0;
         let active = 0;
@@ -1395,20 +1479,21 @@ app.post('/api/rpc', async (req, res) => {
         for (let i = 0; i < bsDataEntry.length; i++) {
           const row = bsDataEntry[i];
           const rowDate = new Date(row[1]);
-          if (rowDate >= startDate && rowDate <= endDate) {
+          if (!isNaN(rowDate.getTime()) && rowDate >= startDate && rowDate <= endDate) {
             const count = parseInt(row[9]) || 0;
             total += count;
 
             const upkendra = String(row[2] || '').toLowerCase();
             const employeeName = String(row[3] || '').toLowerCase();
             const desig = String(row[4] || '').toLowerCase();
-            const bsCode = String(row[5] || '').toLowerCase();
+            const bsCode = String(row[5] || '').toUpperCase().trim();
 
             const isOpd = (
-              upkendra.includes('opd') || upkendra.includes('दवाखाना') || upkendra.includes('बाह्य') || upkendra.includes('प्रा.आ.केंद्र') ||
-              employeeName.includes('opd') || employeeName.includes('ओपीडी') || employeeName.includes('बाह्य') || employeeName.includes('वैद्यकीय') ||
-              desig.includes('opd') || desig.includes('ओपीडी') || desig.includes('बाह्य') || desig.includes('वैद्यकीय') ||
-              bsCode.includes('opd') || bsCode.includes('54p')
+              bsCode === '54P' ||
+              bsCode.startsWith('54P') ||
+              employeeName.includes('बाह्य') || employeeName.includes('opd') || employeeName.includes('ओपीडी') ||
+              desig.includes('opd') || desig.includes('ओपीडी') || desig.includes('वैद्यकीय अधिकारी') ||
+              (upkendra.includes('प्रा.आ.केंद्र') && !bsCode.startsWith('54S') && !bsCode.startsWith('54F') && !bsCode.includes('V') && !desig.includes('सेवक') && !desig.includes('सेविका') && !desig.includes('आशा'))
             );
 
             if (isOpd) {
@@ -1438,11 +1523,7 @@ app.post('/api/rpc', async (req, res) => {
       case 'getMonthlyReportDashboardData': {
         const [targetMonth] = args;
         const monthStr = typeof targetMonth === 'string' ? targetMonth : (targetMonth && typeof targetMonth === 'object' ? (targetMonth.monthName || targetMonth.name || '') : '');
-        const clean = s => String(s || '').trim();
-        let monthObj = null;
-        if (monthStr) {
-          monthObj = monthMaster.find(m => clean(m.name) === clean(monthStr));
-        }
+        let monthObj = findMonthInMaster(monthStr);
         if (!monthObj) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -1526,22 +1607,33 @@ app.post('/api/rpc', async (req, res) => {
         // Calculate field vs opd smears in this month from entries
         let fieldSmears = 0;
         let opdSmears = 0;
-        const mStart = monthObj.f1Start;
-        const mEnd = monthObj.f2End;
+        const mStart = monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 8, 1);
+        const mEnd = monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 8, 30, 23, 59, 59, 999);
         for (let i = 0; i < bsDataEntry.length; i++) {
           const row = bsDataEntry[i];
           const rowDate = new Date(row[1]);
-          if (rowDate >= mStart && rowDate <= mEnd) {
+          if (!isNaN(rowDate.getTime()) && rowDate >= mStart && rowDate <= mEnd) {
             const count = parseInt(row[9]) || 0;
-            const desig = String(row[4] || '').trim();
-            if (desig.includes('आरोग्य सेवक') || desig.includes('आरोग्य सेविका') || desig.includes('आशा')) {
-              fieldSmears += count;
-            } else {
+            const upk = String(row[2] || '').toLowerCase();
+            const empN = String(row[3] || '').toLowerCase();
+            const desig = String(row[4] || '').toLowerCase();
+            const code = String(row[5] || '').toUpperCase().trim();
+            const isOpd = (
+              code === '54P' ||
+              code.startsWith('54P') ||
+              code.includes('54P') ||
+              empN.includes('बाह्य') || empN.includes('opd') || empN.includes('ओपीडी') || empN.includes('वैद्यकीय') ||
+              desig.includes('opd') || desig.includes('ओपीडी') || desig.includes('वैद्यकीय अधिकारी') || desig.includes('mo') ||
+              (upk.includes('प्रा.आ.केंद्र') && !code.startsWith('54S') && !code.startsWith('54F') && !code.includes('V') && !desig.includes('सेवक') && !desig.includes('सेविका') && !desig.includes('आशा'))
+            );
+            if (isOpd) {
               opdSmears += count;
+            } else {
+              fieldSmears += count;
             }
           }
         }
-        if (opdSummary.monthlyTotal > 0 && opdSmears === 0) {
+        if (opdSummary && opdSummary.monthlyTotal > 0 && opdSmears === 0) {
           opdSmears = opdSummary.monthlyTotal;
         }
 
@@ -1550,9 +1642,9 @@ app.post('/api/rpc', async (req, res) => {
         const treatmentCoverage = feverCases > 0 ? Math.round((treatedCases / feverCases) * 100) : (treatedCases > 0 ? 100 : 0);
 
         // Dengue & Chikungunya Monthly & Progressive Surveillance Data
-        const startDate = monthObj.f1Start;
-        const endDate = monthObj.f2End;
-        const yearStart = monthMaster[0].f1Start;
+        const startDate = monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 8, 1);
+        const endDate = monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 8, 30, 23, 59, 59, 999);
+        const yearStart = monthMaster[0] && monthMaster[0].f1Start ? new Date(monthMaster[0].f1Start) : new Date(2026, 0, 1);
 
         function parseDateSafeHelper(value) {
           if (!value) return null;
@@ -1715,6 +1807,101 @@ app.post('/api/rpc', async (req, res) => {
             }
           }
         };
+        break;
+      }
+
+      case 'getEmployeeRegisterData': {
+        const [upkendra, employee] = args;
+        result = generateEmployeeRegisterWebApp(upkendra, employee);
+        break;
+      }
+
+      case 'getVillageAnalyticsData': {
+        const [month, upkendra, employee, staffType] = args;
+        result = getEmployeeVillageMonthlyData(month, upkendra, employee, staffType);
+        break;
+      }
+
+      case 'getFormWiseData': {
+        const [month, upkendra, employee, staffType] = args;
+        result = getEmployeeVillageMonthlyData(month, upkendra, employee, staffType);
+        break;
+      }
+
+      // NCD Management Module RPC Cases
+      case 'getNcdDashboardStats': {
+        const [filters] = args;
+        result = getNcdDashboardStats(filters || {});
+        break;
+      }
+
+      case 'getNcdSubcenterReport': {
+        const [filters] = args;
+        result = getNcdSubcenterReport(filters || {});
+        break;
+      }
+
+      case 'getNcdVillageReport': {
+        const [filters] = args;
+        result = getNcdVillageReport(filters || {});
+        break;
+      }
+
+      case 'getNcdDiseaseReport': {
+        const [filters] = args;
+        result = getNcdDiseaseReport(filters || {});
+        break;
+      }
+
+      case 'getNcdLineListing': {
+        const [filters] = args;
+        result = getNcdLineListing(filters || {});
+        break;
+      }
+
+      case 'previewNcdCsv': {
+        const [filename, csvContent] = args;
+        result = previewNcdCsvImport(filename, csvContent);
+        break;
+      }
+
+      case 'importNcdCsv': {
+        const [filename, csvContent] = args;
+        result = await processNcdCsvImport(filename, csvContent);
+        break;
+      }
+
+      case 'stageNcdCsvChunk': {
+        const [chunkPayload] = args;
+        result = stageNcdCsvChunk(chunkPayload || {});
+        break;
+      }
+
+      case 'clearNcdStagedSession': {
+        const [sessionId] = args;
+        result = clearNcdStagedSession(sessionId);
+        break;
+      }
+
+      case 'previewNcdMultiFileImport': {
+        const [filesList, sessionId] = args;
+        result = previewNcdMultiFileImport(filesList || [], sessionId || null);
+        break;
+      }
+
+      case 'replaceNcdDataset': {
+        const [payload] = args;
+        result = await replaceNcdDataset(payload || {});
+        break;
+      }
+
+      case 'getActiveDatasetInfo': {
+        result = getActiveDatasetInfo();
+        break;
+      }
+
+      case 'getNcdImportBatches': {
+        result = { success: true, batches: ncdImportBatches };
         break;
       }
 
@@ -2362,6 +2549,40 @@ app.post('/api/rpc', async (req, res) => {
         break;
       }
 
+      case 'endEmployeeService': {
+        const [empId, endDate, endReason, orderNo, remarks] = args;
+        result = endEmployeeService(empId, endDate, endReason, orderNo, remarks);
+        if (result.success) {
+          if (result.tenureLog) {
+            syncBsTenureHistoryToFirestore(result.tenureLog).catch(e => console.warn('[Firestore] Tenure sync warning:', e.message));
+          }
+          await syncBatchEmployeesToFirestore(employeeMaster);
+        }
+        break;
+      }
+
+      case 'attachEmployeeToBsCode': {
+        const [empId, bsCode, chargeType, attachDate, orderNo, remarks, autoEndPrevious, previousEndReason] = args;
+        result = attachEmployeeToBsCode(empId, bsCode, chargeType, attachDate, orderNo, remarks, !!autoEndPrevious, previousEndReason);
+        if (result.success) {
+          if (result.tenureLog) {
+            syncBsTenureHistoryToFirestore(result.tenureLog).catch(e => console.warn('[Firestore] Tenure sync warning:', e.message));
+          }
+          await syncBatchEmployeesToFirestore(employeeMaster);
+        }
+        break;
+      }
+
+      case 'getBsCodeRegistry': {
+        result = getBsCodeRegistry();
+        break;
+      }
+
+      case 'getBsServiceTenureHistory': {
+        result = getBsServiceTenureHistory();
+        break;
+      }
+
       case 'importMasterDataCsv':
       case 'importMasterDataFromCsv': {
         const [csvText] = args;
@@ -2873,13 +3094,65 @@ app.get(['/api/export/nwbdcp-template.xlsx', '/api/export/nwbdcp-template.csv'],
       "शेरा (Remarks)"
     ];
 
-    const sampleDemoRows = [
-      ["भादा", "भादा", "WS-BHD-TAP-001", "भादा सार्वजनिक पाणीपुरवठा योजना (नळ योजना)", "सार्वजनिक पाणीपुरवठा योजना (नळ योजना)", "शासकीय", "2026-01-15", "NWBDCP-20260115-0001", "पिण्यास योग्य", "जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव", "2026-01-20", "२०२५-२६ मधील नमुना तपासणी"],
-      ["भादा", "भादा", "WS-BHD-HP-001", "भादा जि.प. शाळा परिसर हातपंप", "हातपंप", "शासकीय", "2026-01-15", "NWBDCP-20260115-0002", "पिण्यास अयोग्य", "जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव", "2026-01-20", "टीसीएल क्लोरिन वापर सूचना दिली"],
-      ["आलमला", "आलमला", "WS-ALM-WLL-001", "आलमला मुख्य सार्वजनिक विहीर", "विहीर", "शासकीय", "2026-01-18", "NWBDCP-20260118-0001", "अहवाल अप्राप्त", "जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव", "", "अहवाल प्रतीक्षेत"]
-    ];
+    const sampleDemoRows = [];
 
     return sendExportData(req, res, `NWBDCP_Historical_Sample_Import_Template`, headers, sampleDemoRows, 'Template');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export NCD Subcenter Report
+app.get(['/api/export/ncd-subcenter.xlsx', '/api/export/ncd-subcenter.csv'], (req, res) => {
+  try {
+    const report = getNcdSubcenterReport(req.query);
+    const headers = ["अ.क्र.", "उपकेंद्र (SHC)", "एकूण नागरिक", "CBAC पूर्ण", "HTN तपासणी", "DM तपासणी", "मुख कर्करोग", "स्तन कर्करोग", "गर्भाशय कर्करोग", "एकूण स्क्रिनिंग (Events)", "युनिक स्क्रिनिंग व्यक्ती", "नवीन निदान (Newly Diagnosed)", "उपचाराखालील (Under Treatment)", "नियमित फॉलो-अप (Adhering)", "फॉलो-अप चुकलेले (Missed)"];
+    const rows = report.rows.map(r => [
+      r.srNo, r.shc, r.totalIndividuals, r.cbacCompleted, r.htnScreened, r.dmScreened, r.ocScreened, r.bcScreened, r.ccScreened, r.totalScreenedEvents, r.uniqueScreenedIndividuals, r.newlyDiagnosed, r.underTreatment, r.adheringFollowup, r.missedFollowup
+    ]);
+    return sendExportData(req, res, `NCD_Subcenter_Report`, headers, rows, 'Subcenters');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export NCD Village Report
+app.get(['/api/export/ncd-village.xlsx', '/api/export/ncd-village.csv'], (req, res) => {
+  try {
+    const report = getNcdVillageReport(req.query);
+    const headers = ["अ.क्र.", "उपकेंद्र (SHC)", "गाव (Village)", "एकूण नागरिक", "CBAC पूर्ण", "HTN तपासणी", "DM तपासणी", "मुख कर्करोग", "स्तन कर्करोग", "गर्भाशय कर्करोग", "एकूण स्क्रिनिंग (Events)", "युनिक स्क्रिनिंग व्यक्ती", "नवीन निदान (Newly Diagnosed)", "उपचाराखालील (Under Treatment)", "नियमित फॉलो-अप (Adhering)", "फॉलो-अप चुकलेले (Missed)"];
+    const rows = report.rows.map(r => [
+      r.srNo, r.shc, r.village, r.totalIndividuals, r.cbacCompleted, r.htnScreened, r.dmScreened, r.ocScreened, r.bcScreened, r.ccScreened, r.totalScreenedEvents, r.uniqueScreenedIndividuals, r.newlyDiagnosed, r.underTreatment, r.adheringFollowup, r.missedFollowup
+    ]);
+    return sendExportData(req, res, `NCD_Village_Report`, headers, rows, 'Villages');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export NCD Line Listing Report
+app.get(['/api/export/ncd-line-listing.xlsx', '/api/export/ncd-line-listing.csv'], (req, res) => {
+  try {
+    const listing = getNcdLineListing({ ...req.query, page: 1, limit: 100000 });
+    const headers = ["Individual ID", "First Name", "Middle Name", "Last Name", "Age", "Sex", "ABHA Number", "PHC", "SHC", "Village", "CBAC Date", "CBAC Status", "CBAC Risk Score", "Completed Screenings", "Treatment Status"];
+    const rows = (listing.items || []).map(item => [
+      item.individual_id || '',
+      item.first_name || '',
+      item.middle_name || '',
+      item.last_name || '',
+      item.age || '',
+      item.sex || '',
+      item.abha_number || '',
+      item.phc || '',
+      item.shc || '',
+      item.village || '',
+      item.cbac_date || '',
+      item.cbac_status || '',
+      item.cbac_risk_score || '',
+      item.completed_screenings || '',
+      item.active_treatments || ''
+    ]);
+    return sendExportData(req, res, `NCD_Individual_Line_Listing`, headers, rows, 'LineListing');
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2892,15 +3165,19 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`PHC Bhada Malaria Management System running on http://0.0.0.0:${PORT}`);
+  console.log(`PHC Bhada Malaria & NCD Management System running on http://0.0.0.0:${PORT}`);
+  // Initialize NCD Store
+  initNcdStore().catch(e => console.warn('[Server] NCD store init note:', e.message));
+
   // Immediately initialize from Supabase Primary Database, fallback to Cloud Firestore
   try {
     const sbRes = await syncAllDataFromSupabase();
     if (!sbRes || !sbRes.success) {
+      console.log('[Server] Supabase primary unavailable/offline; syncing from Cloud Firestore.');
       await syncAllDataFromFirestore(true);
     }
   } catch (err) {
-    console.error('[Server] Initial data sync error:', err);
-    await syncAllDataFromFirestore(true).catch(e => console.error('[Server] Fallback Firestore sync error:', e));
+    console.warn('[Server] Initial data sync note:', err.message);
+    await syncAllDataFromFirestore(true).catch(e => console.warn('[Server] Fallback Firestore sync note:', e.message));
   }
 });

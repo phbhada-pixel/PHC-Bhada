@@ -4,11 +4,52 @@
 // Security: Server-side only with SUPABASE_SERVICE_ROLE_KEY (RLS bypass)
 // =========================================================================
 import { createClient } from '@supabase/supabase-js';
+import dns from 'node:dns';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export let supabaseClient = null;
+
+let isSupabaseReachable = true;
+let lastReachabilityCheck = 0;
+const REACHABILITY_COOLDOWN = 60000;
+
+export function isSupabaseOnline() {
+  if (!supabaseClient) return false;
+  if (!isSupabaseReachable && (Date.now() - lastReachabilityCheck < REACHABILITY_COOLDOWN)) {
+    return false;
+  }
+  return true;
+}
+
+export function markSupabaseOffline(reason = '') {
+  if (isSupabaseReachable) {
+    console.warn(`⚠️ [NVBDCP Supabase] Supabase host is currently unreachable (${reason || 'network/DNS error'}). Safely operating in offline fallback mode with local cache & Cloud Firestore.`);
+  }
+  isSupabaseReachable = false;
+  lastReachabilityCheck = Date.now();
+}
+
+export function markSupabaseOnline() {
+  isSupabaseReachable = true;
+}
+
+// Proactive non-blocking DNS resolution check at startup
+if (SUPABASE_URL) {
+  try {
+    const parsedUrl = new URL(SUPABASE_URL);
+    if (parsedUrl.hostname) {
+      dns.lookup(parsedUrl.hostname, (err) => {
+        if (err) {
+          markSupabaseOffline(`DNS resolution failed for ${parsedUrl.hostname} (${err.code || err.message})`);
+        }
+      });
+    }
+  } catch (err) {
+    markSupabaseOffline(`Invalid URL: ${err.message}`);
+  }
+}
 
 if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
   try {
@@ -28,32 +69,39 @@ if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
 
 // Helper for paginated fetch to guarantee retrieving all records beyond 1000 limit
 async function fetchAllPaginated(tableName, selectQuery = '*', orderCol = 'id') {
-  if (!supabaseClient) return [];
+  if (!supabaseClient || !isSupabaseOnline()) return [];
   const results = [];
   const pageSize = 1000;
   let from = 0;
   let hasMore = true;
 
   while (hasMore) {
-    const { data, error } = await supabaseClient
-      .from(tableName)
-      .select(selectQuery)
-      .order(orderCol, { ascending: true })
-      .range(from, from + pageSize - 1);
+    try {
+      const { data, error } = await supabaseClient
+        .from(tableName)
+        .select(selectQuery)
+        .order(orderCol, { ascending: true })
+        .range(from, from + pageSize - 1);
 
-    if (error) {
-      throw error;
-    }
-
-    if (Array.isArray(data) && data.length > 0) {
-      results.push(...data);
-      if (data.length < pageSize) {
-        hasMore = false;
-      } else {
-        from += pageSize;
+      if (error) {
+        markSupabaseOffline(error.message);
+        return [];
       }
-    } else {
-      hasMore = false;
+
+      markSupabaseOnline();
+      if (Array.isArray(data) && data.length > 0) {
+        results.push(...data);
+        if (data.length < pageSize) {
+          hasMore = false;
+        } else {
+          from += pageSize;
+        }
+      } else {
+        hasMore = false;
+      }
+    } catch (err) {
+      markSupabaseOffline(err.message);
+      return [];
     }
   }
 
@@ -64,7 +112,7 @@ async function fetchAllPaginated(tableName, selectQuery = '*', orderCol = 'id') 
 // 1. SUBCENTERS (NVBDCP_Subcenters)
 // =========================================================================
 export async function fetchSubcentersFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_Subcenters', '*', 'name');
     return data.map(s => ({
@@ -79,13 +127,13 @@ export async function fetchSubcentersFromSupabase() {
       updatedAt: s.updated_at
     }));
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchSubcentersFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncSubcenterToSupabase(subcenter) {
-  if (!supabaseClient || !subcenter) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !subcenter) return { success: false, offline: true };
   try {
     const payload = {
       id: subcenter.id || `SC_${Date.now()}`,
@@ -102,25 +150,27 @@ export async function syncSubcenterToSupabase(subcenter) {
       .from('NVBDCP_Subcenters')
       .upsert(payload, { onConflict: 'id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncSubcenterToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
 export async function deleteSubcenterFromSupabase(subcenterId) {
-  if (!supabaseClient || !subcenterId) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !subcenterId) return { success: false, offline: true };
   try {
     const { error } = await supabaseClient
       .from('NVBDCP_Subcenters')
       .delete()
       .eq('id', subcenterId);
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] deleteSubcenterFromSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -128,7 +178,7 @@ export async function deleteSubcenterFromSupabase(subcenterId) {
 // 2. VILLAGES (NVBDCP_Villages)
 // =========================================================================
 export async function fetchVillagesFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_Villages', '*', 'id');
     return data.map(v => ({
@@ -144,13 +194,13 @@ export async function fetchVillagesFromSupabase() {
       updatedAt: v.updated_at
     }));
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchVillagesFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncVillageToSupabase(village) {
-  if (!supabaseClient || !village) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !village) return { success: false, offline: true };
   try {
     const payload = {
       id: village.id || `VIL_${Date.now()}`,
@@ -168,25 +218,27 @@ export async function syncVillageToSupabase(village) {
       .from('NVBDCP_Villages')
       .upsert(payload, { onConflict: 'id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncVillageToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
 export async function deleteVillageFromSupabase(villageId) {
-  if (!supabaseClient || !villageId) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !villageId) return { success: false, offline: true };
   try {
     const { error } = await supabaseClient
       .from('NVBDCP_Villages')
       .delete()
       .eq('id', villageId);
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] deleteVillageFromSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -194,7 +246,7 @@ export async function deleteVillageFromSupabase(villageId) {
 // 3. EMPLOYEES (NVBDCP_Employees)
 // =========================================================================
 export async function fetchEmployeesFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_Employees', '*', 'id');
     return data.map(e => ({
@@ -208,13 +260,13 @@ export async function fetchEmployeesFromSupabase() {
       updatedAt: e.updated_at
     }));
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchEmployeesFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncEmployeeToSupabase(employee) {
-  if (!supabaseClient || !employee) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !employee) return { success: false, offline: true };
   try {
     const payload = {
       id: employee.id || `EMP_${Date.now()}`,
@@ -230,25 +282,27 @@ export async function syncEmployeeToSupabase(employee) {
       .from('NVBDCP_Employees')
       .upsert(payload, { onConflict: 'id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncEmployeeToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
 export async function deleteEmployeeFromSupabase(employeeId) {
-  if (!supabaseClient || !employeeId) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !employeeId) return { success: false, offline: true };
   try {
     const { error } = await supabaseClient
       .from('NVBDCP_Employees')
       .delete()
       .eq('id', employeeId);
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] deleteEmployeeFromSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -256,15 +310,15 @@ export async function deleteEmployeeFromSupabase(employeeId) {
 // 4. MONTH MASTER (NVBDCP_MonthMaster)
 // =========================================================================
 export async function fetchMonthMasterFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_MonthMaster', '*', 'name');
     return data.map(m => ({
       name: m.name,
-      f1Start: m.f1_start,
-      f1End: m.f1_end,
-      f2Start: m.f2_start,
-      f2End: m.f2_end,
+      f1Start: m.f1_start ? new Date(m.f1_start) : null,
+      f1End: m.f1_end ? new Date(m.f1_end) : null,
+      f2Start: m.f2_start ? new Date(m.f2_start) : null,
+      f2End: m.f2_end ? new Date(m.f2_end) : null,
       newOpd: Number(m.new_opd) || 0,
       progNewOpd: Number(m.prog_new_opd) || 0,
       mpwFn1: Number(m.mpw_fn1) || 0,
@@ -304,13 +358,13 @@ export async function fetchMonthMasterFromSupabase() {
       priorAnmFn2Sum: Number(m.prior_anm_fn2_sum) || 0
     }));
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchMonthMasterFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncMonthMasterToSupabase(month) {
-  if (!supabaseClient || !month || !month.name) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !month || !month.name) return { success: false, offline: true };
   try {
     const payload = {
       name: month.name,
@@ -361,10 +415,11 @@ export async function syncMonthMasterToSupabase(month) {
       .from('NVBDCP_MonthMaster')
       .upsert(payload, { onConflict: 'name' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncMonthMasterToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -373,7 +428,7 @@ export async function syncMonthMasterToSupabase(month) {
 // Array representation in store: [id, dateObj, upkendra, employeeName, designation, bsCode, bundleNumber, pasun, paraynt, total]
 // =========================================================================
 export async function fetchBsDataFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_BsDataEntry', '*', 'date');
     return data.map(r => [
@@ -389,19 +444,18 @@ export async function fetchBsDataFromSupabase() {
       Number(r.total) || 0
     ]);
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchBsDataFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncBsDataToSupabase(entries) {
-  if (!supabaseClient || !entries) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !entries) return { success: false, offline: true };
   const arr = Array.isArray(entries) ? entries : [entries];
   if (arr.length === 0) return { success: true };
 
   try {
     const payloads = arr.map(e => {
-      // Handle array format or object format
       if (Array.isArray(e)) {
         return {
           id: String(e[0]).trim(),
@@ -430,7 +484,6 @@ export async function syncBsDataToSupabase(entries) {
       };
     });
 
-    // Chunk upserts in batches of 500 for safety
     for (let i = 0; i < payloads.length; i += 500) {
       const chunk = payloads.slice(i, i + 500);
       const { error } = await supabaseClient
@@ -439,26 +492,27 @@ export async function syncBsDataToSupabase(entries) {
       if (error) throw error;
     }
 
+    markSupabaseOnline();
     return { success: true, count: payloads.length };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncBsDataToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
 export async function deleteBsEntryFromSupabase(entryId) {
-  if (!supabaseClient || !entryId) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !entryId) return { success: false, offline: true };
   try {
-    // Delete parent entry and associated village details
     const p1 = supabaseClient.from('NVBDCP_BsDataEntry').delete().eq('id', entryId);
     const p2 = supabaseClient.from('NVBDCP_VillageDetails').delete().eq('bs_id', entryId);
     const [r1, r2] = await Promise.all([p1, p2]);
     if (r1.error) throw r1.error;
     if (r2.error) throw r2.error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] deleteBsEntryFromSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -467,7 +521,7 @@ export async function deleteBsEntryFromSupabase(entryId) {
 // Array representation in store: [bs_id, employeeName, dateObj, villageName, sampleCount, maleCount, femaleCount, upkendra]
 // =========================================================================
 export async function fetchVillageDetailsFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_VillageDetails', '*', 'id');
     return data.map(r => [
@@ -481,13 +535,13 @@ export async function fetchVillageDetailsFromSupabase() {
       r.upkendra || ''
     ]);
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchVillageDetailsFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncVillageDetailsToSupabase(details) {
-  if (!supabaseClient || !details) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !details) return { success: false, offline: true };
   const arr = Array.isArray(details) ? details : [details];
   if (arr.length === 0) return { success: true };
 
@@ -496,8 +550,9 @@ export async function syncVillageDetailsToSupabase(details) {
       if (Array.isArray(d)) {
         const bsId = String(d[0]).trim();
         const vName = d[3] || '';
+        const vHex = Buffer.from(String(vName).trim(), 'utf8').toString('hex').slice(0, 24);
         return {
-          id: d._id || `VD_${bsId}_${vName}_${idx}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100),
+          id: d._id || `VD_${bsId}_${vHex}_${idx}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100),
           bs_id: bsId,
           employee_name: d[1] || '',
           date: d[2] ? new Date(d[2]).toISOString() : new Date().toISOString(),
@@ -508,12 +563,15 @@ export async function syncVillageDetailsToSupabase(details) {
           upkendra: d[7] || ''
         };
       }
+      const bsId = String(d.uniqueId || d.bs_id || d.bsId).trim();
+      const vName = d.villageName || d.village_name || '';
+      const vHex = Buffer.from(String(vName).trim(), 'utf8').toString('hex').slice(0, 24);
       return {
-        id: d.id || `VD_${d.uniqueId || d.bs_id}_${d.villageName || d.village_name}_${idx}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100),
-        bs_id: String(d.uniqueId || d.bs_id || d.bsId).trim(),
+        id: d.id || `VD_${bsId}_${vHex}_${idx}`.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 100),
+        bs_id: bsId,
         employee_name: d.employeeName || d.employee_name || '',
         date: d.date ? new Date(d.date).toISOString() : new Date().toISOString(),
-        village_name: d.villageName || d.village_name || '',
+        village_name: vName,
         sample_count: Number(d.sampleCount || d.sample_count) || 0,
         male_count: Number(d.maleCount || d.male_count) || 0,
         female_count: Number(d.femaleCount || d.female_count) || 0,
@@ -529,10 +587,11 @@ export async function syncVillageDetailsToSupabase(details) {
       if (error) throw error;
     }
 
+    markSupabaseOnline();
     return { success: true, count: payloads.length };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncVillageDetailsToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -540,18 +599,18 @@ export async function syncVillageDetailsToSupabase(details) {
 // 7. TRANSFER HISTORY (NVBDCP_TransferHistory)
 // =========================================================================
 export async function fetchTransferHistoryFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_TransferHistory', '*', 'id');
     return data;
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchTransferHistoryFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncTransferHistoryToSupabase(transfer) {
-  if (!supabaseClient || !transfer) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !transfer) return { success: false, offline: true };
   try {
     const payload = {
       id: transfer.id || `TR_${Date.now()}`,
@@ -571,10 +630,11 @@ export async function syncTransferHistoryToSupabase(transfer) {
       .from('NVBDCP_TransferHistory')
       .upsert(payload, { onConflict: 'id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncTransferHistoryToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
@@ -582,18 +642,18 @@ export async function syncTransferHistoryToSupabase(transfer) {
 // 8. DENGUE / CHIKUNGUNYA ENTRIES (NVBDCP_DengueChikungunya)
 // =========================================================================
 export async function fetchDengueChikungunyaFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_DengueChikungunya', '*', 'id');
     return data;
   } catch (err) {
-    console.warn('[NVBDCP Supabase] fetchDengueChikungunyaFromSupabase error:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
 
 export async function syncDengueEntryToSupabase(entry) {
-  if (!supabaseClient || !entry) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !entry) return { success: false, offline: true };
   try {
     const payload = {
       id: entry.id || `DNG_${Date.now()}`,
@@ -612,24 +672,26 @@ export async function syncDengueEntryToSupabase(entry) {
       .from('NVBDCP_DengueChikungunya')
       .upsert(payload, { onConflict: 'id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] syncDengueEntryToSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }
 
 export async function deleteDengueEntryFromSupabase(id) {
-  if (!supabaseClient || !id) return { success: false };
+  if (!supabaseClient || !isSupabaseOnline() || !id) return { success: false, offline: true };
   try {
     const { error } = await supabaseClient
       .from('NVBDCP_DengueChikungunya')
       .delete()
       .eq('id', id);
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true };
   } catch (err) {
-    console.error('[NVBDCP Supabase] deleteDengueEntryFromSupabase error:', err.message);
-    return { success: false, error: err.message };
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
   }
 }

@@ -7,6 +7,7 @@
 import { createClient } from '@supabase/supabase-js';
 import fs from 'node:fs';
 import path from 'node:path';
+import dns from 'node:dns';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -21,6 +22,50 @@ const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 const IS_SERVICE_ROLE = Boolean(SUPABASE_SERVICE_ROLE_KEY);
 
 export let supabaseClient = null;
+
+let isSupabaseReachable = true;
+let lastReachabilityCheck = 0;
+const REACHABILITY_COOLDOWN = 60000;
+
+export function isSupabaseOnline() {
+  if (!supabaseClient) return false;
+  if (!isSupabaseReachable && (Date.now() - lastReachabilityCheck < REACHABILITY_COOLDOWN)) {
+    return false;
+  }
+  return true;
+}
+
+export function markSupabaseOffline(reason = '') {
+  if (isSupabaseReachable) {
+    console.warn(`⚠️ [NWBDCP Supabase] Supabase host is currently unreachable (${reason || 'network/DNS error'}). Safely operating in offline fallback mode with local cache.`);
+  }
+  isSupabaseReachable = false;
+  lastReachabilityCheck = Date.now();
+}
+
+export function markSupabaseOnline() {
+  if (!isSupabaseReachable) {
+    console.log('✅ [NWBDCP Supabase] Connection restored. Supabase is online.');
+  }
+  isSupabaseReachable = true;
+}
+
+// Proactive non-blocking DNS resolution check at initialization
+if (SUPABASE_URL) {
+  try {
+    const parsedUrl = new URL(SUPABASE_URL);
+    if (parsedUrl.hostname) {
+      dns.lookup(parsedUrl.hostname, (err) => {
+        if (err) {
+          markSupabaseOffline(`DNS resolution failed for ${parsedUrl.hostname} (${err.code || err.message})`);
+        }
+      });
+    }
+  } catch (err) {
+    markSupabaseOffline(`Invalid URL: ${err.message}`);
+  }
+}
+
 if (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
   try {
     supabaseClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
@@ -43,19 +88,32 @@ export let nwbdcpFilesMetadata = [];
 export let nwbdcpFileAuditLogs = [];
 export let nwbdcpSyncQueue = [];
 
+const NWBDCP_TEST_SAMPLE_IDS = new Set([
+  "NWBDCP-20260930-0001", "NWBDCP-20260930-0002", "NWBDCP-20260930-0003", "NWBDCP-20260930-0004",
+  "NWBDCP-20261015-0001", "NWBDCP-20261016-0001", "NWBDCP-20261016-0003", "NWBDCP-20261016-0006",
+  "NWBDCP-20261023-0001", "NWBDCP-20261028-0001", "NWBDCP-20261028-0002", "NWBDCP-20261028-0003",
+  "NWBDCP-20260930-TEST01", "NWBDCP-20260930-SEC01", "NWBDCP-TEST-SAFE-01", "NWBDCP-TEST-SAFE-04"
+]);
+
 // Load local caches
 function loadLocalFilesCache() {
   try {
     if (fs.existsSync(NWBDCP_FILES_CACHE_FILE)) {
       const raw = fs.readFileSync(NWBDCP_FILES_CACHE_FILE, 'utf-8');
       const data = JSON.parse(raw);
-      nwbdcpFilesMetadata = Array.isArray(data.files) ? data.files : [];
-      nwbdcpFileAuditLogs = Array.isArray(data.auditLogs) ? data.auditLogs : [];
+      nwbdcpFilesMetadata = Array.isArray(data.files)
+        ? data.files.filter(f => !NWBDCP_TEST_SAMPLE_IDS.has(f.sample_id))
+        : [];
+      nwbdcpFileAuditLogs = Array.isArray(data.auditLogs)
+        ? data.auditLogs.filter(a => !NWBDCP_TEST_SAMPLE_IDS.has(a.sample_id))
+        : [];
     }
     if (fs.existsSync(NWBDCP_SYNC_QUEUE_FILE)) {
       const rawQueue = fs.readFileSync(NWBDCP_SYNC_QUEUE_FILE, 'utf-8');
       const qData = JSON.parse(rawQueue);
-      nwbdcpSyncQueue = Array.isArray(qData) ? qData : [];
+      nwbdcpSyncQueue = Array.isArray(qData)
+        ? qData.filter(q => !NWBDCP_TEST_SAMPLE_IDS.has(q.payload && q.payload.sample_id))
+        : [];
     }
   } catch (err) {
     console.warn('[NWBDCP] Error reading local metadata/queue cache:', err.message);
@@ -115,7 +173,7 @@ export function enqueuePendingSync(entityType, entityId, operation, payload) {
  * Process pending sync queue items with retry and backoff
  */
 export async function processPendingSyncQueue() {
-  if (!supabaseClient || nwbdcpSyncQueue.length === 0) {
+  if (!supabaseClient || !isSupabaseOnline() || nwbdcpSyncQueue.length === 0) {
     return { processed: 0, remaining: nwbdcpSyncQueue.filter(q => q.sync_status !== 'SYNCED').length };
   }
 
@@ -162,8 +220,10 @@ export async function processPendingSyncQueue() {
       item.last_error = null;
       successCount++;
     } catch (err) {
+      markSupabaseOffline(err.message);
       item.sync_status = item.retry_count >= 10 ? 'FAILED' : 'PENDING';
       item.last_error = err.message;
+      break; // Stop iterating queue while network is offline
     }
   }
 
@@ -372,12 +432,14 @@ export function findFileMetadata(fileId) {
 }
 
 export function getSupabaseStatus() {
+  const online = isSupabaseOnline();
   return {
-    connected: Boolean(supabaseClient),
+    connected: Boolean(supabaseClient && online),
+    online,
     urlConfigured: Boolean(SUPABASE_URL),
     keyConfigured: Boolean(SUPABASE_SERVICE_ROLE_KEY),
     isServiceRole: IS_SERVICE_ROLE,
-    authMode: IS_SERVICE_ROLE ? 'SERVICE_ROLE (Trusted Server Backend)' : 'OFFLINE_PENDING (No Service-Role Key)',
+    authMode: (IS_SERVICE_ROLE && online) ? 'SERVICE_ROLE (Trusted Server Backend)' : 'OFFLINE_PENDING (Local Cache & Queue Active)',
     fileRecordsCount: nwbdcpFilesMetadata.length,
     auditLogsCount: nwbdcpFileAuditLogs.length,
     syncQueuePending: nwbdcpSyncQueue.filter(q => q.sync_status === 'PENDING').length,
@@ -389,7 +451,7 @@ export function getSupabaseStatus() {
  * Fetch all Water Sources directly from Supabase (NWBDCP_WaterSources)
  */
 export async function fetchWaterSourcesFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!isSupabaseOnline()) return null;
   try {
     const { data, error } = await supabaseClient
       .from('NWBDCP_WaterSources')
@@ -397,10 +459,11 @@ export async function fetchWaterSourcesFromSupabase() {
       .order('created_at', { ascending: true });
     
     if (error) {
-      console.warn('⚠️ [NWBDCP Supabase] Error fetching WaterSources from Supabase:', error.message);
+      markSupabaseOffline(error.message);
       return null;
     }
 
+    markSupabaseOnline();
     if (Array.isArray(data)) {
       return data.map(r => ({
         id: r.id,
@@ -422,7 +485,7 @@ export async function fetchWaterSourcesFromSupabase() {
     }
     return null;
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Exception fetching WaterSources:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
@@ -431,7 +494,7 @@ export async function fetchWaterSourcesFromSupabase() {
  * Fetch all Sample Dispatches directly from Supabase (NWBDCP_DispatchedSamples)
  */
 export async function fetchSampleDispatchesFromSupabase() {
-  if (!supabaseClient) return null;
+  if (!isSupabaseOnline()) return null;
   try {
     const { data, error } = await supabaseClient
       .from('NWBDCP_DispatchedSamples')
@@ -439,10 +502,11 @@ export async function fetchSampleDispatchesFromSupabase() {
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.warn('⚠️ [NWBDCP Supabase] Error fetching DispatchedSamples from Supabase:', error.message);
+      markSupabaseOffline(error.message);
       return null;
     }
 
+    markSupabaseOnline();
     if (Array.isArray(data)) {
       return data.map(r => ({
         id: r.id || r.sample_id,
@@ -478,7 +542,7 @@ export async function fetchSampleDispatchesFromSupabase() {
     }
     return null;
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Exception fetching DispatchedSamples:', err.message);
+    markSupabaseOffline(err.message);
     return null;
   }
 }
@@ -507,7 +571,7 @@ export async function syncWaterSourceToSupabase(source) {
     updated_by: source.updatedBy || 'System'
   };
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('WATER_SOURCE', source.id, 'UPSERT', record);
     return { success: false, queued: true, message: 'Offline mode: transaction enqueued in sync queue' };
   }
@@ -517,9 +581,10 @@ export async function syncWaterSourceToSupabase(source) {
       .from('NWBDCP_WaterSources')
       .upsert([record], { onConflict: 'id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true, record };
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Error saving Water Source Master to Supabase, enqueued to offline queue:', err.message);
+    markSupabaseOffline(err.message);
     enqueuePendingSync('WATER_SOURCE', source.id, 'UPSERT', record);
     return { success: false, queued: true, error: err.message };
   }
@@ -552,7 +617,7 @@ export async function syncSampleDispatchToSupabase(sample) {
     result: sample.result || 'अहवाल अप्राप्त',
     report_received_date: sample.reportReceivedDate || '',
     lab_ref_no: sample.labRefNo || '',
-    lab_remarks: sample.labRemarks || '',
+    labRemarks: sample.labRemarks || '',
     report_file_name: sample.reportFileName || '',
     report_file_url: sample.reportFileUrl || '',
     report_file_type: sample.reportFileType || '',
@@ -563,7 +628,7 @@ export async function syncSampleDispatchToSupabase(sample) {
     history: sample.history || []
   };
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('SAMPLE_DISPATCH', sample.sampleId, 'UPSERT', record);
     return { success: false, queued: true, message: 'Offline mode: transaction enqueued in sync queue' };
   }
@@ -573,9 +638,10 @@ export async function syncSampleDispatchToSupabase(sample) {
       .from('NWBDCP_DispatchedSamples')
       .upsert([record], { onConflict: 'sample_id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true, record };
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Error saving Sample Dispatch to Supabase, enqueued to offline queue:', err.message);
+    markSupabaseOffline(err.message);
     enqueuePendingSync('SAMPLE_DISPATCH', sample.sampleId, 'UPSERT', record);
     return { success: false, queued: true, error: err.message };
   }
@@ -616,7 +682,7 @@ export async function syncBatchSampleDispatchesToSupabase(samples = []) {
     history: s.history || []
   }));
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('BATCH_DISPATCH', `BATCH_${Date.now()}`, 'UPSERT', records);
     return { success: false, queued: true, message: 'Offline mode: batch transaction enqueued in sync queue' };
   }
@@ -626,9 +692,10 @@ export async function syncBatchSampleDispatchesToSupabase(samples = []) {
       .from('NWBDCP_DispatchedSamples')
       .upsert(records, { onConflict: 'sample_id' });
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true, count: records.length };
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Error saving batch sample dispatches to Supabase, enqueued to offline queue:', err.message);
+    markSupabaseOffline(err.message);
     enqueuePendingSync('BATCH_DISPATCH', `BATCH_${Date.now()}`, 'UPSERT', records);
     return { success: false, queued: true, error: err.message };
   }
@@ -638,21 +705,25 @@ export async function syncBatchSampleDispatchesToSupabase(samples = []) {
  * Fetch Sample Results from Supabase (PRIMARY Read)
  */
 export async function fetchSampleResultsFromSupabase() {
-  if (!supabaseClient) {
-    throw new Error('Supabase client unavailable');
+  if (!isSupabaseOnline()) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('NWBDCP_SampleResults')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      markSupabaseOffline(error.message);
+      return null;
+    }
+
+    markSupabaseOnline();
+    return data || [];
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return null;
   }
-
-  const { data, error } = await supabaseClient
-    .from('NWBDCP_SampleResults')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching NWBDCP Sample Results from Supabase:', error);
-    throw error;
-  }
-
-  return data || [];
 }
 
 /**
@@ -685,7 +756,7 @@ export async function syncSampleResultToSupabase(resultRecord) {
   if (resultRecord.ph_value !== undefined) record.ph_value = resultRecord.ph_value;
   if (resultRecord.tds_ppm !== undefined) record.tds_ppm = resultRecord.tds_ppm;
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('SAMPLE_RESULT', record.sample_id, 'UPSERT', record);
     return { success: false, queued: true, message: 'Offline mode: transaction enqueued in sync queue' };
   }
@@ -696,9 +767,10 @@ export async function syncSampleResultToSupabase(resultRecord) {
       .upsert([record], { onConflict: 'sample_id' });
 
     if (error) throw error;
+    markSupabaseOnline();
     return { success: true, record };
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Error saving Sample Result to Supabase, enqueued to offline queue:', err.message);
+    markSupabaseOffline(err.message);
     enqueuePendingSync('SAMPLE_RESULT', record.sample_id, 'UPSERT', record);
     return { success: false, queued: true, error: err.message };
   }
@@ -708,21 +780,25 @@ export async function syncSampleResultToSupabase(resultRecord) {
  * Fetch Retests from Supabase (PRIMARY Read)
  */
 export async function fetchRetestsFromSupabase() {
-  if (!supabaseClient) {
-    throw new Error('Supabase client unavailable');
+  if (!isSupabaseOnline()) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('NWBDCP_Retests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      markSupabaseOffline(error.message);
+      return null;
+    }
+
+    markSupabaseOnline();
+    return data || [];
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return null;
   }
-
-  const { data, error } = await supabaseClient
-    .from('NWBDCP_Retests')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching NWBDCP Retests from Supabase:', error);
-    throw error;
-  }
-
-  return data || [];
 }
 
 /**
@@ -757,7 +833,7 @@ export async function syncRetestToSupabase(retestRecord) {
     updated_at: new Date().toISOString()
   };
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('RETEST', record.retest_id, 'UPSERT', record);
     return { success: false, queued: true, message: 'Offline mode: transaction enqueued in sync queue' };
   }
@@ -794,9 +870,10 @@ export async function syncRetestToSupabase(retestRecord) {
       }
       throw error;
     }
+    markSupabaseOnline();
     return { success: true, record };
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Error saving Retest to Supabase, enqueued to offline queue:', err.message);
+    markSupabaseOffline(err.message);
     enqueuePendingSync('RETEST', record.retest_id, 'UPSERT', record);
     return { success: false, queued: true, error: err.message };
   }
@@ -807,27 +884,31 @@ export async function syncRetestToSupabase(retestRecord) {
  * Table: public."NWBDCP_AuditLogs"
  */
 export async function fetchAuditLogsFromSupabase() {
-  if (!supabaseClient) {
-    throw new Error('Supabase client unavailable');
+  if (!isSupabaseOnline()) return null;
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('NWBDCP_AuditLogs')
+      .select('*')
+      .order('timestamp', { ascending: true });
+
+    if (error) {
+      markSupabaseOffline(error.message);
+      return null;
+    }
+
+    markSupabaseOnline();
+    return (data || []).map(log => ({
+      id: log.id,
+      action: log.action,
+      details: log.details,
+      user: log.user_name || log.user || 'System',
+      timestamp: log.timestamp || log.created_at
+    }));
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return null;
   }
-
-  const { data, error } = await supabaseClient
-    .from('NWBDCP_AuditLogs')
-    .select('*')
-    .order('timestamp', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching NWBDCP Audit Logs from Supabase:', error);
-    throw error;
-  }
-
-  return (data || []).map(log => ({
-    id: log.id,
-    action: log.action,
-    details: log.details,
-    user: log.user_name || log.user || 'System',
-    timestamp: log.timestamp || log.created_at
-  }));
 }
 
 /**
@@ -847,7 +928,7 @@ export async function syncAuditLogToSupabase(logEntry) {
     timestamp: logEntry.timestamp || new Date().toISOString()
   };
 
-  if (!supabaseClient) {
+  if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('AUDIT_LOG', record.id, 'INSERT', record);
     return { success: false, queued: true, message: 'Offline mode: transaction enqueued in sync queue' };
   }
@@ -860,9 +941,10 @@ export async function syncAuditLogToSupabase(logEntry) {
     if (error) {
       throw error;
     }
+    markSupabaseOnline();
     return { success: true, record };
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Supabase] Error saving Audit Log to Supabase, enqueued to offline queue:', err.message);
+    markSupabaseOffline(err.message);
     enqueuePendingSync('AUDIT_LOG', record.id, 'INSERT', record);
     return { success: false, queued: true, error: err.message };
   }

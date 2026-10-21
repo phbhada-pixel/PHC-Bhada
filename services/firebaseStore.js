@@ -374,7 +374,8 @@ export async function deleteBsDataEntryFromFirestore(id) {
 export async function syncVillageDetailToFirestore(v) {
   if (!v || !v[0]) return { success: false };
   try {
-    const rawId = `VIL_${v[0]}_${v[3] || 'VIL'}`;
+    const vHex = Buffer.from(String(v[3] || 'VIL').trim(), 'utf8').toString('hex').slice(0, 24);
+    const rawId = `VIL_${v[0]}_${vHex}`;
     const docId = toSafeDocId(rawId, 'VILD');
     const ref = doc(firestoreDb, 'villageDetails', docId);
     const data = {
@@ -498,6 +499,14 @@ export async function syncEmployeeMasterToFirestore(emp) {
       employeeName: emp.employeeName || '',
       designation: emp.designation || '',
       bsCode: emp.bsCode || '',
+      serviceStatus: emp.serviceStatus || 'ACTIVE',
+      chargeType: emp.chargeType || 'REGULAR',
+      attachDate: emp.attachDate || '',
+      endDate: emp.endDate || '',
+      endReason: emp.endReason || '',
+      endOrderNo: emp.endOrderNo || '',
+      endRemarks: emp.endRemarks || '',
+      previousBsCode: emp.previousBsCode || '',
       mobile: emp.mobile || '',
       villageList: Array.isArray(emp.villageList) ? emp.villageList : [],
       updatedAt: new Date().toISOString()
@@ -754,6 +763,64 @@ export async function getTransferHistoryFromFirestore() {
     return { success: true, data: list };
   } catch (err) {
     console.error('[FirebaseStore] Error fetching transfer history from Firestore:', err.message);
+    return { success: false, error: err.message, data: [] };
+  }
+}
+
+// -------------------------------------------------------------
+// BS SERVICE TENURE & END SERVICE HISTORY
+// -------------------------------------------------------------
+export async function syncBsTenureHistoryToFirestore(tenureLog) {
+  if (!tenureLog) return { success: false, error: 'Invalid tenure log' };
+  try {
+    const docId = toSafeDocId(tenureLog.id || `TENURE_${Date.now()}`, 'TENURE');
+    const ref = doc(firestoreDb, 'bsServiceTenureHistory', docId);
+    await setDoc(ref, {
+      id: docId,
+      bsCode: tenureLog.bsCode || '',
+      upkendra: tenureLog.upkendra || '',
+      designation: tenureLog.designation || '',
+      category: tenureLog.category || '',
+      employeeId: tenureLog.employeeId || '',
+      employeeName: tenureLog.employeeName || '',
+      chargeType: tenureLog.chargeType || 'REGULAR',
+      startDate: tenureLog.startDate || '',
+      endDate: tenureLog.endDate || '',
+      status: tenureLog.status || 'ACTIVE',
+      endReason: tenureLog.endReason || '',
+      orderNo: tenureLog.orderNo || '',
+      remarks: tenureLog.remarks || '',
+      timestamp: tenureLog.timestamp || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    return { success: true, docId };
+  } catch (err) {
+    console.error('[FirebaseStore] Error syncing BS tenure history:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+export async function syncBatchBsTenureHistoryToFirestore(tenureLogsArray) {
+  if (!Array.isArray(tenureLogsArray) || tenureLogsArray.length === 0) return { success: true, count: 0 };
+  let count = 0;
+  for (const log of tenureLogsArray) {
+    if (!log) continue;
+    const res = await syncBsTenureHistoryToFirestore(log);
+    if (res.success) count++;
+  }
+  return { success: true, count };
+}
+
+export async function getBsTenureHistoryFromFirestore() {
+  try {
+    const snap = await getDocs(collection(firestoreDb, 'bsServiceTenureHistory'));
+    const list = [];
+    snap.forEach(docSnap => {
+      list.push(docSnap.data());
+    });
+    return { success: true, data: list };
+  } catch (err) {
+    console.error('[FirebaseStore] Error fetching BS tenure history from Firestore:', err.message);
     return { success: false, error: err.message, data: [] };
   }
 }

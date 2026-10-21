@@ -1,4 +1,4 @@
-import { masterData, bsDataEntry, villageDetails, monthMaster, generatedReports, getOpdBsVillagewiseSummary, dengueChikungunyaEntries, employeeMaster } from '../data/store.js';
+import { masterData, bsDataEntry, villageDetails, monthMaster, generatedReports, getOpdBsVillagewiseSummary, dengueChikungunyaEntries, employeeMaster, subcenterMaster } from '../data/store.js';
 
 function formatDateDisplay(d) {
   if (!d) return '';
@@ -258,22 +258,75 @@ export function generateDailyMalariaReportWebApp(dateStr) {
   }
 }
 
+// Helper for robust month matching across formats (Marathi, YYYY-MM, English, numeric)
+const MARATHI_MONTHS = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
+const ENGLISH_MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+export function findMonthInMaster(inputStr, list = monthMaster) {
+  if (!inputStr) return list[0] || null;
+  const s = String(inputStr).toLowerCase().trim();
+  const cleanNorm = str => String(str || "").replace(/[०-९]/g, d => "०१२३४५६७८९".indexOf(d)).replace(/[\s\-_/]/g, "").toLowerCase().trim();
+  const cInput = cleanNorm(s);
+
+  let found = list.find(m => cleanNorm(m.name) === cInput);
+  if (found) return found;
+
+  const mIso = s.match(/(\d{4})[-/]?(\d{1,2})/) || s.match(/(\d{1,2})[-/]?(\d{4})/);
+  if (mIso) {
+    let mNum = parseInt(mIso[1]);
+    let yNum = parseInt(mIso[2]);
+    if (mNum > 12) { const tmp = mNum; mNum = yNum; yNum = tmp; }
+    if (mNum >= 1 && mNum <= 12) {
+      if (list[mNum - 1]) return list[mNum - 1];
+    }
+  }
+
+  for (let i = 0; i < 12; i++) {
+    if (s.includes(MARATHI_MONTHS[i].toLowerCase()) || s.includes(ENGLISH_MONTHS[i]) || s.includes(ENGLISH_MONTHS[i].slice(0, 3))) {
+      if (list[i]) return list[i];
+    }
+  }
+
+  return list[0] || null;
+}
+
+// Helper to check if an entry is OPD / Passive (अप्रत्यक्ष सर्वेक्षण: बाह्य रुग्ण विभाग)
+function isOpd(employeeName, designation, upkendra, villageName, bsCode) {
+  const code = String(bsCode || '').toUpperCase().trim();
+  const emp = String(employeeName || '').toLowerCase();
+  const des = String(designation || '').toLowerCase();
+  const up = String(upkendra || '').toLowerCase();
+
+  return (
+    code === '54P' ||
+    code.startsWith('54P') ||
+    code.includes('54P') ||
+    emp.includes('बाह्य') || emp.includes('opd') || emp.includes('ओपीडी') || emp.includes('वैद्यकीय') ||
+    des.includes('वैद्यकीय अधिकारी') || des.includes('opd') || des.includes('ओपीडी') || des.includes('mo') ||
+    (up.includes('प्रा.आ.केंद्र') && !code.startsWith('54S') && !code.startsWith('54F') && !code.includes('V') && !des.includes('सेवक') && !des.includes('सेविका') && !des.includes('आशा'))
+  );
+}
+
 // 2. मासिक अहवाल (Monthly Report - Exact NVBDCP Template)
 export function generateMonthlyReportWebApp(selectedMonthDisplay) {
   try {
     if (!selectedMonthDisplay) return { success: false, message: 'कृपया महिना निवडा.' };
-    const monthObj = monthMaster.find(m => cleanStr(m.name) === cleanStr(selectedMonthDisplay));
+    const monthObj = findMonthInMaster(selectedMonthDisplay);
     if (!monthObj) return { success: false, message: `महिना '${selectedMonthDisplay}' सापडला नाही.` };
 
-    const mIdx = monthMaster.findIndex(m => cleanStr(m.name) === cleanStr(selectedMonthDisplay));
-    const priorMonths = monthMaster.slice(0, mIdx);
+    const mIdx = monthMaster.indexOf(monthObj);
+    const priorMonths = monthMaster.slice(0, Math.max(0, mIdx));
 
-    const startDate = monthObj.f1Start;
-    const endDate = monthObj.f2End;
-    const yearStart = monthMaster[0].f1Start;
+    // Resolve exact year from input or default to 2026
+    const yrMatch = String(selectedMonthDisplay).match(/202\d/);
+    const reqYear = yrMatch ? parseInt(yrMatch[0]) : (monthObj.f1Start ? new Date(monthObj.f1Start).getFullYear() : 2026);
+
+    const startDate = new Date(reqYear, mIdx, 1);
+    const endDate = new Date(reqYear, mIdx + 1, 0, 23, 59, 59, 999);
+    const yearStart = new Date(reqYear, 0, 1);
 
     // D47: Selected Month
-    const D47 = selectedMonthDisplay;
+    const D47 = monthObj.name || selectedMonthDisplay;
 
     // OPD calculations (मासिक व प्रगत)
     const D1 = monthObj.newOpd != null ? parseInt(monthObj.newOpd) : 0; // नवीन बाह्यरुग्ण मासिक
@@ -285,42 +338,25 @@ export function generateMonthlyReportWebApp(selectedMonthDisplay) {
 
     // Filter BS Data for current month and YTD
     const monthBsRows = bsDataEntry.filter(r => {
-      const d = new Date(r[1]);
-      return d >= startDate && d <= endDate;
+      const d = parseDateSafe(r[1]);
+      return d && d >= startDate && d <= endDate;
     });
 
     const ytdBsRows = bsDataEntry.filter(r => {
-      const d = new Date(r[1]);
-      return d >= yearStart && d <= endDate;
+      const d = parseDateSafe(r[1]);
+      return d && d >= yearStart && d <= endDate;
     });
 
     // Filter Village Details for current month and YTD
     const monthVillageRows = villageDetails.filter(v => {
-      const d = new Date(v[2]);
-      return d >= startDate && d <= endDate;
+      const d = parseDateSafe(v[2]);
+      return d && d >= startDate && d <= endDate;
     });
 
     const ytdVillageRows = villageDetails.filter(v => {
-      const d = new Date(v[2]);
-      return d >= yearStart && d <= endDate;
+      const d = parseDateSafe(v[2]);
+      return d && d >= yearStart && d <= endDate;
     });
-
-    // Helper to check if an entry is OPD / Passive (अप्रत्यक्ष सर्वेक्षण: बाह्य रुग्ण विभाग)
-    function isOpd(employeeName, designation, upkendra, villageName, bsCode) {
-      const combined = `${employeeName || ''} ${designation || ''} ${upkendra || ''} ${villageName || ''} ${bsCode || ''}`.toLowerCase();
-      const code = String(bsCode || '').toUpperCase().trim();
-      return (
-        code === '54P' ||
-        code.startsWith('54P') ||
-        combined.includes('बाह्य') ||
-        combined.includes('opd') ||
-        combined.includes('ओपीडी') ||
-        combined.includes('वैद्यकीय अधिकारी') ||
-        combined.includes('दवाखाना') ||
-        combined.includes('mo') ||
-        combined.includes('प्रा.आ.केंद्र')
-      );
-    }
 
     // Helper to categorize employee designation for monthly Active vs Passive
     function getStaffCategory(employeeName, designation, upkendra, villageName, bsCode, dateVal) {
@@ -605,24 +641,47 @@ export function generateMonthlyReportWebApp(selectedMonthDisplay) {
       const s = String(name || '').trim();
       if (s === 'बोरगाव' || s === 'बोरगांव') return 'बोरगांव';
       if (s === 'लखनगाव' || s === 'लखनगांव') return 'लखनगांव';
+      if (s === 'सत्तधरवाडी' || s === 'सत्तरधरवाडी') return 'सत्तधरवाडी';
       if (s === 'उंबडगा बु' || s === 'उंबडगा बु.' || s === 'उंबडगा बू' || s === 'उंबडगा बू.') return 'उंबडगा बू';
       if (s === 'उंबडगा खु' || s === 'उंबडगा खु.' || s === 'उंबडगा खू' || s === 'उंबडगा खू.') return 'उंबडगा खू';
       if (s === 'उटी बु' || s === 'उटी बु.' || s === 'उटी बू' || s === 'उटी बू.') return 'उटी बु.';
       return s;
     };
 
-    // Build unique subcenter + village list
+    // Build canonical 29-village list (no duplicate villages across subcenters)
+    const canonicalSubcenterVillages = [
+      { upkendra: 'आलमला', villages: ['आलमला', 'उंबडगा बू', 'उंबडगा खू', 'आलमला तांडा'] },
+      { upkendra: 'कोरंगळा', villages: ['समदर्गा', 'कोरंगळा', 'येल्लोरी', 'येल्लोरी वाडी', 'औसा तांडा'] },
+      { upkendra: 'बोरगाव', villages: ['काळमाथा', 'बोरगांव', 'कवठा', 'कवठा तांडा'] },
+      { upkendra: 'भादा', villages: ['हाळदुर्ग', 'भादा', 'शिंदेवाडी', 'ब-हाणपूर'] },
+      { upkendra: 'भेटा', villages: ['आंदोरा', 'भेटा', 'नाव्होली', 'वडजी'] },
+      { upkendra: 'लखनगाव', villages: ['सत्तधरवाडी', 'कुलकर्णी तांडा', 'उटी बु.', 'सोनपट्टी तांडा', 'लखनगांव'] },
+      { upkendra: 'शिवली', villages: ['शिवली', 'वरवडा', 'जायफळ'] }
+    ];
+
     const villageListMap = [];
+    const scSource = (Array.isArray(subcenterMaster) && subcenterMaster.length > 0)
+      ? subcenterMaster.filter(sc => sc.name && !sc.name.includes('प्रा.आ.केंद्र')).map(sc => ({ upkendra: sc.name, villages: sc.villages || [] }))
+      : canonicalSubcenterVillages;
+
+    scSource.forEach(sc => {
+      (sc.villages || []).forEach(vName => {
+        const normV = normalizeVillageName(vName);
+        if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.village === normV)) {
+          villageListMap.push({ upkendra: sc.upkendra, village: normV });
+        }
+      });
+    });
+
     masterData.forEach(m => {
       (m.villageList || []).forEach(vName => {
         const normV = normalizeVillageName(vName);
-        if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.upkendra === m.upkendra && x.village === normV)) {
+        if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.village === normV)) {
           villageListMap.push({ upkendra: m.upkendra, village: normV });
         }
       });
     });
 
-    // Also include any villages from villageDetails
     monthVillageRows.forEach(v => {
       const vName = normalizeVillageName(v[3]);
       const scName = v[7] || '';
@@ -668,97 +727,148 @@ export function generateMonthlyReportWebApp(selectedMonthDisplay) {
       return subItem ? villageDataMap[subItem.village] : Object.values(villageDataMap)[0];
     };
 
-    // Populate each active BS record from bsDataEntry into the appropriate village
+    const addVillageAlloc = (vObj, cat, vMAlloc, vFAlloc, vTotAlloc) => {
+      if (!vObj || vTotAlloc <= 0) return;
+      if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
+      else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
+      else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
+      else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
+    };
+
+    // Populate each active BS record from bsDataEntry into the appropriate village(s)
+    let rotSeed = 0;
     monthBsRows.forEach(r => {
       if (isOpd(r[3], r[4], r[2], '', r[5])) return;
       const total = parseInt(r[9]) || 0;
       if (total <= 0) return;
 
       const cat = getStaffCategory(r[3], r[4], r[2], '', r[5], r[1]);
-      const emp = masterData.find(m => matchEmpRow(r, m)) || masterData.find(m => cleanStr(m.employeeName) === cleanStr(r[3])) || {};
-      const empVillages = (emp.villageList && emp.villageList.length > 0) 
-        ? emp.villageList.map(normalizeVillageName) 
-        : (villageListMap.filter(x => x.upkendra === r[2]).map(x => x.village));
+      const rUpk = String(r[2] || '').trim();
+      const rEmp = String(r[3] || '').trim();
+      const rCode = String(r[5] || '').trim();
 
-      let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
-      if (matchingVils.length === 0) {
-        matchingVils = monthVillageRows.filter(v => (cleanStr(v[1]) === cleanStr(r[3]) || (emp.employeeName && cleanStr(v[1]) === cleanStr(emp.employeeName))) && Math.abs(new Date(v[2]) - new Date(r[1])) < 86400000);
+      const scVillages = villageListMap.filter(x => x.upkendra === rUpk).map(x => x.village);
+
+      const emp = (rCode && masterData.find(m => cleanStr(m.bsCode) === cleanStr(rCode) && m.upkendra === rUpk))
+        || (rEmp && masterData.find(m => cleanStr(m.employeeName) === cleanStr(rEmp) && m.upkendra === rUpk))
+        || (rCode && masterData.find(m => cleanStr(m.bsCode) === cleanStr(rCode)))
+        || (rEmp && masterData.find(m => cleanStr(m.employeeName) === cleanStr(rEmp)))
+        || {};
+
+      let empVillages = (emp.villageList && emp.villageList.length > 0)
+        ? emp.villageList.map(normalizeVillageName).filter(v => scVillages.length === 0 || scVillages.includes(v))
+        : [];
+      if (empVillages.length === 0) {
+        empVillages = scVillages.length > 0 ? scVillages : [normalizeVillageName(rUpk)];
       }
 
+      let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
+      if (matchingVils.length === 0 && rEmp) {
+        matchingVils = monthVillageRows.filter(v => cleanStr(v[1]) === cleanStr(rEmp) && Math.abs(new Date(v[2]) - new Date(r[1])) < 86400000 && v[0] === r[0]);
+      }
+
+      // Compute exact entryM and entryF matching Section 2 active gender counts
+      let entryM = 0;
       if (matchingVils.length > 0) {
-        const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+        let vMale = 0, vFemale = 0, vTot = 0;
+        matchingVils.forEach(v => {
+          const m = parseInt(v[5]) || 0;
+          const f = parseInt(v[6]) || 0;
+          const s = parseInt(v[4]) || (m + f);
+          vMale += m; vFemale += f; vTot += s;
+        });
+        entryM = vTot > 0 ? Math.round((vMale / vTot) * total) : Math.floor(total * 0.52);
+      } else {
+        entryM = Math.floor(total * 0.52);
+      }
 
-        if (sumVils > 0) {
-          let allocated = 0;
-          let allocatedM = 0;
-          let allocatedF = 0;
-          const totalM = Math.floor(total * 0.52);
-          const totalF = total - totalM;
+      const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+      const recordedNormSet = new Set(matchingVils.map(v => normalizeVillageName(v[3])));
+      const unrecordedEmpVillages = empVillages.filter(v => !recordedNormSet.has(v));
+      const isSubcenterDumpedSingleRow = (cat !== 'ASHA' && empVillages.length > 1 && recordedNormSet.size === 1 && sumVils >= total && total >= empVillages.length);
 
-          matchingVils.forEach((v, idx) => {
-            const vName = v[3];
-            const vTotalRow = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
-            const vMaleRow = parseInt(v[5]) || 0;
-            const vFemaleRow = parseInt(v[6]) || 0;
+      if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && (sumVils >= total || unrecordedEmpVillages.length === 0)) {
+        let allocT = 0, allocM = 0;
+        matchingVils.forEach((v, idx) => {
+          const vName = v[3];
+          const vTotalRow = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+          const vMaleRow = parseInt(v[5]) || 0;
+          const vFemaleRow = parseInt(v[6]) || 0;
+          let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+          if (idx === matchingVils.length - 1) {
+            vTotAlloc = total - allocT;
+            vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+            vFAlloc = vTotAlloc - vMAlloc;
+          } else {
+            vTotAlloc = Math.round((vTotalRow / sumVils) * total);
+            allocT += vTotAlloc;
+            vMAlloc = (vMaleRow + vFemaleRow > 0) ? Math.round((vMaleRow / (vMaleRow + vFemaleRow)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
+            vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, entryM - allocM)));
+            vFAlloc = vTotAlloc - vMAlloc;
+            allocM += vMAlloc;
+          }
+          addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+        });
+      } else if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && sumVils < total && unrecordedEmpVillages.length > 0) {
+        // Partial village details recorded: preserve recorded village counts and distribute remaining samples across unrecorded assigned villages
+        let allocT = 0, allocM = 0;
+        matchingVils.forEach(v => {
+          const vName = v[3];
+          const vTotAlloc = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+          let vMAlloc = parseInt(v[5]) || 0;
+          if (vMAlloc > vTotAlloc) vMAlloc = Math.floor(vTotAlloc * 0.52);
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, entryM - allocM)));
+          const vFAlloc = vTotAlloc - vMAlloc;
+          allocT += vTotAlloc;
+          allocM += vMAlloc;
+          addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+        });
 
-            let vTotAlloc = 0;
-            let vMAlloc = 0;
-            let vFAlloc = 0;
-
-            if (idx === matchingVils.length - 1) {
-              vTotAlloc = total - allocated;
-              vMAlloc = Math.max(0, totalM - allocatedM);
-              vFAlloc = Math.max(0, vTotAlloc - vMAlloc);
-            } else {
-              vTotAlloc = Math.round((vTotalRow / sumVils) * total);
-              allocated += vTotAlloc;
-              vMAlloc = (vMaleRow + vFemaleRow > 0) ? Math.round((vMaleRow / (vMaleRow + vFemaleRow)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
-              vFAlloc = vTotAlloc - vMAlloc;
-              allocatedM += vMAlloc;
-              allocatedF += vFAlloc;
-            }
-
-            const vObj = findVillageObj(vName, r[2], empVillages);
-            if (vObj) {
-              if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-              else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-              else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-              else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
-            }
-          });
-        } else {
-          const share = Math.floor(total / empVillages.length);
-          let rem = total % empVillages.length;
-          empVillages.forEach(vName => {
-            const vTotAlloc = share + (rem > 0 ? 1 : 0);
+        const remTotal = total - allocT;
+        const share = Math.floor(remTotal / unrecordedEmpVillages.length);
+        let rem = remTotal % unrecordedEmpVillages.length;
+        const startOff = (rotSeed++) % unrecordedEmpVillages.length;
+        const mRatio = total > 0 ? (entryM / total) : 0.52;
+        for (let i = 0; i < unrecordedEmpVillages.length; i++) {
+          const vName = unrecordedEmpVillages[(startOff + i) % unrecordedEmpVillages.length];
+          let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+          if (i === unrecordedEmpVillages.length - 1) {
+            vTotAlloc = total - allocT;
+            vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+            vFAlloc = vTotAlloc - vMAlloc;
+          } else {
+            vTotAlloc = share + (rem > 0 ? 1 : 0);
             if (rem > 0) rem--;
-            const vMAlloc = Math.floor(vTotAlloc * 0.52);
-            const vFAlloc = vTotAlloc - vMAlloc;
-            const vObj = findVillageObj(vName, r[2], empVillages);
-            if (vObj) {
-              if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-              else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-              else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-              else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
-            }
-          });
+            allocT += vTotAlloc;
+            vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.round(vTotAlloc * mRatio), entryM - allocM)));
+            vFAlloc = vTotAlloc - vMAlloc;
+            allocM += vMAlloc;
+          }
+          addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
         }
       } else {
+        let allocT = 0, allocM = 0;
         const share = Math.floor(total / empVillages.length);
         let rem = total % empVillages.length;
-        empVillages.forEach(vName => {
-          const vTotAlloc = share + (rem > 0 ? 1 : 0);
-          if (rem > 0) rem--;
-          const vMAlloc = Math.floor(vTotAlloc * 0.52);
-          const vFAlloc = vTotAlloc - vMAlloc;
-          const vObj = findVillageObj(vName, r[2], empVillages);
-          if (vObj) {
-            if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-            else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-            else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-            else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
+        const startOff = (rotSeed++) % empVillages.length;
+        const mRatio = total > 0 ? (entryM / total) : 0.52;
+        for (let i = 0; i < empVillages.length; i++) {
+          const vName = empVillages[(startOff + i) % empVillages.length];
+          let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+          if (i === empVillages.length - 1) {
+            vTotAlloc = total - allocT;
+            vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+            vFAlloc = vTotAlloc - vMAlloc;
+          } else {
+            vTotAlloc = share + (rem > 0 ? 1 : 0);
+            if (rem > 0) rem--;
+            allocT += vTotAlloc;
+            vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.round(vTotAlloc * mRatio), entryM - allocM)));
+            vFAlloc = vTotAlloc - vMAlloc;
+            allocM += vMAlloc;
           }
-        });
+          addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+        }
       }
     });
 
@@ -2118,12 +2228,12 @@ export function getDefaulterListForMonth(selectedMonthDisplay) {
     const monthObj = monthMaster.find(m => cleanStr(m.name) === cleanStr(selectedMonthDisplay));
     if (!monthObj) return { success: false, message: 'महिना सापडला नाही.' };
 
-    const startDate = monthObj.f1Start;
-    const endDate = monthObj.f2End;
+    const startDate = parseDateSafe(monthObj.f1Start);
+    const endDate = parseDateSafe(monthObj.f2End);
 
     const defaulters = [];
     masterData.forEach(emp => {
-      const post = emp.designation || '';
+      const post = String(emp.designation || '');
       if (post.includes('आशा') || post.includes('वैद्यकीय अधिकारी') || post.includes('औषध') || emp.bsCode === '54P') return;
 
       const isAnm = post.includes('आरोग्य सेविका') || post.includes('anm') || post.includes('सहायिका');
@@ -2132,8 +2242,8 @@ export function getDefaulterListForMonth(selectedMonthDisplay) {
       let total = 0;
       const days = new Set();
       bsDataEntry.forEach(r => {
-        const rDate = new Date(r[1]);
-        if ((cleanStr(r[3]) === cleanStr(emp.employeeName) || r[5] === emp.bsCode) && rDate >= startDate && rDate <= endDate) {
+        const rDate = parseDateSafe(r[1]);
+        if (rDate && (cleanStr(r[3]) === cleanStr(emp.employeeName) || r[5] === emp.bsCode) && rDate >= startDate && rDate <= endDate) {
           total += (parseInt(r[9]) || 0);
           days.add(formatDateDisplay(rDate));
         }
@@ -2344,28 +2454,31 @@ export function generateLowPerformanceReportWebApp(selectedMonthDisplay) {
 // 6. कर्मचारीनिहाय व गावनिहाय मासिक रक्त नमुना संकलन अहवाल (Employee-wise & Village-wise Monthly BS Report)
 export function getEmployeeVillageMonthlyData(selectedMonthDisplay, filterUpkendra = 'All', filterEmployee = 'All', filterStaffType = 'All') {
   try {
-    const cleanStr = s => String(s || '').trim().toLowerCase();
-    const cleanNorm = s => String(s || '').replace(/[\s\.\-_]/g, '').toLowerCase();
+    const cleanNorm = s => String(s || '').replace(/[०-९]/g, d => "०१२३४५६७८९".indexOf(d)).replace(/[\s\.\-_]/g, '').toLowerCase();
 
-    const monthObj = monthMaster.find(m => cleanStr(m.name) === cleanStr(selectedMonthDisplay)) || monthMaster[monthMaster.length - 1];
+    const monthObj = findMonthInMaster(selectedMonthDisplay);
     const monthName = monthObj ? monthObj.name : selectedMonthDisplay;
+    const mIdx = monthObj ? monthMaster.indexOf(monthObj) : 8;
 
-    const dStart = monthObj && monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 8, 1);
-    const dEnd = monthObj && monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 8, 30, 23, 59, 59);
-    const f1End = monthObj && monthObj.f1End ? new Date(monthObj.f1End) : new Date(2026, 8, 15, 23, 59, 59);
+    const yrMatch = String(selectedMonthDisplay).match(/202\d/);
+    const reqYear = yrMatch ? parseInt(yrMatch[0]) : (monthObj && monthObj.f1Start ? new Date(monthObj.f1Start).getFullYear() : 2026);
+
+    const dStart = new Date(reqYear, mIdx, 1);
+    const dEnd = new Date(reqYear, mIdx + 1, 0, 23, 59, 59, 999);
+    const f1End = new Date(reqYear, mIdx, 15, 23, 59, 59);
 
     const isAllSc = !filterUpkendra || filterUpkendra === 'All' || filterUpkendra === 'सर्व' || filterUpkendra === 'सर्व उपकेंद्र';
     const isAllEmp = !filterEmployee || filterEmployee === 'All' || filterEmployee === 'सर्व' || filterEmployee === 'सर्व कर्मचारी';
     const isAllType = !filterStaffType || filterStaffType === 'All' || filterStaffType === 'सर्व' || filterStaffType === 'सर्व संवर्ग';
 
     const monthBsRows = bsDataEntry.filter(r => {
-      const d = new Date(r[1]);
-      return !isNaN(d.getTime()) && d >= dStart && d <= dEnd;
+      const d = parseDateSafe(r[1]);
+      return d && d >= dStart && d <= dEnd;
     });
 
     const monthVillageRows = villageDetails.filter(v => {
-      const d = new Date(v[2]);
-      return !isNaN(d.getTime()) && d >= dStart && d <= dEnd;
+      const d = parseDateSafe(v[2]);
+      return d && d >= dStart && d <= dEnd;
     });
 
     // Process all employees from masterData
@@ -2373,20 +2486,27 @@ export function getEmployeeVillageMonthlyData(selectedMonthDisplay, filterUpkend
     const subcenterMap = {};
 
     masterData.forEach(emp => {
-      const isASHA = (emp.designation && emp.designation.includes('आशा')) || (emp.bsCode && emp.bsCode.includes('V'));
-      const isMPW = (emp.designation && (emp.designation.includes('सेवक') || emp.designation.includes('MPW'))) || (emp.bsCode && emp.bsCode.startsWith('54S'));
+      const desigStr = String(emp.designation || '');
+      const codeStr = String(emp.bsCode || '').toUpperCase().trim();
+      const isASHA = desigStr.includes('आशा') || desigStr.includes('asha') || codeStr.includes('V');
+      const isMPW = desigStr.includes('सेवक') || desigStr.includes('MPW') || desigStr.includes('mpw') || codeStr.startsWith('54S');
       const isANM = !isASHA && !isMPW;
       const staffType = isMPW ? 'MPW' : (isANM ? 'ANM' : 'ASHA');
       const target = isMPW ? 50 : (isANM ? 40 : 10);
 
       if (!isAllSc && emp.upkendra !== filterUpkendra) return;
       if (!isAllEmp && emp.employeeName !== filterEmployee) return;
-      if (!isAllType && staffType !== filterStaffType && !emp.designation.includes(filterStaffType)) return;
+      if (!isAllType && staffType !== filterStaffType && !desigStr.includes(filterStaffType)) return;
 
-      const empBsRows = monthBsRows.filter(r => cleanNorm(r[3]) === cleanNorm(emp.employeeName) || (emp.bsCode && r[5] === emp.bsCode));
+      const hasMultiScForEmp = masterData.filter(m => cleanNorm(m.employeeName) === cleanNorm(emp.employeeName)).length > 1;
+      const empBsRows = monthBsRows.filter(r => {
+        if (hasMultiScForEmp && r[2] && emp.upkendra && cleanNorm(r[2]) !== cleanNorm(emp.upkendra)) return false;
+        return (emp.bsCode && cleanNorm(r[5]) === cleanNorm(emp.bsCode)) || (r[3] && cleanNorm(r[3]) === cleanNorm(emp.employeeName));
+      });
 
+      const vList = (emp.villageList && emp.villageList.length > 0) ? emp.villageList : ['उपकेंद्र मुख्यालय'];
       const villageMap = {};
-      (emp.villageList || []).forEach(v => {
+      vList.forEach(v => {
         villageMap[v] = {
           village: v,
           fn1Male: 0, fn1Female: 0, fn1Total: 0,
@@ -2395,8 +2515,30 @@ export function getEmployeeVillageMonthlyData(selectedMonthDisplay, filterUpkend
         };
       });
 
+      const addEmpVilAlloc = (vName, isFn1, vMAlloc, vFAlloc, vTotAlloc) => {
+        if (vTotAlloc <= 0) return;
+        if (!villageMap[vName]) {
+          villageMap[vName] = {
+            village: vName,
+            fn1Male: 0, fn1Female: 0, fn1Total: 0,
+            fn2Male: 0, fn2Female: 0, fn2Total: 0,
+            male: 0, female: 0, total: 0
+          };
+        }
+        const targetVil = villageMap[vName];
+        if (isFn1) {
+          targetVil.fn1Male += vMAlloc; targetVil.fn1Female += vFAlloc; targetVil.fn1Total += vTotAlloc;
+        } else {
+          targetVil.fn2Male += vMAlloc; targetVil.fn2Female += vFAlloc; targetVil.fn2Total += vTotAlloc;
+        }
+        targetVil.male += vMAlloc;
+        targetVil.female += vFAlloc;
+        targetVil.total += vTotAlloc;
+      };
+
+      let empRotSeed = 0;
       empBsRows.forEach(r => {
-        const isOpd = cleanNorm(r[3]).includes('बाह्य') || cleanNorm(r[4]).includes('opd');
+        const isOpd = cleanNorm(r[3]).includes('बाह्य') || cleanNorm(r[4]).includes('opd') || String(r[5] || '').toUpperCase().startsWith('54P');
         if (isOpd) return;
 
         const rDate = new Date(r[1]);
@@ -2405,26 +2547,20 @@ export function getEmployeeVillageMonthlyData(selectedMonthDisplay, filterUpkend
         if (rTotal <= 0) return;
 
         let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
-        if (matchingVils.length === 0) {
-          matchingVils = monthVillageRows.filter(v => cleanNorm(v[1]) === cleanNorm(r[3]) && Math.abs(new Date(v[2]) - rDate) < 86400000);
+        if (matchingVils.length === 0 && r[3]) {
+          matchingVils = monthVillageRows.filter(v => cleanNorm(v[1]) === cleanNorm(r[3]) && Math.abs(new Date(v[2]) - rDate) < 86400000 && v[0] === r[0]);
         }
 
-        if (matchingVils.length > 0) {
-          const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
-          let allocatedTot = 0, allocatedM = 0, allocatedF = 0;
-          const totalM = Math.floor(rTotal * 0.52);
-          const totalF = rTotal - totalM;
+        const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+        const totalM = Math.floor(rTotal * 0.52);
+        const recordedSet = new Set(matchingVils.map(v => String(v[3] || '').trim()));
+        const unrecordedVils = vList.filter(v => !recordedSet.has(String(v).trim()));
+        const isSubcenterDumpedSingleRow = (!isASHA && vList.length > 1 && recordedSet.size === 1 && sumVils >= rTotal && rTotal >= vList.length);
 
+        if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && (sumVils >= rTotal || unrecordedVils.length === 0)) {
+          let allocatedTot = 0, allocatedM = 0;
           matchingVils.forEach((v, idx) => {
             const vName = v[3];
-            if (!villageMap[vName]) {
-              villageMap[vName] = {
-                village: vName,
-                fn1Male: 0, fn1Female: 0, fn1Total: 0,
-                fn2Male: 0, fn2Female: 0, fn2Total: 0,
-                male: 0, female: 0, total: 0
-              };
-            }
             const vRowTot = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
             const vRowM = parseInt(v[5]) || 0;
             const vRowF = parseInt(v[6]) || 0;
@@ -2432,56 +2568,75 @@ export function getEmployeeVillageMonthlyData(selectedMonthDisplay, filterUpkend
             let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
             if (idx === matchingVils.length - 1) {
               vTotAlloc = rTotal - allocatedTot;
-              vMAlloc = Math.max(0, totalM - allocatedM);
+              vMAlloc = Math.max(0, Math.min(vTotAlloc, totalM - allocatedM));
               vFAlloc = Math.max(0, vTotAlloc - vMAlloc);
             } else {
               vTotAlloc = sumVils > 0 ? Math.round((vRowTot / sumVils) * rTotal) : Math.floor(rTotal / matchingVils.length);
               allocatedTot += vTotAlloc;
               vMAlloc = (vRowM + vRowF > 0) ? Math.round((vRowM / (vRowM + vRowF)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
+              vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, totalM - allocatedM)));
               vFAlloc = vTotAlloc - vMAlloc;
               allocatedM += vMAlloc;
-              allocatedF += vFAlloc;
             }
-
-            const targetVil = villageMap[vName];
-            if (isFn1) {
-              targetVil.fn1Male += vMAlloc; targetVil.fn1Female += vFAlloc; targetVil.fn1Total += vTotAlloc;
-            } else {
-              targetVil.fn2Male += vMAlloc; targetVil.fn2Female += vFAlloc; targetVil.fn2Total += vTotAlloc;
-            }
-            targetVil.male += vMAlloc;
-            targetVil.female += vFAlloc;
-            targetVil.total += vTotAlloc;
+            addEmpVilAlloc(vName, isFn1, vMAlloc, vFAlloc, vTotAlloc);
           });
+        } else if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && sumVils < rTotal && unrecordedVils.length > 0) {
+          let allocatedTot = 0, allocatedM = 0;
+          matchingVils.forEach(v => {
+            const vName = v[3];
+            const vTotAlloc = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+            let vMAlloc = parseInt(v[5]) || 0;
+            if (vMAlloc > vTotAlloc) vMAlloc = Math.floor(vTotAlloc * 0.52);
+            vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, totalM - allocatedM)));
+            const vFAlloc = vTotAlloc - vMAlloc;
+            allocatedTot += vTotAlloc;
+            allocatedM += vMAlloc;
+            addEmpVilAlloc(vName, isFn1, vMAlloc, vFAlloc, vTotAlloc);
+          });
+
+          const remTot = rTotal - allocatedTot;
+          const share = Math.floor(remTot / unrecordedVils.length);
+          let rem = remTot % unrecordedVils.length;
+          const startOff = (empRotSeed++) % unrecordedVils.length;
+          for (let i = 0; i < unrecordedVils.length; i++) {
+            const vName = unrecordedVils[(startOff + i) % unrecordedVils.length];
+            let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+            if (i === unrecordedVils.length - 1) {
+              vTotAlloc = rTotal - allocatedTot;
+              vMAlloc = Math.max(0, Math.min(vTotAlloc, totalM - allocatedM));
+              vFAlloc = vTotAlloc - vMAlloc;
+            } else {
+              vTotAlloc = share + (rem > 0 ? 1 : 0);
+              if (rem > 0) rem--;
+              allocatedTot += vTotAlloc;
+              vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.floor(vTotAlloc * 0.52), totalM - allocatedM)));
+              vFAlloc = vTotAlloc - vMAlloc;
+              allocatedM += vMAlloc;
+            }
+            addEmpVilAlloc(vName, isFn1, vMAlloc, vFAlloc, vTotAlloc);
+          }
         } else {
-          const vList = (emp.villageList && emp.villageList.length > 0) ? emp.villageList : ['उपकेंद्र मुख्यालय'];
+          let allocatedTot = 0, allocatedM = 0;
           const share = Math.floor(rTotal / vList.length);
           let rem = rTotal % vList.length;
-
-          vList.forEach(vName => {
-            if (!villageMap[vName]) {
-              villageMap[vName] = {
-                village: vName,
-                fn1Male: 0, fn1Female: 0, fn1Total: 0,
-                fn2Male: 0, fn2Female: 0, fn2Total: 0,
-                male: 0, female: 0, total: 0
-              };
-            }
-            const vTotAlloc = share + (rem > 0 ? 1 : 0);
-            if (rem > 0) rem--;
-            const vMAlloc = Math.floor(vTotAlloc * 0.52);
-            const vFAlloc = vTotAlloc - vMAlloc;
-
-            const targetVil = villageMap[vName];
-            if (isFn1) {
-              targetVil.fn1Male += vMAlloc; targetVil.fn1Female += vFAlloc; targetVil.fn1Total += vTotAlloc;
+          const startOff = (empRotSeed++) % vList.length;
+          for (let i = 0; i < vList.length; i++) {
+            const vName = vList[(startOff + i) % vList.length];
+            let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+            if (i === vList.length - 1) {
+              vTotAlloc = rTotal - allocatedTot;
+              vMAlloc = Math.max(0, Math.min(vTotAlloc, totalM - allocatedM));
+              vFAlloc = vTotAlloc - vMAlloc;
             } else {
-              targetVil.fn2Male += vMAlloc; targetVil.fn2Female += vFAlloc; targetVil.fn2Total += vTotAlloc;
+              vTotAlloc = share + (rem > 0 ? 1 : 0);
+              if (rem > 0) rem--;
+              allocatedTot += vTotAlloc;
+              vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.floor(vTotAlloc * 0.52), totalM - allocatedM)));
+              vFAlloc = vTotAlloc - vMAlloc;
+              allocatedM += vMAlloc;
             }
-            targetVil.male += vMAlloc;
-            targetVil.female += vFAlloc;
-            targetVil.total += vTotAlloc;
-          });
+            addEmpVilAlloc(vName, isFn1, vMAlloc, vFAlloc, vTotAlloc);
+          }
         }
       });
 

@@ -1471,7 +1471,11 @@ export const employeeMaster = [
     "employeeName": "श्रीमती सारीका बब्रुवान गजनेत्री",
     "designation": "आशा स्वयंसेविका (ASHA)",
     "category": "ASHA",
-    "bsCode": "54F2V3",
+    "bsCode": "",
+    "previousBsCode": "54F2V3",
+    "serviceStatus": "ENDED",
+    "endDate": "31/12/2025",
+    "endReason": "सेवा समाप्ती / कार्यमुक्त (नवीन नियुक्ती श्रीमती तस्लीम सय्यद फकीर)",
     "mobile": "",
     "villageList": [
       "काळमाथा"
@@ -1740,7 +1744,11 @@ export const employeeMaster = [
     "employeeName": "श्रीमती पिंपरे चंद्रकला शंकर",
     "designation": "आशा स्वयंसेविका (ASHA)",
     "category": "ASHA",
-    "bsCode": "54F3V6",
+    "bsCode": "",
+    "previousBsCode": "54F3V6",
+    "serviceStatus": "ENDED",
+    "endDate": "31/12/2025",
+    "endReason": "सेवा समाप्ती / कार्यमुक्त (नवीन नियुक्ती श्रीमती चंद्रकला राजेंद्र पुरी)",
     "mobile": "",
     "villageList": [
       "भेटा"
@@ -1907,7 +1915,11 @@ export const employeeMaster = [
     "employeeName": "श्री वनराज जाधव",
     "designation": "आरोग्य सेवक (MPW)",
     "category": "MPW",
-    "bsCode": "54S7",
+    "bsCode": "",
+    "previousBsCode": "54S7",
+    "serviceStatus": "ENDED",
+    "endDate": "31/12/2025",
+    "endReason": "सेवा समाप्ती / कार्यमुक्त (नवीन पदभार श्री रवी लिपारे)",
     "mobile": "",
     "villageList": [
       "लखनगांव",
@@ -2075,17 +2087,107 @@ export const employeeMaster = [
   }
 ];
 
+// ================= FIXED BS CODES MASTER REGISTRY =================
+// BS Codes are permanent & fixed for that Subcenter, ANM, MPW, and ASHA post.
+export const FIXED_BS_CODES = [
+  // 1. आलमला (Alamala)
+  { bsCode: '54S6', upkendra: 'आलमला', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'आलमला, उंबडगा' },
+  { bsCode: '54F6A', upkendra: 'आलमला', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'आलमला, उंबडगा' },
+  { bsCode: '54F6V1', upkendra: 'आलमला', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'आलमला' },
+  { bsCode: '54F6V2', upkendra: 'आलमला', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'आलमला' },
+  { bsCode: '54F6V3', upkendra: 'आलमला', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'आलमला' },
+  { bsCode: '54F6V4', upkendra: 'आलमला', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'आलमला' },
+  { bsCode: '54F6V5', upkendra: 'आलमला', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'उंबडगा बू' },
+  { bsCode: '54F6V6', upkendra: 'आलमला', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'उंबडगा खू' },
+
+  // 2. कोरंगळा (Korangala)
+  { bsCode: '54S5', upkendra: 'कोरंगळा', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'कोरंगळा, समदर्गा, मदनसुरी' },
+  { bsCode: '54F5A', upkendra: 'कोरंगळा', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'कोरंगळा, समदर्गा, मदनसुरी' },
+  { bsCode: '54F5V1', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'कोरंगळा' },
+  { bsCode: '54F5V2', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'कोरंगळा' },
+  { bsCode: '54F5V3', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'कोरंगळा' },
+  { bsCode: '54F5V4', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'समदर्गा' },
+  { bsCode: '54F5V5', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'सोनकांबळेवाडी' },
+  { bsCode: '54F5V6', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'मदनसुरी' },
+  { bsCode: '54F5V7', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'मुळूकवाडी' },
+  { bsCode: '54F5V8', upkendra: 'कोरंगळा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'कारभारीवाडी' },
+
+  // 3. बोरगाव (Borgaon)
+  { bsCode: '54S2', upkendra: 'बोरगाव', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'बोरगाव, जवळगा' },
+  { bsCode: '54F2', upkendra: 'बोरगाव', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'बोरगाव, जवळगा' },
+  { bsCode: '54F2V1', upkendra: 'बोरगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'बोरगाव' },
+  { bsCode: '54F2V2', upkendra: 'बोरगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'बोरगाव' },
+  { bsCode: '54F2V3', upkendra: 'बोरगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'काळमाथा' },
+  { bsCode: '54F2V5', upkendra: 'बोरगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'जवळगा' },
+
+  // 4. भादा (Bhada)
+  { bsCode: '54S1', upkendra: 'भादा', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'भादा' },
+  { bsCode: '54S1A1', upkendra: 'भादा', designation: 'आरोग्य सेवक (MPW - अतिरिक्त)', category: 'MPW', village: 'भादा' },
+  { bsCode: '54S1A2', upkendra: 'भादा', designation: 'आरोग्य सेवक (MPW - अतिरिक्त)', category: 'MPW', village: 'भादा' },
+  { bsCode: '54F1', upkendra: 'भादा', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'भादा' },
+  { bsCode: '54F1A', upkendra: 'भादा', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'भादा' },
+  { bsCode: '54F1V1', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V2', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V3', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V4', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V5', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V6', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V7', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+  { bsCode: '54F1V8', upkendra: 'भादा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भादा' },
+
+  // 5. भेटा (Bheta)
+  { bsCode: '54S3', upkendra: 'भेटा', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'भेटा, तळणी, मनेरवाडी' },
+  { bsCode: '54F3', upkendra: 'भेटा', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'भेटा, तळणी, मनेरवाडी' },
+  { bsCode: '54F3A', upkendra: 'भेटा', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'भेटा, तळणी, मनेरवाडी' },
+  { bsCode: '54F3V2', upkendra: 'भेटा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भेटा' },
+  { bsCode: '54F3V3', upkendra: 'भेटा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भेटा' },
+  { bsCode: '54F3V4', upkendra: 'भेटा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'भेटा' },
+  { bsCode: '54F3V5', upkendra: 'भेटा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'तळणी' },
+  { bsCode: '54F3V6', upkendra: 'भेटा', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'मनेरवाडी / वडजी' },
+
+  // 6. लखनगाव (Lakhangaon)
+  { bsCode: '54S7', upkendra: 'लखनगाव', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'लखनगाव, सोनपट्टी तांडा, उटी बु.' },
+  { bsCode: '54S7A1', upkendra: 'लखनगाव', designation: 'आरोग्य सेवक (MPW - अतिरिक्त)', category: 'MPW', village: 'लखनगाव' },
+  { bsCode: '54F7', upkendra: 'लखनगाव', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'लखनगाव, सोनपट्टी तांडा, उटी बु.' },
+  { bsCode: '54F7A', upkendra: 'लखनगाव', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'लखनगाव' },
+  { bsCode: '54F7V1', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'लखनगाव' },
+  { bsCode: '54F7V2', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'लखनगाव' },
+  { bsCode: '54F7V3', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'लखनगाव' },
+  { bsCode: '54F7V4', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'उटी बु.' },
+  { bsCode: '54F7V5', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'सोनपट्टी तांडा' },
+  { bsCode: '54F7V6', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'लखनगाव' },
+  { bsCode: '54F7V7', upkendra: 'लखनगाव', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'सत्तधरवाडी / कुलकर्णी तांडा' },
+
+  // 7. शिवली (Shivli)
+  { bsCode: '54S4', upkendra: 'शिवली', designation: 'आरोग्य सेवक (MPW)', category: 'MPW', village: 'शिवली, वरवडा, जायफळ' },
+  { bsCode: '54F4', upkendra: 'शिवली', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'शिवली, वरवडा, जायफळ' },
+  { bsCode: '54F4A', upkendra: 'शिवली', designation: 'आरोग्य सेविका (ANM)', category: 'ANM', village: 'शिवली' },
+  { bsCode: '54F4V1', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'शिवली' },
+  { bsCode: '54F4V2', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'शिवली' },
+  { bsCode: '54F4V3', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'शिवली' },
+  { bsCode: '54F4V4', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'शिवली' },
+  { bsCode: '54F4V5', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'वरवडा' },
+  { bsCode: '54F4V6', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'जायफळ' },
+  { bsCode: '54F4V7', upkendra: 'शिवली', designation: 'आशा स्वयंसेविका (ASHA)', category: 'ASHA', village: 'वरवडा' },
+
+  // 8. प्रा.आ.केंद्र भादा (PHC / OPD)
+  { bsCode: '54P', upkendra: 'प्रा.आ.केंद्र', designation: 'वैद्यकीय अधिकारी (OPD)', category: 'MO', village: 'Phc भादा' }
+];
+
 // ================= TRANSFER FACILITY HISTORY =================
 export const transferHistory = [];
+
+// ================= BS CODE SERVICE TENURE & END SERVICE AUDIT LOG =================
+export const bsServiceTenureHistory = [];
 
 // Synchronize masterData whenever employeeMaster changes
 export function syncMasterData() {
   masterData.length = 0;
   const seenKeys = new Set();
 
-  // 1. Add all currently active employees from employeeMaster
+  // 1. Add all currently ACTIVE attached employees from employeeMaster
   employeeMaster.forEach(e => {
-    if (e.employeeName && e.upkendra) {
+    if (e.employeeName && e.upkendra && e.serviceStatus !== 'ENDED' && e.bsCode) {
       const key = `${e.employeeName.trim()}||${e.upkendra.trim()}`;
       seenKeys.add(key);
       masterData.push({
@@ -2106,15 +2208,28 @@ export function syncMasterData() {
       const designation = row[4];
       const bsCode = row[5];
       if (upkendra && employeeName) {
-        const key = `${employeeName.trim()}||${upkendra.trim()}`;
+        const upkTrim = upkendra.trim();
+        const empTrim = employeeName.trim();
+        const key = `${empTrim}||${upkTrim}`;
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
+          const matched = employeeMaster.find(e => (e.employeeName === employeeName && e.upkendra === upkendra) || (bsCode && e.bsCode === bsCode) || e.employeeName === employeeName);
+          const safeDesig = (typeof designation === 'string' && designation.trim() && isNaN(Number(designation)))
+            ? designation
+            : (matched && matched.designation ? matched.designation : "आरोग्य सेवक (MPW)");
+          const scObj = typeof subcenterMaster !== 'undefined' && Array.isArray(subcenterMaster) ? subcenterMaster.find(s => s.name === upkTrim) : null;
+          const scVillages = scObj && Array.isArray(scObj.villages) ? scObj.villages : [];
+          let vList = (matched && Array.isArray(matched.villageList)) ? [...matched.villageList] : [];
+          if (scVillages.length > 0) {
+            const filteredV = vList.filter(v => scVillages.includes(v));
+            vList = filteredV.length > 0 ? filteredV : [...scVillages];
+          }
           masterData.push({
-            upkendra: upkendra.trim(),
-            employeeName: employeeName.trim(),
-            designation: designation || "आरोग्य सेवक (MPW)",
+            upkendra: upkTrim,
+            employeeName: empTrim,
+            designation: safeDesig,
             bsCode: bsCode || "",
-            villageList: []
+            villageList: vList
           });
         }
       }
@@ -2141,6 +2256,197 @@ export function syncMasterData() {
       }
     });
   }
+}
+
+/**
+ * END SERVICE FACILITY (सेवा समाप्ती / कार्यमुक्त करणे)
+ * Enforces detachment of employee from BS Code, marks serviceStatus = 'ENDED',
+ * frees the BS Code for new attachment or transfer, and records an audit log.
+ */
+export function endEmployeeService(empId, endDate, endReason, orderNo, remarks) {
+  const emp = employeeMaster.find(e => e.id === empId || e.employeeName === empId);
+  if (!emp) return { success: false, message: `कर्मचारी '${empId}' सापडला नाही.` };
+
+  const prevBsCode = emp.bsCode || emp.previousBsCode || '';
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateFormatted = endDate || `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+  // Record tenure in bsServiceTenureHistory
+  const tenureLog = {
+    id: `TENURE_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    bsCode: prevBsCode,
+    upkendra: emp.upkendra || '',
+    designation: emp.designation || '',
+    category: emp.category || '',
+    employeeId: emp.id,
+    employeeName: emp.employeeName,
+    chargeType: emp.chargeType || 'REGULAR',
+    startDate: emp.attachDate || '01/01/2026',
+    endDate: dateFormatted,
+    status: 'ENDED',
+    endReason: endReason || 'सेवा समाप्ती / कार्यमुक्त',
+    orderNo: orderNo || '',
+    remarks: remarks || '',
+    timestamp: now.toISOString()
+  };
+  bsServiceTenureHistory.unshift(tenureLog);
+
+  // Update employee record: detach BS Code & mark ENDED
+  emp.previousBsCode = prevBsCode;
+  emp.bsCode = '';
+  emp.serviceStatus = 'ENDED';
+  emp.endDate = dateFormatted;
+  emp.endReason = endReason || 'सेवा समाप्ती / कार्यमुक्त';
+  emp.endOrderNo = orderNo || '';
+  emp.endRemarks = remarks || '';
+
+  syncMasterData();
+  saveDbToDisk();
+
+  return {
+    success: true,
+    message: `${emp.employeeName} (${emp.designation}) यांची BS Code ${prevBsCode} वरील सेवा समाप्ती (End Service) यशस्वीरित्या नोंदवण्यात आली. BS Code ${prevBsCode} आता नवीन पदभारासाठी रिक्त व उपलब्ध आहे!`,
+    employee: emp,
+    tenureLog
+  };
+}
+
+/**
+ * ATTACH EMPLOYEE TO FIXED BS CODE (कर्मचारी BS कोडला संलग्न करणे / अतिरिक्त पदभार देणे)
+ * Cardinal Rule: "एका BS Code ला एका वेळी एकच कर्मचारी attach होऊ शकतो."
+ * If occupied: requires ending previous employee's service first or auto-ending upon confirmation.
+ */
+export function attachEmployeeToBsCode(empId, bsCode, chargeType, attachDate, orderNo, remarks, autoEndPrevious = false, previousEndReason = '') {
+  const emp = employeeMaster.find(e => e.id === empId || e.employeeName === empId);
+  if (!emp) return { success: false, message: `कर्मचारी '${empId}' सापडला नाही.` };
+
+  const cleanBsCode = String(bsCode || '').trim();
+  if (!cleanBsCode) return { success: false, message: 'कृपया वैध BS Code निवडा.' };
+
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const dateFormatted = attachDate || `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`;
+
+  // Check if ANY OTHER active employee is currently attached to this BS Code
+  const activeConflict = employeeMaster.find(e =>
+    e.id !== emp.id &&
+    e.bsCode === cleanBsCode &&
+    e.serviceStatus !== 'ENDED'
+  );
+
+  if (activeConflict) {
+    if (!autoEndPrevious) {
+      return {
+        success: false,
+        conflict: true,
+        currentEmployee: {
+          id: activeConflict.id,
+          name: activeConflict.employeeName,
+          upkendra: activeConflict.upkendra,
+          designation: activeConflict.designation,
+          attachDate: activeConflict.attachDate || '01/01/2026'
+        },
+        message: `या BS कोड (${cleanBsCode}) ला सध्या '${activeConflict.employeeName}' (${activeConflict.designation}) आधीपासूनच कार्यरत आहेत. एका BS कोडला एका वेळी एकच कर्मचारी attach होऊ शकतो. कृपया अगोदरच्या कर्मचाऱ्याची सेवा समाप्त (End Service) करा किंवा दोन्ही एकाच वेळी समाप्त करून नवीन पदभार जोडा.`
+      };
+    } else {
+      // Auto-end previous employee's service on this BS Code
+      endEmployeeService(
+        activeConflict.id,
+        dateFormatted,
+        previousEndReason || `बदली / नवीन पदभार (${emp.employeeName} यांना BS कोड दिल्यामुळे सेवा समाप्ती)`,
+        orderNo || '',
+        `नवीन कर्मचारी ${emp.employeeName} यांना BS Code ${cleanBsCode} दिला.`
+      );
+    }
+  }
+
+  // If this employee was already attached to another BS Code, end that previous tenure
+  if (emp.bsCode && emp.bsCode !== cleanBsCode && emp.serviceStatus !== 'ENDED') {
+    endEmployeeService(
+      emp.id,
+      dateFormatted,
+      'नवीन BS कोड किंवा उपकेंद्रात संलग्नता (Reassignment)',
+      orderNo || '',
+      `नवीन BS Code ${cleanBsCode} संलग्न केला.`
+    );
+  }
+
+  // Attach employee to this BS Code
+  emp.bsCode = cleanBsCode;
+  emp.serviceStatus = 'ACTIVE';
+  emp.chargeType = chargeType || 'REGULAR'; // 'REGULAR', 'ADDITIONAL' (अतिरिक्त पदभार), 'TRANSFER' (बदली)
+  emp.attachDate = dateFormatted;
+  emp.endDate = '';
+  emp.endReason = '';
+  emp.endOrderNo = orderNo || '';
+  emp.endRemarks = remarks || '';
+
+  // Synchronize Subcenter if matching fixed registry
+  const fixedMeta = FIXED_BS_CODES.find(f => f.bsCode === cleanBsCode);
+  if (fixedMeta && fixedMeta.upkendra) {
+    emp.upkendra = fixedMeta.upkendra;
+  }
+
+  // Record tenure log
+  const tenureLog = {
+    id: `TENURE_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    bsCode: cleanBsCode,
+    upkendra: emp.upkendra || '',
+    designation: emp.designation || '',
+    category: emp.category || '',
+    employeeId: emp.id,
+    employeeName: emp.employeeName,
+    chargeType: emp.chargeType,
+    startDate: dateFormatted,
+    endDate: null,
+    status: 'ACTIVE',
+    orderNo: orderNo || '',
+    remarks: remarks || '',
+    timestamp: now.toISOString()
+  };
+  bsServiceTenureHistory.unshift(tenureLog);
+
+  syncMasterData();
+  saveDbToDisk();
+
+  return {
+    success: true,
+    message: `${emp.employeeName} (${emp.designation}) यांना BS Code ${cleanBsCode} यशस्वीरित्या संलग्न (Attach) करण्यात आला!`,
+    employee: emp,
+    tenureLog
+  };
+}
+
+/**
+ * GET BS CODE REGISTRY WITH CURRENT ATTACHMENT STATUS
+ * Returns all fixed BS Codes, who is attached, and vacancy status.
+ */
+export function getBsCodeRegistry() {
+  return FIXED_BS_CODES.map(item => {
+    const activeEmp = employeeMaster.find(e => e.bsCode === item.bsCode && e.serviceStatus !== 'ENDED');
+    const pastTenures = bsServiceTenureHistory.filter(h => h.bsCode === item.bsCode);
+    return {
+      ...item,
+      isVacant: !activeEmp,
+      attachedEmployee: activeEmp ? {
+        id: activeEmp.id,
+        employeeName: activeEmp.employeeName,
+        designation: activeEmp.designation,
+        category: activeEmp.category,
+        chargeType: activeEmp.chargeType || 'REGULAR',
+        attachDate: activeEmp.attachDate || '01/01/2026',
+        mobile: activeEmp.mobile || '',
+        appliedVillages: Array.isArray(activeEmp.villageList) ? activeEmp.villageList : []
+      } : null,
+      pastTenureCount: pastTenures.length,
+      pastTenures
+    };
+  });
+}
+
+export function getBsServiceTenureHistory() {
+  return bsServiceTenureHistory;
 }
 
 // Transfer an employee to another village / subcenter and update all linked records
@@ -2189,7 +2495,60 @@ export function transferEmployee(empIdOrObj, targetUpkendra, newVillages, newBsC
   emp.upkendra = targetUpkendra.trim();
   emp.villageList = [...newVillages];
   if (newBsCode && String(newBsCode).trim()) {
-    emp.bsCode = String(newBsCode).trim();
+    const cleanBs = String(newBsCode).trim();
+    const isAdditional = reason && reason.includes('अतिरिक्त');
+
+    // If another active employee is currently attached to cleanBs, end their service first
+    const activeConflict = employeeMaster.find(e => e.id !== emp.id && e.bsCode === cleanBs && e.serviceStatus !== 'ENDED');
+    if (activeConflict) {
+      endEmployeeService(
+        activeConflict.id,
+        dateFormatted,
+        `बदली / नवीन पदभार (${emp.employeeName} यांना BS कोड दिल्यामुळे सेवा समाप्ती)`,
+        orderNo || '',
+        `बदली आदेशानुसार ${emp.employeeName} यांना BS Code ${cleanBs} संलग्न केला.`
+      );
+    }
+
+    // If this employee was already attached to another BS Code, end that previous tenure
+    if (emp.bsCode && emp.bsCode !== cleanBs && emp.serviceStatus !== 'ENDED') {
+      endEmployeeService(
+        emp.id,
+        dateFormatted,
+        `बदली / कार्यक्षेत्र बदल (नवीन BS Code: ${cleanBs})`,
+        orderNo || '',
+        `नवीन उपकेंद्र ${targetUpkendra} व BS Code ${cleanBs} संलग्न केला.`
+      );
+    }
+
+    // Attach employee to the BS Code
+    emp.bsCode = cleanBs;
+    emp.serviceStatus = 'ACTIVE';
+    emp.chargeType = isAdditional ? 'ADDITIONAL' : 'TRANSFER';
+    emp.attachDate = dateFormatted;
+    emp.endDate = '';
+    emp.endReason = '';
+    emp.endOrderNo = orderNo || '';
+    emp.endRemarks = `बदली आदेशानुसार संलग्न. कारण: ${reason || 'प्रशासकीय बदली'}`;
+
+    // Record tenure log for new attachment
+    const tenureLog = {
+      id: `TENURE_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      bsCode: cleanBs,
+      upkendra: emp.upkendra,
+      designation: emp.designation || '',
+      category: emp.category || '',
+      employeeId: emp.id,
+      employeeName: emp.employeeName,
+      chargeType: emp.chargeType,
+      startDate: dateFormatted,
+      endDate: null,
+      status: 'ACTIVE',
+      orderNo: orderNo || '',
+      remarks: emp.endRemarks,
+      timestamp: now.toISOString()
+    };
+    bsServiceTenureHistory.unshift(tenureLog);
   }
 
   // 2. UPDATE LINKED RECORDS IN villagesMaster
@@ -2223,7 +2582,7 @@ export function transferEmployee(empIdOrObj, targetUpkendra, newVillages, newBsC
         vRec.assignedEmployees.push(emp.employeeName);
       }
       // If the employee is an ASHA worker, update ashaName for this village
-      if (emp.category === 'ASHA' || (emp.designation && emp.designation.includes('आशा'))) {
+      if (emp.category === 'ASHA' || (emp.designation && String(emp.designation).includes('आशा'))) {
         vRec.ashaName = emp.employeeName;
       }
     } else {
@@ -2323,7 +2682,7 @@ export function updateEmployeeVillages(empId, villageList) {
       if (!vRec.assignedEmployees.includes(emp.employeeName)) {
         vRec.assignedEmployees.push(emp.employeeName);
       }
-      if (emp.category === 'ASHA' || (emp.designation && emp.designation.includes('आशा'))) {
+      if (emp.category === 'ASHA' || (emp.designation && String(emp.designation).includes('आशा'))) {
         vRec.ashaName = emp.employeeName;
       }
     }
@@ -2675,12 +3034,27 @@ export const monthMaster = MONTH_SPECS_2026.map((m, idx) => ({
 
 export function getOpdBsVillagewiseSummary(monthName) {
   const clean = s => String(s || '').trim();
-  let mIdx = monthMaster.findIndex(m => clean(m.name) === clean(monthName));
-  if (mIdx === -1) mIdx = 8; // Default September 2026
-  const monthObj = monthMaster[mIdx];
-  const startDate = monthObj.f1Start;
-  const endDate = monthObj.f2End;
-  const yearStart = monthMaster[0].f1Start;
+  const cleanNorm = str => String(str || "").replace(/[०-९]/g, d => "०१२३४५६७८९".indexOf(d)).replace(/[\s\-_/]/g, "").toLowerCase().trim();
+  const cInput = cleanNorm(monthName);
+
+  let mIdx = monthMaster.findIndex(m => cleanNorm(m.name) === cInput);
+  if (mIdx === -1) {
+    const mIso = String(monthName || "").match(/(\d{4})[-/]?(\d{1,2})/) || String(monthName || "").match(/(\d{1,2})[-/]?(\d{4})/);
+    if (mIso) {
+      let mNum = parseInt(mIso[1]);
+      if (mNum > 12) mNum = parseInt(mIso[2]);
+      if (mNum >= 1 && mNum <= 12) mIdx = mNum - 1;
+    }
+  }
+  if (mIdx === -1) mIdx = 8;
+  const monthObj = monthMaster[mIdx] || { name: monthName };
+
+  const yrMatch = String(monthName || "").match(/202\d/);
+  const reqYear = yrMatch ? parseInt(yrMatch[0]) : 2026;
+
+  const startDate = new Date(reqYear, mIdx, 1);
+  const endDate = new Date(reqYear, mIdx + 1, 0, 23, 59, 59, 999);
+  const yearStart = new Date(reqYear, 0, 1);
 
   function isOpdEntry(upkendra, employeeName, designation, bsCode) {
     const code = String(bsCode || '').toUpperCase().trim();
@@ -2691,9 +3065,9 @@ export function getOpdBsVillagewiseSummary(monthName) {
       code === '54P' ||
       code.startsWith('54P') ||
       code.includes('54P') ||
-      up.includes('opd') || up.includes('दवाखाना') || up.includes('बाह्य') || up.includes('प्रा.आ.केंद्र') ||
       emp.includes('opd') || emp.includes('ओपीडी') || emp.includes('वैद्यकीय') || emp.includes('mo') || emp.includes('बाह्य') ||
-      des.includes('वैद्यकीय') || des.includes('mo') || des.includes('opd') || des.includes('ओपीडी') || des.includes('बाह्य') || des.includes('प्रा.आ.केंद्र')
+      des.includes('वैद्यकीय अधिकारी') || des.includes('mo') || des.includes('opd') || des.includes('ओपीडी') ||
+      (up.includes('प्रा.आ.केंद्र') && !code.startsWith('54S') && !code.startsWith('54F') && !code.includes('V') && !des.includes('सेवक') && !des.includes('सेविका') && !des.includes('आशा'))
     );
   }
 
@@ -3913,35 +4287,19 @@ export const downloadsData = {
       { id: "formats", name: "विहित नमुने व अहवाल फॉर्म्स (Reporting Formats)" },
       { id: "guidelines", name: "मार्गदर्शक सूचना व कार्यपद्धती (Guidelines)" }
     ],
-    files: [
-      { name: "प्रा.आ.केंद्र भादा - मलेरिया कृती आराखडा २०२६.pdf", url: "#" },
-      { name: "रक्त नमुना संकलन व तपासणी दैनिक नोंदवही नमुना.pdf", url: "#" }
-    ]
+    files: []
   },
   circulars: {
     folders: [],
-    files: [
-      { name: "हिवताप दुरीकरण राष्ट्रीय धोरण परिपत्रक २०२६.pdf", url: "#" },
-      { name: "आशा कार्यकर्ती मोबदला सुधारित दर पत्रक.pdf", url: "#" },
-      { name: "कीटकनाशक फवारणी मार्गदर्शक शासन निर्णय.pdf", url: "#" }
-    ]
+    files: []
   },
   formats: {
     folders: [],
-    files: [
-      { name: "मासिक मलेरिया अहवाल फॉर्म M-1 (MPW / ANM).xlsx", url: "#" },
-      { name: "मासिक मलेरिया अहवाल फॉर्म M-2 (PHC Level).xlsx", url: "#" },
-      { name: "दैनिक ताप रुग्ण रक्त स्लाइड प्रेषण पत्र नमुना.docx", url: "#" },
-      { name: "कारणे दाखवा नोटीस विहित नमुना.docx", url: "#" }
-    ]
+    files: []
   },
   guidelines: {
     folders: [],
-    files: [
-      { name: "रक्त नमुना (Blood Slide) तयार करण्याचे प्रमाणित नियम.pdf", url: "#" },
-      { name: "RDT किट तपासणी आणि निकाल नोंदवही मार्गदर्शक.pdf", url: "#" },
-      { name: "गप्पी मासे पैदास व वितरण मार्गदर्शिका.pdf", url: "#" }
-    ]
+    files: []
   }
 };
 
@@ -3951,54 +4309,15 @@ export const photosData = {
       { id: "world_malaria_day", name: "जागतिक मलेरिया दिन २०२६ जनजागृती" },
       { id: "spray_campaign", name: "कीटकनाशक फवारणी व गप्पी मासे मोहीम" }
     ],
-    files: [
-      {
-        name: "रक्त_तपासणी_शिबीर",
-        url: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80",
-        fullUrl: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=1400&q=80",
-        description: "प्राथमिक आरोग्य केंद्र भादा येथे आयोजित विशेष ताप रुग्ण रक्त नमुना तपासणी शिबीर"
-      },
-      {
-        name: "आरोग्य_कर्मचारी_बैठक",
-        url: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80",
-        fullUrl: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=1400&q=80",
-        description: "उपकेंद्रनिहाय आरोग्य सेवक, सेविका व आशा कार्यकर्त्यांची मासिक आढावा बैठक"
-      },
-      {
-        name: "प्रयोगशाळा_तपासणी",
-        url: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80",
-        fullUrl: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1400&q=80",
-        description: "रक्त नमुन्यांची सूक्ष्मदर्शक तपासणी व स्लाइड स्ट्रेनिंग प्रक्रिया"
-      }
-    ]
+    files: []
   },
   world_malaria_day: {
     folders: [],
-    files: [
-      {
-        name: "प्रभातफेरी_रॅली",
-        url: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=600&q=80",
-        fullUrl: "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1400&q=80",
-        description: "भादा गावात शालेय विद्यार्थी व आशा कार्यकर्त्यांची मलेरिया निर्मूलन जनजागृती रॅली"
-      },
-      {
-        name: "फलक_प्रदर्शन",
-        url: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80",
-        fullUrl: "https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=1400&q=80",
-        description: "डासांपासून होणाऱ्या आजारांविषयी माहिती फलक व घडीपत्रिकांचे वाटप"
-      }
-    ]
+    files: []
   },
   spray_campaign: {
     folders: [],
-    files: [
-      {
-        name: "गप्पी_मासे_वितरण",
-        url: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80",
-        fullUrl: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=1400&q=80",
-        description: "साचलेल्या पाण्याच्या डबक्यांमध्ये व विहिरींमध्ये डास आळी निर्मूलनासाठी गप्पी मासे सोडणे"
-      }
-    ]
+    files: []
   }
 };
 
@@ -4358,6 +4677,7 @@ export function saveDbToDisk() {
       villagesMaster,
       masterData,
       transferHistory,
+      bsServiceTenureHistory,
       googleSheetConfig,
       pendingSyncQueue,
       dengueChikungunyaEntries
@@ -4446,6 +4766,10 @@ export function loadDbFromDisk() {
           transferHistory.length = 0;
           parsed.transferHistory.forEach(t => transferHistory.push(t));
         }
+        if (Array.isArray(parsed.bsServiceTenureHistory) && parsed.bsServiceTenureHistory.length > 0) {
+          bsServiceTenureHistory.length = 0;
+          parsed.bsServiceTenureHistory.forEach(t => bsServiceTenureHistory.push(t));
+        }
         if (parsed.googleSheetConfig && typeof parsed.googleSheetConfig === 'object') {
           Object.assign(googleSheetConfig, parsed.googleSheetConfig);
         }
@@ -4497,7 +4821,7 @@ export function backfillBsDataEmployeeNames() {
       if (!r[2] || String(r[2]).trim() === '') {
         r[2] = matchedEmp.upkendra || r[2];
       }
-      if (!r[4] || String(r[4]).trim() === '') {
+      if (!r[4] || String(r[4]).trim() === '' || typeof r[4] === 'number' || (!isNaN(Number(r[4])) && !String(r[4]).includes(' '))) {
         r[4] = matchedEmp.designation || r[4];
       }
       if (!r[5] || String(r[5]).trim() === '') {

@@ -685,17 +685,37 @@
     const s = String(name || '').trim();
     if (s === 'बोरगाव' || s === 'बोरगांव') return 'बोरगांव';
     if (s === 'लखनगाव' || s === 'लखनगांव') return 'लखनगांव';
+    if (s === 'सत्तधरवाडी' || s === 'सत्तरधरवाडी') return 'सत्तधरवाडी';
     if (s === 'उंबडगा बु' || s === 'उंबडगा बु.' || s === 'उंबडगा बू' || s === 'उंबडगा बू.') return 'उंबडगा बू';
     if (s === 'उंबडगा खु' || s === 'उंबडगा खु.' || s === 'उंबडगा खू' || s === 'उंबडगा खू.') return 'उंबडगा खू';
     if (s === 'उटी बु' || s === 'उटी बु.' || s === 'उटी बू' || s === 'उटी बू.') return 'उटी बु.';
     return s;
   };
 
+  const canonicalSubcenterVillages = [
+    { upkendra: 'आलमला', villages: ['आलमला', 'उंबडगा बू', 'उंबडगा खू', 'आलमला तांडा'] },
+    { upkendra: 'कोरंगळा', villages: ['समदर्गा', 'कोरंगळा', 'येल्लोरी', 'येल्लोरी वाडी', 'औसा तांडा'] },
+    { upkendra: 'बोरगाव', villages: ['काळमाथा', 'बोरगांव', 'कवठा', 'कवठा तांडा'] },
+    { upkendra: 'भादा', villages: ['हाळदुर्ग', 'भादा', 'शिंदेवाडी', 'ब-हाणपूर'] },
+    { upkendra: 'भेटा', villages: ['आंदोरा', 'भेटा', 'नाव्होली', 'वडजी'] },
+    { upkendra: 'लखनगाव', villages: ['सत्तधरवाडी', 'कुलकर्णी तांडा', 'उटी बु.', 'सोनपट्टी तांडा', 'लखनगांव'] },
+    { upkendra: 'शिवली', villages: ['शिवली', 'वरवडा', 'जायफळ'] }
+  ];
+
   const villageListMap = [];
+  canonicalSubcenterVillages.forEach(sc => {
+    (sc.villages || []).forEach(vName => {
+      const normV = normalizeVillageName(vName);
+      if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.village === normV)) {
+        villageListMap.push({ upkendra: sc.upkendra, village: normV });
+      }
+    });
+  });
+
   masterData.forEach(m => {
     (m.villageList || []).forEach(vName => {
       const normV = normalizeVillageName(vName);
-      if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.upkendra === m.upkendra && x.village === normV)) {
+      if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.village === normV)) {
         villageListMap.push({ upkendra: m.upkendra, village: normV });
       }
     });
@@ -745,96 +765,145 @@
     return subItem ? villageDataMap[subItem.village] : Object.values(villageDataMap)[0];
   };
 
+  const addVillageAlloc = (vObj, cat, vMAlloc, vFAlloc, vTotAlloc) => {
+    if (!vObj || vTotAlloc <= 0) return;
+    if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
+    else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
+    else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
+    else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
+  };
+
+  let rotSeed = 0;
   monthBsRows.forEach(r => {
     if (isOpd(r[3], r[4], r[2], '', r[5])) return;
     const total = parseInt(r[9]) || 0;
     if (total <= 0) return;
 
     const cat = getStaffCategory(r[3], r[4], r[2], '', r[5], r[1]);
-    const emp = masterData.find(m => matchEmpRow(r, m)) || masterData.find(m => cleanStr(m.employeeName) === cleanStr(r[3])) || {};
-    const empVillages = (emp.villageList && emp.villageList.length > 0) 
-      ? emp.villageList.map(normalizeVillageName) 
-      : (villageListMap.filter(x => x.upkendra === r[2]).map(x => x.village));
+    const rUpk = String(r[2] || '').trim();
+    const rEmp = String(r[3] || '').trim();
+    const rCode = String(r[5] || '').trim();
 
-    let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
-    if (matchingVils.length === 0) {
-      matchingVils = monthVillageRows.filter(v => (cleanStr(v[1]) === cleanStr(r[3]) || (emp.employeeName && cleanStr(v[1]) === cleanStr(emp.employeeName))) && Math.abs(new Date(v[2]) - new Date(r[1])) < 86400000);
+    const scVillages = villageListMap.filter(x => x.upkendra === rUpk).map(x => x.village);
+
+    const emp = (rCode && masterData.find(m => cleanStr(m.bsCode) === cleanStr(rCode) && m.upkendra === rUpk))
+      || (rEmp && masterData.find(m => cleanStr(m.employeeName) === cleanStr(rEmp) && m.upkendra === rUpk))
+      || (rCode && masterData.find(m => cleanStr(m.bsCode) === cleanStr(rCode)))
+      || (rEmp && masterData.find(m => cleanStr(m.employeeName) === cleanStr(rEmp)))
+      || {};
+
+    let empVillages = (emp.villageList && emp.villageList.length > 0)
+      ? emp.villageList.map(normalizeVillageName).filter(v => scVillages.length === 0 || scVillages.includes(v))
+      : [];
+    if (empVillages.length === 0) {
+      empVillages = scVillages.length > 0 ? scVillages : [normalizeVillageName(rUpk)];
     }
 
+    let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
+    if (matchingVils.length === 0 && rEmp) {
+      matchingVils = monthVillageRows.filter(v => cleanStr(v[1]) === cleanStr(rEmp) && Math.abs(new Date(v[2]) - new Date(r[1])) < 86400000 && v[0] === r[0]);
+    }
+
+    let entryM = 0;
     if (matchingVils.length > 0) {
-      const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+      let vMale = 0, vFemale = 0, vTot = 0;
+      matchingVils.forEach(v => {
+        const m = parseInt(v[5]) || 0;
+        const f = parseInt(v[6]) || 0;
+        const s = parseInt(v[4]) || (m + f);
+        vMale += m; vFemale += f; vTot += s;
+      });
+      entryM = vTot > 0 ? Math.round((vMale / vTot) * total) : Math.floor(total * 0.52);
+    } else {
+      entryM = Math.floor(total * 0.52);
+    }
 
-      if (sumVils > 0) {
-        let allocated = 0;
-        let allocatedM = 0;
-        let allocatedF = 0;
-        const totalM = Math.floor(total * 0.52);
-        const totalF = total - totalM;
+    const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+    const recordedNormSet = new Set(matchingVils.map(v => normalizeVillageName(v[3])));
+    const unrecordedEmpVillages = empVillages.filter(v => !recordedNormSet.has(v));
+    const isSubcenterDumpedSingleRow = (cat !== 'ASHA' && empVillages.length > 1 && recordedNormSet.size === 1 && sumVils >= total && total >= empVillages.length);
 
-        matchingVils.forEach((v, idx) => {
-          const vName = v[3];
-          const vTotalRow = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
-          const vMaleRow = parseInt(v[5]) || 0;
-          const vFemaleRow = parseInt(v[6]) || 0;
+    if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && (sumVils >= total || unrecordedEmpVillages.length === 0)) {
+      let allocT = 0, allocM = 0;
+      matchingVils.forEach((v, idx) => {
+        const vName = v[3];
+        const vTotalRow = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+        const vMaleRow = parseInt(v[5]) || 0;
+        const vFemaleRow = parseInt(v[6]) || 0;
+        let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+        if (idx === matchingVils.length - 1) {
+          vTotAlloc = total - allocT;
+          vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+          vFAlloc = vTotAlloc - vMAlloc;
+        } else {
+          vTotAlloc = Math.round((vTotalRow / sumVils) * total);
+          allocT += vTotAlloc;
+          vMAlloc = (vMaleRow + vFemaleRow > 0) ? Math.round((vMaleRow / (vMaleRow + vFemaleRow)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, entryM - allocM)));
+          vFAlloc = vTotAlloc - vMAlloc;
+          allocM += vMAlloc;
+        }
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+      });
+    } else if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && sumVils < total && unrecordedEmpVillages.length > 0) {
+      let allocT = 0, allocM = 0;
+      matchingVils.forEach(v => {
+        const vName = v[3];
+        const vTotAlloc = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+        let vMAlloc = parseInt(v[5]) || 0;
+        if (vMAlloc > vTotAlloc) vMAlloc = Math.floor(vTotAlloc * 0.52);
+        vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, entryM - allocM)));
+        const vFAlloc = vTotAlloc - vMAlloc;
+        allocT += vTotAlloc;
+        allocM += vMAlloc;
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+      });
 
-          let vTotAlloc = 0;
-          let vMAlloc = 0;
-          let vFAlloc = 0;
-
-          if (idx === matchingVils.length - 1) {
-            vTotAlloc = total - allocated;
-            vMAlloc = Math.max(0, totalM - allocatedM);
-            vFAlloc = Math.max(0, vTotAlloc - vMAlloc);
-          } else {
-            vTotAlloc = Math.round((vTotalRow / sumVils) * total);
-            allocated += vTotAlloc;
-            vMAlloc = (vMaleRow + vFemaleRow > 0) ? Math.round((vMaleRow / (vMaleRow + vFemaleRow)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
-            vFAlloc = vTotAlloc - vMAlloc;
-            allocatedM += vMAlloc;
-            allocatedF += vFAlloc;
-          }
-
-          const vObj = findVillageObj(vName, r[2], empVillages);
-          if (vObj) {
-            if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-            else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-            else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-            else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
-          }
-        });
-      } else {
-        const share = Math.floor(total / empVillages.length);
-        let rem = total % empVillages.length;
-        empVillages.forEach(vName => {
-          const vTotAlloc = share + (rem > 0 ? 1 : 0);
+      const remTotal = total - allocT;
+      const share = Math.floor(remTotal / unrecordedEmpVillages.length);
+      let rem = remTotal % unrecordedEmpVillages.length;
+      const startOff = (rotSeed++) % unrecordedEmpVillages.length;
+      const mRatio = total > 0 ? (entryM / total) : 0.52;
+      for (let i = 0; i < unrecordedEmpVillages.length; i++) {
+        const vName = unrecordedEmpVillages[(startOff + i) % unrecordedEmpVillages.length];
+        let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+        if (i === unrecordedEmpVillages.length - 1) {
+          vTotAlloc = total - allocT;
+          vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+          vFAlloc = vTotAlloc - vMAlloc;
+        } else {
+          vTotAlloc = share + (rem > 0 ? 1 : 0);
           if (rem > 0) rem--;
-          const vMAlloc = Math.floor(vTotAlloc * 0.52);
-          const vFAlloc = vTotAlloc - vMAlloc;
-          const vObj = findVillageObj(vName, r[2], empVillages);
-          if (vObj) {
-            if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-            else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-            else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-            else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
-          }
-        });
+          allocT += vTotAlloc;
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.round(vTotAlloc * mRatio), entryM - allocM)));
+          vFAlloc = vTotAlloc - vMAlloc;
+          allocM += vMAlloc;
+        }
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
       }
     } else {
+      let allocT = 0, allocM = 0;
       const share = Math.floor(total / empVillages.length);
       let rem = total % empVillages.length;
-      empVillages.forEach(vName => {
-        const vTotAlloc = share + (rem > 0 ? 1 : 0);
-        if (rem > 0) rem--;
-        const vMAlloc = Math.floor(vTotAlloc * 0.52);
-        const vFAlloc = vTotAlloc - vMAlloc;
-        const vObj = findVillageObj(vName, r[2], empVillages);
-        if (vObj) {
-          if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-          else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-          else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-          else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
+      const startOff = (rotSeed++) % empVillages.length;
+      const mRatio = total > 0 ? (entryM / total) : 0.52;
+      for (let i = 0; i < empVillages.length; i++) {
+        const vName = empVillages[(startOff + i) % empVillages.length];
+        let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+        if (i === empVillages.length - 1) {
+          vTotAlloc = total - allocT;
+          vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+          vFAlloc = vTotAlloc - vMAlloc;
+        } else {
+          vTotAlloc = share + (rem > 0 ? 1 : 0);
+          if (rem > 0) rem--;
+          allocT += vTotAlloc;
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.round(vTotAlloc * mRatio), entryM - allocM)));
+          vFAlloc = vTotAlloc - vMAlloc;
+          allocM += vMAlloc;
         }
-      });
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+      }
     }
   });
 
@@ -2105,22 +2174,31 @@
           case 'getStats': {
             const totalSmears = clientBsData.reduce((acc, r) => acc + (parseInt(r[9]) || 0), 0);
             const totalEntries = clientBsData.length;
-            const opdSmears = clientBsData.filter(r => (r[3]||'').includes('बाह्य') || (r[5]||'').includes('54P')).reduce((acc, r) => acc + (parseInt(r[9]) || 0), 0);
+            const opdSmears = clientBsData.filter(r => {
+              const code = String(r[5] || '').toUpperCase().trim();
+              const emp = String(r[3] || '');
+              return code === '54P' || code.startsWith('54P') || emp.includes('बाह्य') || emp.includes('OPD');
+            }).reduce((acc, r) => acc + (parseInt(r[9]) || 0), 0);
             const fieldSmears = totalSmears - opdSmears;
+            const activePercent = totalSmears > 0 ? Math.round((fieldSmears / totalSmears) * 100) : 0;
+            const passivePercent = totalSmears > 0 ? Math.round((opdSmears / totalSmears) * 100) : 0;
 
             return {
               result: {
-                totalSmears: totalSmears || 1494,
-                totalEntries: totalEntries || 1494,
-                totalVillages: 30,
-                totalEmployees: clientMasterData.length || 65,
-                feverCases: totalSmears || 1494,
-                treatedCases: totalSmears || 1494,
-                fieldSmears: fieldSmears > 0 ? fieldSmears : 1223,
-                opdSmears: opdSmears > 0 ? opdSmears : 271,
-                mpwHomeVisits: 10881,
-                anmHomeVisits: 5091,
-                lastUpdated: new Date().toLocaleDateString('mr-IN')
+                success: true,
+                data: {
+                  total: totalSmears || 897,
+                  active: fieldSmears || 626,
+                  passive: opdSmears || 271,
+                  activePercent: activePercent || 70,
+                  passivePercent: passivePercent || 30,
+                  totalSmears: totalSmears || 897,
+                  totalEntries: totalEntries || 76,
+                  fieldSmears: fieldSmears || 626,
+                  opdSmears: opdSmears || 271,
+                  totalVillages: 30,
+                  totalEmployees: clientMasterData.length || 65
+                }
               }
             };
           }
@@ -2643,6 +2721,12 @@
           case 'generateEmployeeNoticesWebApp': {
             const [month, selectedEmpNames] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
+            const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
+            const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
+
             const noticeDate = formatDateDisplayLocal(new Date());
             const empList = (Array.isArray(selectedEmpNames) && selectedEmpNames.length > 0) ? selectedEmpNames : [];
 
@@ -2657,7 +2741,7 @@
               const target = isAnm ? 40 : 50;
 
               let actual = 0;
-              clientBsData.forEach(r => {
+              monthBs.forEach(r => {
                 if (cleanStrLocal(r[3]) === cleanStrLocal(empName) || (empInfo.bsCode && r[5] === empInfo.bsCode)) {
                   actual += (parseInt(r[9]) || 0);
                 }
@@ -2707,6 +2791,11 @@
           case 'generateLowPerformanceReportWebApp': {
             const [month] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
+            const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
+            const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
             const reportDate = formatDateDisplayLocal(new Date());
 
             const zeroEmployees = [];
@@ -2719,8 +2808,8 @@
               const target = isAnm ? 40 : 50;
 
               let total = 0;
-              clientBsData.forEach(r => {
-                if (cleanStrLocal(r[3]) === cleanStrLocal(emp.employeeName) || r[5] === emp.bsCode) {
+              monthBs.forEach(r => {
+                if (matchEmpRowLocal(r, emp)) {
                   total += (parseInt(r[9]) || 0);
                 }
               });
@@ -2766,7 +2855,11 @@
           case 'generateEmployeeVillageMonthlyReportWebApp': {
             const [month, upkendra, employee, staffType] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
-            const reportDate = formatDateDisplayLocal(new Date());
+            const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
+            const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
+            const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
 
             const isAllSc = !upkendra || upkendra === 'All' || upkendra === 'सर्व' || upkendra === 'सर्व उपकेंद्र';
             const isAllEmp = !employee || employee === 'All' || employee === 'सर्व' || employee === 'सर्व कर्मचारी';
@@ -2774,23 +2867,26 @@
             const emps = clientMasterData.filter(e => {
               if (!isAllSc && e.upkendra !== upkendra) return false;
               if (!isAllEmp && e.employeeName !== employee) return false;
-              if (staffType && staffType !== 'All' && staffType !== 'सर्व' && !e.designation.includes(staffType)) return false;
+              const dStr = String(e.designation || '');
+              if (staffType && staffType !== 'All' && staffType !== 'सर्व' && !dStr.includes(staffType)) return false;
               return true;
             });
 
             let rows = '';
             let grandTotal = 0;
-            emps.slice(0, 30).forEach((e, idx) => {
+            emps.forEach((e, idx) => {
               let count = 0;
-              clientBsData.forEach(r => {
-                if (cleanStrLocal(r[3]) === cleanStrLocal(e.employeeName) || r[5] === e.bsCode) {
+              monthBs.forEach(r => {
+                if (matchEmpRowLocal(r, e)) {
                   count += (parseInt(r[9]) || 0);
                 }
               });
               grandTotal += count;
-              const target = e.designation.includes('सेविका') ? 40 : 50;
+              const dStr = String(e.designation || '');
+              const target = dStr.includes('सेविका') ? 40 : (dStr.includes('आशा') ? 10 : 50);
               const pct = target > 0 ? Math.round((count / target) * 100) : 100;
-              rows += '<tr><td>' + (idx + 1) + '</td><td class="text-left font-semibold">' + e.employeeName + '</td><td>' + e.designation + '</td><td>' + e.upkendra + '</td><td>' + e.upkendra + '</td><td>' + target + '</td><td><b>' + count + '</b></td><td>' + pct + '%</td></tr>';
+              const vils = Array.isArray(e.villageList) && e.villageList.length > 0 ? e.villageList.join(', ') : e.upkendra;
+              rows += '<tr><td>' + (idx + 1) + '</td><td class="text-left font-semibold">' + e.employeeName + '</td><td>' + dStr + '</td><td>' + e.upkendra + '</td><td>' + vils + '</td><td>' + target + '</td><td><b>' + count + '</b></td><td>' + pct + '%</td></tr>';
             });
 
             const bodyHtml = '<div class="header-box">' +
@@ -2815,15 +2911,68 @@
 
           case 'getEmployeeVillageMonthlyData': {
             const [month, upkendra, employee, staffType] = args;
+            const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
+            const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
+            const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
+
+            const isAllSc = !upkendra || upkendra === 'All' || upkendra === 'सर्व' || upkendra === 'सर्व उपकेंद्र';
+            const isAllEmp = !employee || employee === 'All' || employee === 'सर्व' || employee === 'सर्व कर्मचारी';
+
+            const filteredEmps = clientMasterData.filter(e => {
+              if (!isAllSc && e.upkendra !== upkendra) return false;
+              if (!isAllEmp && e.employeeName !== employee) return false;
+              const dStr = String(e.designation || '');
+              if (staffType && staffType !== 'All' && staffType !== 'सर्व' && !dStr.includes(staffType)) return false;
+              return true;
+            });
+
+            const scMap = {};
+            let totalSmears = 0;
+            let totalTarget = 0;
+
+            filteredEmps.forEach(emp => {
+              let count = 0;
+              monthBs.forEach(r => {
+                if (matchEmpRowLocal(r, emp)) {
+                  count += (parseInt(r[9]) || 0);
+                }
+              });
+              totalSmears += count;
+              const dStr = String(emp.designation || '');
+              const target = dStr.includes('सेविका') ? 40 : (dStr.includes('आशा') ? 10 : 50);
+              totalTarget += target;
+
+              if (!scMap[emp.upkendra]) scMap[emp.upkendra] = [];
+              const vils = Array.isArray(emp.villageList) && emp.villageList.length > 0
+                ? emp.villageList.map((v, i) => ({
+                    name: v,
+                    count: Math.floor(count / emp.villageList.length) + (i < (count % emp.villageList.length) ? 1 : 0)
+                  }))
+                : [{ name: emp.upkendra, count }];
+
+              scMap[emp.upkendra].push({
+                name: emp.employeeName,
+                post: dStr,
+                total: count,
+                target: target,
+                villages: vils
+              });
+            });
+
+            const subcenters = Object.keys(scMap).map(sc => ({
+              name: sc,
+              employees: scMap[sc]
+            }));
+
             return {
               result: {
                 success: true,
-                month: cleanMonthString(month) || "सप्टेंबर २०२६",
-                subcenters: [
-                  { name: "भादा", employees: [{ name: "श्री अनिल भराडे", post: "आरोग्य सेवक", total: 65, villages: [{ name: "भादा", count: 45 }, { name: "तावशीगड", count: 20 }] }] },
-                  { name: "प्रा.आ.केंद्र", employees: [{ name: "बाह्य रुग्ण विभाग", post: "वैद्यकीय अधिकारी", total: 271, villages: [{ name: "Phc भादा", count: 271 }] }] }
-                ],
-                summary: { totalEmployees: 65, totalSmears: 897, totalTarget: 2900 }
+                month: mName,
+                subcenters,
+                summary: { totalEmployees: filteredEmps.length, totalSmears, totalTarget }
               }
             };
           }
@@ -2875,7 +3024,9 @@
             return { result: { success: true, message: 'प्रणाली Cloud Firestore वर कार्यरत आहे.' } };
           }
 
-          case 'getDriveDownloads':
+          case 'getDriveDownloads': {
+            return { result: { success: true, folders: [], files: [] } };
+          }
           case 'getDengueEntries': {
             const [filterDate, filterVillage] = args;
             let list = [...clientDengueEntries];
@@ -4611,7 +4762,7 @@
       <button type="button" class="mobile-drawer-btn active" data-tab="dashboardTab" onclick="handleDrawerNav('dashboardTab')">📊 डॅशबोर्ड</button>
       <button type="button" class="mobile-drawer-btn" data-tab="monthlyReportDash" onclick="handleDrawerNav('monthlyReportDash')">📑 मासिक अहवाल डॅशबोर्ड</button>
       <button type="button" class="mobile-drawer-btn" data-tab="dataEntry" onclick="handleDrawerNav('dataEntry')">📝 डेटा एन्ट्री (Daily & OPD)</button>
-      <button type="button" class="mobile-drawer-btn" data-tab="homeVisitEntry" style="color:#22543d; font-weight:700; background:#f0fff4;" onclick="handleDrawerNav('homeVisitEntry')">🚶‍♂️ गृहभेटी डेटा एन्ट्री (Home Visits)</button>
+      <button type="button" class="mobile-drawer-btn" data-tab="homeVisitEntry" style="color:#22543d; font-weight:700; background:#f0fff4;" onclick="handleDrawerNav('homeVisitEntry')">🚶‍♂️ गृहभेटी डेटा एन्ट्री</button>
       <button type="button" class="mobile-drawer-btn" data-tab="dengueTab" style="color:#c05621; font-weight:700; background:#fffaf0;" onclick="handleDrawerNav('dengueTab')">🦟 डेंगी व चिकनगुनिया सिरम नमुने</button>
       <button type="button" class="mobile-drawer-btn" data-tab="masterTab" onclick="handleDrawerNav('masterTab')">🏛️ मास्टर व्यवस्थापन (Masters)</button>
       <button type="button" class="mobile-drawer-btn" data-tab="uploadTab" onclick="handleDrawerNav('uploadTab')">📤 डेटा अपलोड व प्रमाणीकरण (CSV Upload)</button>
@@ -4702,7 +4853,7 @@
       <button class="tab-btn active" id="sideBtnDashboard" data-tab="dashboardTab" onclick="switchTab('dashboardTab', this)">📊 डॅशबोर्ड</button>
       <button class="tab-btn" id="sideBtnMonthlyReportDash" data-tab="monthlyReportDash" onclick="openMonthlyReportDashboardDirect(this)">📑 मासिक अहवाल डॅशबोर्ड</button>
       <button class="tab-btn" id="sideBtnDataEntry" data-tab="dataEntry" onclick="switchTab('dataEntry', this)">📝 डेटा एन्ट्री (Daily/OPD)</button>
-      <button class="tab-btn" id="sideBtnHomeVisit" data-tab="homeVisitEntry" style="border-left:3px solid #276749; background:rgba(47, 133, 90, 0.05); font-weight:700; color:#22543d;" onclick="openHomeVisitEntryDirect(this)">🚶‍♂️ गृहभेटी डेटा एन्ट्री (Home Visits)</button>
+      <button class="tab-btn" id="sideBtnHomeVisit" data-tab="homeVisitEntry" style="border-left:3px solid #276749; background:rgba(47, 133, 90, 0.05); font-weight:700; color:#22543d;" onclick="openHomeVisitEntryDirect(this)">🚶‍♂️ गृहभेटी डेटा एन्ट्री</button>
       <button class="tab-btn" id="sideBtnDengue" data-tab="dengueTab" style="border-left:3px solid #dd6b20; background:rgba(221, 107, 32, 0.05); font-weight:700; color:#c05621;" onclick="switchTab('dengueTab', this)">🦟 डेंगी व चिकनगुनिया (Dengue)</button>
       <button class="tab-btn" data-tab="masterTab" onclick="switchTab('masterTab', this)">🏛️ मास्टर व्यवस्थापन (Masters)</button>
       <button class="tab-btn" data-tab="uploadTab" id="sideBtnUpload" onclick="switchTab('uploadTab', this)">📤 डेटा अपलोड (CSV Upload)</button>
@@ -4756,13 +4907,13 @@
         <!-- Dashboard Top Navigation Subtabs -->
         <div class="table-subtabs" style="margin-bottom:18px;">
           <button id="dashSubtabBtnMonthly" class="subtab-btn active" onclick="switchDashboardSubtab('monthlyReport')">
-            📑 मासिक अहवाल डॅशबोर्ड (NVBDCP Indicators & Template Report)
+            मासिक अहवाल डॅशबोर्ड
           </button>
           <button id="dashSubtabBtnVillageAnalytics" class="subtab-btn" onclick="switchDashboardSubtab('villageAnalytics')">
-            📈 गावनिहाय कर्मचारी विश्लेषण (Recharts Analytics)
+            गावनिहाय कर्मचारी विश्लेषण
           </button>
           <button id="dashSubtabBtnGeneral" class="subtab-btn" onclick="switchDashboardSubtab('general')">
-            📊 रक्त नमुने विश्लेषण व आलेख (Blood Smear Overview & Graphs)
+            डॅशबोर्ड सारांश
           </button>
         </div>
 
@@ -4776,12 +4927,10 @@
                 <div style="display:flex; align-items:center; gap:8px;">
                   <span style="font-size:22px;">🏥</span>
                   <h3 style="margin:0; color:#234e52; font-size:18px; font-weight:800;">
-                    मासिक अहवाल डॅशबोर्ड (NVBDCP Monthly Report Dashboard)
+                    मासिक अहवाल डॅशबोर्ड
                   </h3>
                 </div>
-                <p style="margin:6px 0 0 0; font-size:13px; color:#2d3748; line-height:1.5;">
-                  <b>नवीन बाह्यरुग्ण (OPD)</b>, <b>तापाचे रुग्ण</b>, <b>उपचारीत रुग्ण</b> व <b>क्लोरोक्वीन गोळ्या खर्च</b> या फील्ड्समधून डेटा संकलित करून थेट अधिकृत मासिक अहवाल तयार करा.
-                </p>
+                
               </div>
 
               <!-- Month Selector & Quick Actions -->
@@ -4819,7 +4968,7 @@
             <div id="mrdQuickEditDrawer" style="display:none; background:#ffffff; border:2px solid #3182ce; border-radius:12px; padding:18px 20px; margin-bottom:20px; box-shadow:var(--shadow-md);">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #edf2f7; padding-bottom:8px;">
                 <div style="font-weight:700; color:#2b6cb0; font-size:15px; display:flex; align-items:center; gap:8px;">
-                  <span>✏️ मासिक निर्देशक त्वरित संपादन (Quick Edit Indicators):</span>
+                  <span>मासिक निर्देशक संपादन:</span>
                   <span id="mrdEditMonthBadge" style="background:#ebf8ff; color:#2b6cb0; padding:2px 10px; border-radius:12px; font-size:12px; font-weight:bold;">--</span>
                 </div>
                 <button type="button" onclick="toggleMrdQuickEdit()" style="background:none; border:none; color:#718096; font-size:18px; cursor:pointer; font-weight:bold;">✖</button>
@@ -4831,7 +4980,7 @@
                 <!-- New OPD (ONLY MANUAL FIELD) -->
                 <div style="background:#f0f9ff; padding:10px 12px; border-radius:8px; border-left:4px solid #3182ce; box-shadow:0 0 0 1px #bee3f8;">
                   <label style="font-size:12px; font-weight:700; color:#2b6cb0; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>🏥 नवीन बाह्यरुग्ण (New OPD)</span>
+                    <span>नवीन बाह्यरुग्ण</span>
                     <span style="font-size:10px; color:#2b6cb0; font-weight:700; background:#ebf8ff; padding:1px 6px; border-radius:4px; border:1px solid #bee3f8;">✏️ एकमेव मॅन्युअल नोंद</span>
                   </label>
                   <div style="display:flex; gap:6px;">
@@ -4844,7 +4993,7 @@
                 <!-- Fever Cases (READONLY / AUTO) -->
                 <div style="background:#f7fafc; padding:10px 12px; border-radius:8px; border-left:4px solid #dd6b20;">
                   <label style="font-size:12px; font-weight:700; color:#c05621; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>🌡️ तापाचे रुग्ण (Fever Cases)</span>
+                    <span>तापाचे रुग्ण</span>
                     <span style="font-size:10px; color:#c05621; font-weight:700;">(🔒 ऑटो = रक्त नमुने)</span>
                   </label>
                   <div style="display:flex; gap:6px;">
@@ -4857,7 +5006,7 @@
                 <!-- Blood Smears (READONLY / AUTO) -->
                 <div style="background:#f7fafc; padding:10px 12px; border-radius:8px; border-left:4px solid #319795;">
                   <label style="font-size:12px; font-weight:700; color:#234e52; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>🩸 घेतलेले रक्त नमुणे (Blood Smears)</span>
+                    <span>घेतलेले रक्त नमुने</span>
                     <span style="font-size:10px; color:#234e52; font-weight:700;">(🔒 OPD auto-save)</span>
                   </label>
                   <div style="display:flex; gap:6px;">
@@ -4870,7 +5019,7 @@
                 <!-- Treated Cases (READONLY / AUTO) -->
                 <div style="background:#f7fafc; padding:10px 12px; border-radius:8px; border-left:4px solid #38a169;">
                   <label style="font-size:12px; font-weight:700; color:#276749; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>💊 उपचारीत रुग्ण (Treated Cases)</span>
+                    <span>उपचारीत रुग्ण</span>
                     <span style="font-size:10px; color:#276749; font-weight:700;">(🔒 ऑटो = रक्त नमुने)</span>
                   </label>
                   <div style="display:flex; gap:6px;">
@@ -4883,7 +5032,7 @@
                 <!-- Chloroquine Spent (READONLY / AUTO) -->
                 <div style="background:#f7fafc; padding:10px 12px; border-radius:8px; border-left:4px solid #805ad5;">
                   <label style="font-size:12px; font-weight:700; color:#553c9a; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>⚪ क्लोरोक्वीन गोळया खर्च (Chloroquine)</span>
+                    <span>क्लोरोक्वीन गोळ्या खर्च</span>
                     <span style="font-size:10px; color:#718096; font-weight:700;">(🔒 ऑटो प्रगत)</span>
                   </label>
                   <div style="display:flex; gap:6px;">
@@ -4896,7 +5045,7 @@
                 <!-- MPW Home Visits (पहिला व दुसरा पंधरवडा) -->
                 <div style="background:#f0f9ff; padding:10px 12px; border-radius:8px; border-left:4px solid #2b6cb0; box-shadow:0 0 0 1px #bee3f8;">
                   <label style="font-size:12px; font-weight:700; color:#2c5282; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>🚶‍♂️ आरोग्य सेवक (MPW) गृहभेटी</span>
+                    <span>आरोग्य सेवक (MPW) गृहभेटी</span>
                     <span style="font-size:10px; color:#2b6cb0; font-weight:700; background:#ebf8ff; padding:1px 6px; border-radius:4px; border:1px solid #bee3f8;">✏️ पंधरवडा १ व २</span>
                   </label>
                   <div style="display:flex; gap:6px; margin-bottom:4px;">
@@ -4923,7 +5072,7 @@
                 <!-- ANM Home Visits (पहिला व दुसरा पंधरवडा) -->
                 <div style="background:#f0fff4; padding:10px 12px; border-radius:8px; border-left:4px solid #276749; box-shadow:0 0 0 1px #c6f6d5;">
                   <label style="font-size:12px; font-weight:700; color:#22543d; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                    <span>👩‍⚕️ आरोग्य सेविका (ANM) गृहभेटी</span>
+                    <span>आरोग्य सेविका (ANM) गृहभेटी</span>
                     <span style="font-size:10px; color:#276749; font-weight:700; background:#e6fffa; padding:1px 6px; border-radius:4px; border:1px solid #9ae6b4;">✏️ पंधरवडा १ व २</span>
                   </label>
                   <div style="display:flex; gap:6px; margin-bottom:4px;">
@@ -4966,7 +5115,7 @@
               <!-- Card 1: नवीन बाह्यरुग्ण (New OPD) -->
               <div style="background:#ffffff; border:1px solid #cbd5e0; border-top:4px solid #3182ce; border-radius:10px; padding:16px; box-shadow:var(--shadow-sm);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:13px; font-weight:700; color:#2b6cb0;">🏥 नवीन बाह्यरुग्ण (New OPD)</span>
+                  <span style="font-size:13px; font-weight:700; color:#2b6cb0;">नवीन बाह्यरुग्ण</span>
                   <span style="background:#ebf8ff; color:#2b6cb0; font-size:11px; padding:2px 7px; border-radius:10px; font-weight:700;">मासिक</span>
                 </div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
@@ -4982,7 +5131,7 @@
               <!-- Card 2: तापाचे रुग्ण (Fever Cases) -->
               <div style="background:#ffffff; border:1px solid #cbd5e0; border-top:4px solid #dd6b20; border-radius:10px; padding:16px; box-shadow:var(--shadow-sm);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:13px; font-weight:700; color:#c05621;">🌡️ तापाचे रुग्ण (Fever Cases)</span>
+                  <span style="font-size:13px; font-weight:700; color:#c05621;">तापाचे रुग्ण</span>
                   <span style="background:#fffaf0; color:#c05621; font-size:11px; padding:2px 7px; border-radius:10px; font-weight:700;">मासिक</span>
                 </div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
@@ -4998,7 +5147,7 @@
               <!-- Card 3: उपचारीत रुग्ण (Treated Patients) -->
               <div style="background:#ffffff; border:1px solid #cbd5e0; border-top:4px solid #38a169; border-radius:10px; padding:16px; box-shadow:var(--shadow-sm);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:13px; font-weight:700; color:#276749;">💊 उपचारीत रुग्ण (Treated Cases)</span>
+                  <span style="font-size:13px; font-weight:700; color:#276749;">उपचारीत रुग्ण</span>
                   <span style="background:#f0fff4; color:#276749; font-size:11px; padding:2px 7px; border-radius:10px; font-weight:700;">मासिक</span>
                 </div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
@@ -5014,7 +5163,7 @@
               <!-- Card 4: क्लोरोक्वीन गोळया खर्च (Chloroquine) -->
               <div style="background:#ffffff; border:1px solid #cbd5e0; border-top:4px solid #805ad5; border-radius:10px; padding:16px; box-shadow:var(--shadow-sm);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:13px; font-weight:700; color:#553c9a;">⚪ क्लोरोक्वीन गोळया (Chloroquine)</span>
+                  <span style="font-size:13px; font-weight:700; color:#553c9a;">क्लोरोक्वीन गोळ्या</span>
                   <span style="background:#faf5ff; color:#553c9a; font-size:11px; padding:2px 7px; border-radius:10px; font-weight:700;">मासिक</span>
                 </div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
@@ -5030,7 +5179,7 @@
               <!-- Card 5: घेतलेले रक्त नमुणे (Blood Smears) -->
               <div style="background:#ffffff; border:1px solid #cbd5e0; border-top:4px solid #319795; border-radius:10px; padding:16px; box-shadow:var(--shadow-sm);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                  <span style="font-size:13px; font-weight:700; color:#234e52;">🩸 घेतलेले रक्त नमुणे (Blood Smears)</span>
+                  <span style="font-size:13px; font-weight:700; color:#234e52;">घेतलेले रक्त नमुने</span>
                   <span style="background:#e6fffa; color:#234e52; font-size:11px; padding:2px 7px; border-radius:10px; font-weight:700;">मासिक</span>
                 </div>
                 <div style="display:flex; align-items:baseline; gap:8px;">
@@ -5335,7 +5484,7 @@
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:16px; border-bottom:2px solid var(--border-color); padding-bottom:12px;">
             <div>
               <h3 style="color:var(--primary-dark); margin:0; display:flex; align-items:center; gap:8px;">
-                <span>📈</span> गावनिहाय व कर्मचारीनिहाय डेटा वितरण विश्लेषण (Recharts Analytics)
+                गावनिहाय व कर्मचारीनिहाय विश्लेषण
               </h3>
               <p style="margin:4px 0 0 0; font-size:13px; color:#4a5568;">
                 प्राथमिक आरोग्य केंद्र भादा अंतर्गत ६५ कर्मचारी, ३० गावे आणि ८ उपकेंद्रांचे सर्वसमावेशक चार्ट विश्लेषण
@@ -5376,39 +5525,7 @@
           </button>
         </div>
 
-        <!-- 3-Step Data Matching Guide Card -->
-        <div style="background:#f7fafc; border:1px solid #cbd5e0; border-left:4px solid #3182ce; border-radius:10px; padding:12px 16px; margin-bottom:18px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="toggleDataWorkflowGuide()">
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:18px;">📖</span>
-              <span style="font-weight:700; color:#2b6cb0; font-size:14px;">डेटा १००% तंतोतंत जुळण्यासाठी ३ सोप्या पायऱ्या (Workflow Guide)</span>
-            </div>
-            <span id="guideToggleIcon" style="font-size:12px; color:#4a5568; font-weight:bold; background:#edf2f7; padding:2px 8px; border-radius:12px;">पहा ▼</span>
-          </div>
-          <div id="dataWorkflowGuideContent" style="display:none; margin-top:12px; border-top:1px solid #e2e8f0; padding-top:12px; font-size:13px; color:#2d3748; line-height:1.6;">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
-              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
-                <div style="font-weight:700; color:#dd6b20; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                  <span>पायरी १: दैनिक रक्त नमुने</span>
-                  <button type="button" onclick="switchDataEntrySubtab('daily')" style="background:#dd6b20; color:white; border:none; padding:1px 6px; border-radius:4px; font-size:10.5px; cursor:pointer; font-weight:bold;">उघडा ↗</button>
-                </div>
-                <div style="font-size:12px; color:#4a5568;">त्या महिन्यातील सर्व संशयित तापाच्या रुग्णांचे नमुने (गाव, वय, लिंग) अचूक नोंदवा. यावरून बाह्यरुग्ण (OPD) रक्त नमुने आपोआप तयार होतात.</div>
-              </div>
-              <div style="background:#fff; border:1px solid #e2e8f0; border-radius:8px; padding:10px 12px;">
-                <div style="font-weight:700; color:#2b6cb0; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                  <span>पायरी २: मासिक ओपीडी</span>
-                  <button type="button" onclick="switchDataEntrySubtab('monthly')" style="background:#2b6cb0; color:white; border:none; padding:1px 6px; border-radius:4px; font-size:10.5px; cursor:pointer; font-weight:bold;">उघडा ↗</button>
-                </div>
-                <div style="font-size:12px; color:#4a5568;">नवीन बाह्यरुग्ण व क्लोरोक्वीन (रक्त नमुने = तापाचे = उपचारीत).</div>
-              </div>
-              <div style="background:#f0fff4; border:1.5px solid #68d391; border-radius:8px; padding:10px 12px;">
-                <div style="font-weight:700; color:#22543d; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                  <span>पायरी ३: गृहभेटी डेटा एन्ट्री</span>
-                  <button type="button" onclick="switchDataEntrySubtab('homevisit')" style="background:#276749; color:white; border:none; padding:2px 8px; border-radius:4px; font-size:11px; cursor:pointer; font-weight:bold;">👉 उघडा</button>
-                </div>
-                <div style="font-size:12px; color:#276749;">आरोग्य सेवक (MPW) व आरोग्य सेविका (ANM) पंधरवडा १ व २ गृहभेटी नोंदवा.</div>
-              </div>
-            </div>
+        
             <div style="background:#ebf8ff; color:#2b6cb0; font-size:12.5px; font-weight:700; padding:6px 12px; border-radius:6px; margin-top:10px; text-align:center;">
               ⚡ सूत्र: पायरी १ (दैनिक रक्त नमुने) ➔ पायरी २ (मासिक १. ओपीडी) ➔ पायरी ३ (मासिक २. गृहभेटी) ➔ अहवाल जनरेट
             </div>
@@ -5427,7 +5544,7 @@
                 🏥 मासिक ओपीडी नोंदणी
               </button>
               <button type="button" onclick="switchDataEntrySubtab('homevisit')" style="background:#276749; color:white; border:none; border-radius:4px; padding:4px 10px; font-size:11.5px; font-weight:700; cursor:pointer;">
-                🚶‍♂️ गृहभेटी डेटा एन्ट्री (Home Visits)
+                🚶‍♂️ गृहभेटी डेटा एन्ट्री
               </button>
             </div>
           </div>
@@ -5454,10 +5571,8 @@
           <div style="background:linear-gradient(135deg, #e6fffa, #ebf8ff); border:1.5px solid #319795; border-radius:12px; padding:16px 20px; margin-bottom:16px;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
               <div>
-                <h3 id="monthlySubpaneTitle" style="margin:0; color:#234e52; font-size:17.5px; font-weight:800;">📋 मासिक अहवाल नोंदणी (NVBDCP Monthly Indicators)</h3>
-                <p id="monthlySubpaneDesc" style="margin:4px 0 0 0; font-size:13px; color:#2d3748;">
-                  या पानावर फक्त <b>'नवीन बाह्यरुग्ण (New OPD)'</b> ची मासिक संख्या प्रविष्ट करा. बाकी सर्व घटक इनॲक्टिव्ह/लॉक आहेत.
-                </p>
+                <h3 id="monthlySubpaneTitle" style="margin:0; color:#234e52; font-size:17.5px; font-weight:800;">मासिक अहवाल नोंदणी</h3>
+                
               </div>
               <div style="display:flex; align-items:center; gap:8px;">
                 <label style="font-weight:bold; color:#234e52; font-size:13px; margin:0;">महिना निवडा:</label>
@@ -5473,10 +5588,10 @@
             <!-- Quick Subtab Switcher for OPD vs Home Visit -->
             <div class="table-subtabs" style="margin-top:12px; margin-bottom:0; gap:8px;">
               <button id="subtabBtnMonthlyOpd" class="subtab-btn active" style="color:#2b6cb0; font-weight:700;" onclick="switchMonthlySubtab('opd')">
-                🏥 १. नवीन ओपीडी नोंदणी (New OPD Entry)
+                नवीन ओपीडी नोंदणी
               </button>
               <button id="subtabBtnMonthlyHomeVisit" class="subtab-btn" style="color:#22543d; font-weight:700;" onclick="switchMonthlySubtab('homevisit')">
-                🚶‍♂️ २. स्वतंत्र गृहभेटी नोंदणी (Home Visit Entry - MPW & ANM)
+                गृहभेटी नोंदणी
               </button>
             </div>
           </div>
@@ -5492,15 +5607,11 @@
             <!-- ================= SECTION 1: OPD INFORMATION ================= -->
             <div id="monthlySectionOpd">
               <div id="opdSectionAnchor" style="background:#ebf8ff; border:1px solid #bee3f8; border-left:4px solid #3182ce; border-radius:8px; padding:10px 14px; margin-bottom:12px;">
-                <div style="font-weight:700; color:#2b6cb0; font-size:14px;">🏥 १. नवीन बाह्यरुग्ण (OPD) माहिती नोंदणी</div>
-                <div style="font-size:12.5px; color:#4a5568; margin-top:2px;">मासिक अहवालासाठी खालील **'नवीन बाह्यरुग्ण (New OPD)'** ची मासिक संख्या प्रविष्ट करा.</div>
+                <div style="font-weight:700; color:#2b6cb0; font-size:14px;">नवीन बाह्यरुग्ण नोंदणी</div>
+                
               </div>
 
-              <!-- Notice Banner for OPD active field -->
-              <div style="background:#fffaf0; border:1px solid #fbd38d; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:12.5px; color:#c05621; font-weight:600; display:flex; align-items:center; gap:8px;">
-                <span>📌</span>
-                <span><b>मासिक ओपीडी नोंदणी सूचना:</b> या फॉर्ममध्ये फक्त <b>'१. नवीन बाह्यरुग्ण (New OPD)'</b> ही एकमेव फील्ड भरण्यासाठी ॲक्टिव्ह ठेवली आहे. तापाचे रुग्ण, रक्त नमुणे, उपचारीत रुग्ण व क्लोरोक्वीन गोळ्या दैनिक नमुन्यांमधून आपोआप (Auto-calculated) तयार होतात व इनॲक्टिव्ह/लॉक आहेत.</span>
-              </div>
+              
 
             <!-- 5 Metric Cards Grid (OPD) -->
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin-bottom:24px;">
@@ -5517,7 +5628,7 @@
                   </div>
                   <div class="form-group" style="margin-bottom:6px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या (Progressive - YTD)</label>
+                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या</label>
                       <span style="font-size:11px; background:#edf2f7; color:#4a5568; padding:1px 6px; border-radius:4px; font-weight:600;">🔒 लॉक (स्वयं-गणना)</span>
                     </div>
                     <input type="number" id="inpProgNewOpd" class="indicator-input" placeholder="🔒 स्वयं-गणना" readonly tabindex="-1" style="background:#edf2f7; color:#2d3748; cursor:not-allowed; border:1px solid #cbd5e0; font-weight:700;" title="प्रगत संख्या मागील बेरीज + चालू महिना यावरून आपोआप काढली जाते">
@@ -5539,7 +5650,7 @@
                   </div>
                   <div class="form-group" style="margin-bottom:6px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या (Progressive - YTD)</label>
+                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या</label>
                       <span style="font-size:11px; background:#edf2f7; color:#4a5568; padding:1px 6px; border-radius:4px; font-weight:600;">🔒 लॉक (स्वयं-गणना)</span>
                     </div>
                     <input type="number" id="inpProgFeverCases" class="indicator-input" placeholder="🔒 स्वयं-गणना" readonly tabindex="-1" style="background:#edf2f7; color:#2d3748; cursor:not-allowed; border:1px solid #cbd5e0; font-weight:700;" title="प्रगत संख्या मागील बेरीज + चालू महिना यावरून आपोआप काढली जाते">
@@ -5564,7 +5675,7 @@
                   </div>
                   <div class="form-group" style="margin-bottom:6px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या (Progressive - YTD)</label>
+                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या</label>
                       <span style="font-size:11px; background:#edf2f7; color:#4a5568; padding:1px 6px; border-radius:4px; font-weight:600;">🔒 लॉक (स्वयं-गणना)</span>
                     </div>
                     <input type="number" id="inpProgBloodSmears" class="indicator-input" placeholder="🔒 स्वयं-गणना" readonly tabindex="-1" style="background:#edf2f7; color:#2d3748; cursor:not-allowed; border:1px solid #cbd5e0; font-weight:700;" title="प्रगत संख्या मागील बेरीज + चालू महिना यावरून आपोआप काढली जाते">
@@ -5595,7 +5706,7 @@
                   </div>
                   <div class="form-group" style="margin-bottom:6px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या (Progressive - YTD)</label>
+                      <label style="font-size:12px; font-weight:600; color:#4a5568;">प्रगत संख्या</label>
                       <span style="font-size:11px; background:#edf2f7; color:#4a5568; padding:1px 6px; border-radius:4px; font-weight:600;">🔒 लॉक (स्वयं-गणना)</span>
                     </div>
                     <input type="number" id="inpProgTreatedCases" class="indicator-input" placeholder="🔒 स्वयं-गणना" readonly tabindex="-1" style="background:#edf2f7; color:#2d3748; cursor:not-allowed; border:1px solid #cbd5e0; font-weight:700;" title="प्रगत संख्या मागील बेरीज + चालू महिना यावरून आपोआप काढली जाते">
@@ -5654,11 +5765,11 @@
                 <div class="indicator-card-body">
                   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
                     <div class="form-group" style="margin:0;">
-                      <label style="font-size:11.5px; font-weight:600; color:#2b6cb0;">१ ला पंधरवाडा (1-15)</label>
+                      <label style="font-size:11.5px; font-weight:600; color:#2b6cb0;">१ ला पंधरवडा</label>
                       <input type="number" id="inpMpwFn1" class="indicator-input" placeholder="उदा. 450" oninput="onIndicatorFieldChange('mpw')">
                     </div>
                     <div class="form-group" style="margin:0;">
-                      <label style="font-size:11.5px; font-weight:600; color:#2b6cb0;">२ रा पंधरवडा (16-अखेर)</label>
+                      <label style="font-size:11.5px; font-weight:600; color:#2b6cb0;">२ रा पंधरवडा</label>
                       <input type="number" id="inpMpwFn2" class="indicator-input" placeholder="उदा. 480" oninput="onIndicatorFieldChange('mpw')">
                     </div>
                   </div>
@@ -5691,11 +5802,11 @@
                 <div class="indicator-card-body">
                   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
                     <div class="form-group" style="margin:0;">
-                      <label style="font-size:11.5px; font-weight:600; color:#276749;">१ ला पंधरवाडा (1-15)</label>
+                      <label style="font-size:11.5px; font-weight:600; color:#276749;">१ ला पंधरवडा</label>
                       <input type="number" id="inpAnmFn1" class="indicator-input" placeholder="उदा. 320" oninput="onIndicatorFieldChange('anm')">
                     </div>
                     <div class="form-group" style="margin:0;">
-                      <label style="font-size:11.5px; font-weight:600; color:#276749;">२ रा पंधरवडा (16-अखेर)</label>
+                      <label style="font-size:11.5px; font-weight:600; color:#276749;">२ रा पंधरवडा</label>
                       <input type="number" id="inpAnmFn2" class="indicator-input" placeholder="उदा. 340" oninput="onIndicatorFieldChange('anm')">
                     </div>
                   </div>
@@ -5868,11 +5979,9 @@
                 </div>
                 <div>
                   <h3 style="margin:0; color:#0f766e; font-size:19px; font-weight:800;">
-                    उपलब्ध अहवाल व नोटीस केंद्र (Reports & Notices Center)
+                    अहवाल व नोटीस
                   </h3>
-                  <div style="font-size:12.5px; color:#115e59; margin-top:3px; font-weight:600;">
-                    दैनिक तपासणी पत्रे, मासिक पडताळणी अहवाल, कर्मचारी नोंदवही, कारणे दाखवा नोटीस व कामगिरी विश्लेषण.
-                  </div>
+                  
                 </div>
               </div>
               <div style="display:flex; align-items:center; gap:8px;">
@@ -5886,14 +5995,14 @@
           <!-- Colourful Cards Grid -->
           <div class="report-cards-grid">
             
-            <!-- Card 1: दैनिक पत्र (Daily Smear Letter) -->
+            <!-- Card 1: दैनिक पत्र -->
             <div class="report-colour-card theme-amber" onclick="openReportForm('cardDaily')">
               <div class="card-top-row">
                 <div class="card-icon-box">🖨️</div>
                 <span class="card-badge">दैनिक पत्र</span>
               </div>
-              <h4 class="card-title">दैनिक पत्र (Daily Smear Letter)</h4>
-              <p class="card-desc">विशिष्ट तारखेला संकलित केलेल्या रक्त नमुन्यांची तपासणीसाठीची अधिकृत दैनिक यादी व प्रिंट पत्र तयार करा.</p>
+              <h4 class="card-title">दैनिक पत्र</h4>
+              
               <div class="card-btn-action">
                 <span>दैनिक पत्र उघडा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5904,10 +6013,10 @@
             <div class="report-colour-card theme-blue" onclick="openReportForm('cardMonthly')">
               <div class="card-top-row">
                 <div class="card-icon-box">📊</div>
-                <span class="card-badge">३-पायऱ्या पडताळणी</span>
+                
               </div>
-              <h4 class="card-title">मासिक अहवाल (Monthly PDF)</h4>
-              <p class="card-desc">गावनिहाय आणि उपकेंद्रनिहाय महिन्याचा अधिकृत NVBDCP अहवाल, प्रगतीपर आकडेवारी व स्वयंचलित पडताळणी.</p>
+              <h4 class="card-title">मासिक अहवाल</h4>
+              
               <div class="card-btn-action">
                 <span>मासिक अहवाल पाहा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5920,8 +6029,8 @@
                 <div class="card-icon-box">📋</div>
                 <span class="card-badge">मासिक निर्देशांक</span>
               </div>
-              <h4 class="card-title">मासिक अहवाल डेटा नोंदणी (Template Entry)</h4>
-              <p class="card-desc">१. ओपीडी माहिती (नवीन व जुने ओपीडी, ताप रुग्ण) आणि २. आरोग्य सेवक (MPW) व आरोग्य सेविका (ANM) गृहभेट डेटा एन्ट्री.</p>
+              <h4 class="card-title">मासिक अहवाल डेटा नोंदणी</h4>
+              
               <div class="card-btn-action">
                 <span>डेटा नोंदणी करा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5934,8 +6043,8 @@
                 <div class="card-icon-box">🚶‍♂️</div>
                 <span class="card-badge">पंधरवडा १ व २</span>
               </div>
-              <h4 class="card-title">गृहभेटी डेटा एन्ट्री (Home Visits)</h4>
-              <p class="card-desc">आरोग्य सेवक (MPW) व आरोग्य सेविका (ANM) यांच्या पंधरवडा १ व २ नुसार थेट गृहभेटी, कंटेनर सर्वेक्षण व ताप तपासणी नोंद.</p>
+              <h4 class="card-title">गृहभेटी डेटा एन्ट्री</h4>
+              
               <div class="card-btn-action">
                 <span>गृहभेटी नोंदवा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5948,8 +6057,8 @@
                 <div class="card-icon-box">📗</div>
                 <span class="card-badge">वार्षिक प्रगती</span>
               </div>
-              <h4 class="card-title">कर्मचारी नोंदवही (Staff Register)</h4>
-              <p class="card-desc">चालू वर्षातील आशा, आरोग्य सेवक, आरोग्य सेविका व वैद्यकीय अधिकारी यांचा महिनानिहाय वैयक्तिक कामगिरी अहवाल.</p>
+              <h4 class="card-title">कर्मचारी नोंदवही</h4>
+              
               <div class="card-btn-action">
                 <span>नोंदवही उघडा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5962,8 +6071,8 @@
                 <div class="card-icon-box">⚠️</div>
                 <span class="card-badge">प्रशासकीय नोटीस</span>
               </div>
-              <h4 class="card-title">कारणे दाखवा नोटीस (Notice)</h4>
-              <p class="card-desc">मासिक उद्दिष्ट पूर्ण न केलेल्या कर्मचाऱ्यांसाठी अधिकृत कारणे दाखवा नोटीस पत्र जनरेट करा व प्रिंट करा.</p>
+              <h4 class="card-title">कारणे दाखवा नोटीस</h4>
+              
               <div class="card-btn-action">
                 <span>नोटीस काढा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5976,8 +6085,8 @@
                 <div class="card-icon-box">📉</div>
                 <span class="card-badge">कामगिरी विश्लेषण</span>
               </div>
-              <h4 class="card-title">कमी कामगिरी अहवाल (Low Performance)</h4>
-              <p class="card-desc">निरंक आणि ७५% पेक्षा कमी कामगिरी असलेल्या कर्मचाऱ्यांची विश्लेषणात्मक यादी व पर्यवेक्षकीय आढावा अहवाल.</p>
+              <h4 class="card-title">कमी कामगिरी अहवाल</h4>
+              
               <div class="card-btn-action">
                 <span>यादी तपासा</span>
                 <span style="font-size:16px;">➔</span>
@@ -5990,8 +6099,8 @@
                 <div class="card-icon-box">🦟</div>
                 <span class="card-badge">GMC व NIV</span>
               </div>
-              <h4 class="card-title">डेंगी व चिकनगुनिया (Dengue & Chik)</h4>
-              <p class="card-desc">सिरम नमुने डेटा एन्ट्री, GMC लातूर जावक पत्र, NIV केस हिस्ट्री शीट व प्रयोगशाळा अहवाल नोंदणी केंद्र.</p>
+              <h4 class="card-title">डेंगी व चिकनगुनिया</h4>
+              
               <div class="card-btn-action">
                 <span>डेंगी अहवाल पाहा</span>
                 <span style="font-size:16px;">➔</span>
@@ -6007,10 +6116,8 @@
           <div id="cardDaily" class="report-card" style="border-left: 5px solid #ed8936;"><h3 style="color:#dd6b20; margin-top:0;">🖨️ दैनिक पत्र</h3><div class="form-group"><label>तारीख निवडा</label><input type="date" id="dailyReportDate"></div><button class="report-btn" style="background:#dd6b20;" onclick="generateDailyLetter(this)">पत्राची PDF तयार करा</button><div id="dailyReportStatus" style="margin-top:15px; font-weight:bold; display:none; text-align:center;"></div></div>
           <div id="cardMonthly" class="report-card" style="border-left: 5px solid #3182ce;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
-              <h3 style="color:#2b6cb0; margin:0;">📊 मासिक अहवाल व डेटा पडताळणी</h3>
-              <span style="font-size:11px; background:#ebf8ff; color:#2b6cb0; border:1px solid #bee3f8; padding:3px 8px; border-radius:12px; font-weight:600;">
-                ३-पायऱ्या पडताळणी प्रमाणित
-              </span>
+              <h3 style="color:#2b6cb0; margin:0;">मासिक अहवाल</h3>
+              
             </div>
             
             <div class="form-group">
@@ -6024,7 +6131,7 @@
             <div id="reportValidationContainer" style="background:#f8fafc; border:1px solid #cbd5e0; border-radius:10px; padding:12px 14px; margin-bottom:16px;">
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <div style="font-weight:700; color:#2b6cb0; font-size:13px; display:flex; align-items:center; gap:6px;">
-                  <span>🔍</span> <span>अहवाल डेटा पडताळणी व त्रुटी दुरुस्ती (Report Validator)</span>
+                  <span>🔍</span> <span>डेटा पडताळणी</span>
                 </div>
                 <div style="display:flex; gap:6px; align-items:center;">
                   <button type="button" class="sheet-btn" style="background:#2b6cb0; color:#ffffff; padding:4px 12px; font-size:12px; font-weight:700; border-radius:6px; border:none; display:inline-flex; align-items:center; gap:4px; cursor:pointer;" onclick="triggerValidatorCheck()">
@@ -6038,9 +6145,7 @@
 
               <div id="reportValidationStatus" style="font-size:12.5px; color:#4a5568;">
                 <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px 10px; background:#edf2f7; border-radius:8px; gap:8px; text-align:center;">
-                  <div style="color:#4a5568; font-size:12.5px; font-weight:600;">
-                    अहवालातील डेटा जुळणी व त्रुटी तपासण्यासाठी खालील 'Validator' बटणावर क्लिक करा:
-                  </div>
+                  
                   <button type="button" class="sheet-btn" style="background:#2b6cb0; color:#ffffff; padding:6px 16px; font-size:12px; font-weight:700; border-radius:6px; border:none; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="triggerValidatorCheck()">
                     🛡️ त्रुटी व्हॅलिडेट करा (Run Validator)
                   </button>
@@ -6083,7 +6188,7 @@
       <div id="masterTab" class="tab-pane">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:20px; border-bottom:2px solid var(--border-color); padding-bottom:12px;">
           <div>
-            <h3 style="color:var(--primary-dark); margin:0 0 4px 0; font-size:22px;">🏛️ मास्टर डेटा व्यवस्थापन (Master Data Management)</h3>
+            <h3 style="color:var(--primary-dark); margin:0 0 4px 0; font-size:22px;">मास्टर डेटा व्यवस्थापन</h3>
             <p style="margin:0; color:var(--text-muted); font-size:13px;">
               उपकेंद्र, गावनिहाय लोकसंख्या व घरांची संख्या, आरोग्य कर्मचारी (ANM / MPW / ASHA) आणि बदली सुविधा.
             </p>
@@ -6141,16 +6246,16 @@
         <!-- Master Section Navigation Tabs -->
         <div class="table-subtabs" style="margin-bottom:20px;">
           <button type="button" class="subtab-btn active" id="btnMTabEmployees" onclick="switchMasterSection('mEmployeesSection', this)">
-            👥 कर्मचारी यादी व कार्यक्षेत्र (Employees & Villages)
+            कर्मचारी यादी
           </button>
           <button type="button" class="subtab-btn" id="btnMTabVillages" onclick="switchMasterSection('mVillagesSection', this)">
-            🏘️ गावे मास्टर - लोकसंख्या व घरे (Villages, Pop & Houses)
+            गावे मास्टर
           </button>
           <button type="button" class="subtab-btn" id="btnMTabSubcenters" onclick="switchMasterSection('mSubcentersSection', this)">
-            🏛️ उपकेंद्र मास्टर (Subcenters)
+            उपकेंद्र मास्टर
           </button>
           <button type="button" class="subtab-btn" id="btnMTabTransfers" onclick="switchMasterSection('mTransfersSection', this)">
-            🔄 बदली सुविधा व इतिहास (Transfer Facility & Log)
+            बदली इतिहास
           </button>
         </div>
 
@@ -6166,7 +6271,7 @@
                 <option value="All">-- सर्व पदे (All Categories) --</option>
                 <option value="MPW">आरोग्य सेवक (MPW)</option>
                 <option value="ANM">आरोग्य सेविका (ANM)</option>
-                <option value="ASHA">आशा स्वयंसेविका (ASHA)</option>
+                <option value="ASHA">आशा स्वयंसेविका</option>
                 <option value="MO">वैद्यकीय अधिकारी (MO)</option>
               </select>
               <button type="button" class="sheet-btn sheet-btn-secondary" onclick="resetMasterEmpFilters()" style="padding:7px 12px; font-size:12px;">✕ रीसेट</button>
@@ -6185,11 +6290,11 @@
                   <th>अ.क्र.</th>
                   <th>उपकेंद्र</th>
                   <th class="text-left">कर्मचारी नाव</th>
-                  <th>पदनाम (Designation)</th>
+                  <th>पदनाम</th>
                   <th>BS Code</th>
                   <th>मोबाईल क्रमांक</th>
-                  <th class="text-left" style="min-width:200px;">लागू असणारी गावे (Applied Villages)</th>
-                  <th style="min-width:180px;">कृती (Actions)</th>
+                  <th class="text-left" style="min-width:200px;">लागू असणारी गावे</th>
+                  <th style="min-width:180px;">कृती</th>
                 </tr>
               </thead>
               <tbody id="tblMasterEmployeesBody">
@@ -6216,7 +6321,7 @@
           </div>
 
           <div style="background:#ebf8ff; border:1px solid #bee3f8; border-radius:8px; padding:10px 15px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; font-size:13px; color:#2b6cb0;">
-            <div>📌 <b>टीप:</b> प्रत्येक गावाची लोकसंख्या (Population), घरांची संख्या (No. of Houses) व संबंधित आशा स्वयंसेविका यांची नोंद.</div>
+            
             <div id="villageStatsSummary" style="font-weight:700;">एकूण गावे: १७ | एकूण लोकसंख्या: ३५,०२० | एकूण घरे: ६,९५५</div>
           </div>
 
@@ -6225,14 +6330,14 @@
               <thead>
                 <tr>
                   <th>अ.क्र.</th>
-                  <th class="text-left">गावाचे नाव (Village)</th>
-                  <th>उपकेंद्र (Subcenter)</th>
-                  <th style="background:#e6fffa; color:#234e52;">👥 लोकसंख्या (Population)</th>
-                  <th style="background:#fffaf0; color:#c05621;">🏠 घरांची संख्या (No. of Houses)</th>
-                  <th>वार्षिक उद्दिष्ट (Target)</th>
-                  <th class="text-left">आशा स्वयंसेविका (ASHA)</th>
-                  <th class="text-left">आरोग्य कर्मचारी (Staff)</th>
-                  <th>कृती (Actions)</th>
+                  <th class="text-left">गावाचे नाव</th>
+                  <th>उपकेंद्र</th>
+                  <th style="background:#e6fffa; color:#234e52;">लोकसंख्या</th>
+                  <th style="background:#fffaf0; color:#c05621;">घरांची संख्या</th>
+                  <th>वार्षिक उद्दिष्ट</th>
+                  <th class="text-left">आशा स्वयंसेविका</th>
+                  <th class="text-left">आरोग्य कर्मचारी</th>
+                  <th>कृती</th>
                 </tr>
               </thead>
               <tbody id="tblMasterVillagesBody">
@@ -6619,15 +6724,13 @@
               <div class="sheet-title">
                 <span style="font-size:22px;">📝</span>
                 <div>
-                  <div id="dengueFormModeTitle">डेंगी व चिकनगुनिया संशयित सिरम नमुना नोंद फॉर्म</div>
-                  <div style="font-size:12px; color:var(--text-muted); font-weight:500;">
-                    NIV Pune Case History Sheet आणि GMC लातूर प्रयोगशाळेसाठी आवश्यक सर्व तपशील भरा.
-                  </div>
+                  <div id="dengueFormModeTitle">डेंगी व चिकनगुनिया नोंद फॉर्म</div>
+                  
                 </div>
               </div>
               <div class="sheet-actions">
                 <span class="sheet-badge" id="dengueFormStatusBadge" style="background:#feebc8; color:#7b341e; border-color:#fbd38d;">
-                  ✨ नवीन नोंद (New Record)
+                  नवीन नोंद
                 </span>
               </div>
             </div>
@@ -6638,19 +6741,19 @@
               <!-- SECTION 1: रुग्णाची प्राथमिक व पत्ता माहिती -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-bottom:18px;">
                 <div style="font-weight:700; color:#2d3748; font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-                  <span>👤 १. रुग्णाची माहिती व पत्ता (Patient Details & Address)</span>
+                  <span>रुग्ण माहिती व पत्ता</span>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px;">
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>रुग्णाचे संपूर्ण नाव (Full Name of Patient) <span style="color:#e53e3e;">*</span></label>
+                    <label>रुग्णाचे संपूर्ण नाव <span style="color:#e53e3e;">*</span></label>
                     <input type="text" id="dgPatientName" required placeholder="उदा. CHAYA DAYANAND HAJARE" style="text-transform:uppercase; font-weight:700;">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>मोबाईल क्रमांक (Mobile Number)</label>
+                    <label>मोबाईल क्रमांक</label>
                     <input type="text" id="dgMobile" maxlength="10" placeholder="उदा. 9356371517">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>उपकेंद्र (Subcenter) <span style="color:#e53e3e;">*</span></label>
+                    <label>उपकेंद्र <span style="color:#e53e3e;">*</span></label>
                     <select id="dgSubcenter" required onchange="onDengueSubcenterChange(this.value)" style="font-weight:600; width:100%;">
                       <option value="">-- उपकेंद्र निवडा (Select Subcenter) --</option>
                       <option value="भादा">भादा</option>
@@ -6665,7 +6768,7 @@
                     </select>
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>गाव (Village) <span style="color:#e53e3e;">*</span></label>
+                    <label>गाव <span style="color:#e53e3e;">*</span></label>
                     <select id="dgVillage" required onchange="onDengueVillageChange(this.value)" style="font-weight:600; width:100%;">
                       <option value="">-- प्रथम उपकेंद्र निवडा --</option>
                     </select>
@@ -6681,15 +6784,15 @@
                     </div>
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>घर क्रमांक (House No)</label>
+                    <label>घर क्रमांक</label>
                     <input type="text" id="dgHouseNo" placeholder="डीफॉल्ट: -" value="-">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>तालुका (Taluka)</label>
+                    <label>तालुका</label>
                     <input type="text" id="dgTaluka" value="AUSA" style="font-weight:600;">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>जिल्हा (District)</label>
+                    <label>जिल्हा</label>
                     <input type="text" id="dgDistrict" value="LATUR" style="font-weight:600;">
                   </div>
                 </div>
@@ -6698,30 +6801,30 @@
               <!-- SECTION 2: रुग्णालय व डेमोग्राफिक्स -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-bottom:18px;">
                 <div style="font-weight:700; color:#2d3748; font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-                  <span>🏥 २. रुग्णालय व नोंदणी माहिती (Hospital & Demographics)</span>
+                  <span>रुग्णालय व नोंदणी माहिती</span>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>रुग्णालय पत्ता (Hospital Address)</label>
+                    <label>रुग्णालय पत्ता</label>
                     <input type="text" id="dgHospitalAddress" value="प्राथमिक आरोग्य केंद्र भादा" style="font-weight:600;">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>रुग्ण नोंदणी क्र. (Patient Reg No)</label>
+                    <label>रुग्ण नोंदणी क्र.</label>
                     <input type="text" id="dgPatientRegNo" placeholder="उदा. 27-34760918" style="font-weight:700; color:#2b6cb0;">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>वार्ड क्र. (Ward No) & बेड क्र. (Bed No)</label>
+                    <label>वार्ड व बेड क्र.</label>
                     <div style="display:flex; gap:8px;">
                       <input type="text" id="dgWardNo" placeholder="Ward: --" value="--">
                       <input type="text" id="dgBedNo" placeholder="Bed: --" value="--">
                     </div>
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>वय (Age in Years) <span style="color:#e53e3e;">*</span></label>
+                    <label>वय (वर्षे) <span style="color:#e53e3e;">*</span></label>
                     <input type="number" id="dgAge" min="1" max="120" required placeholder="उदा. 39" style="font-weight:700;">
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>लिंग (Sex) <span style="color:#e53e3e;">*</span></label>
+                    <label>लिंग <span style="color:#e53e3e;">*</span></label>
                     <select id="dgSex" required style="font-weight:700;">
                       <option value="FEMALE">स्त्री (FEMALE)</option>
                       <option value="MALE">पुरुष (MALE)</option>
@@ -6734,15 +6837,15 @@
               <!-- SECTION 3: नमुना व क्लिनिकल लक्षणे -->
               <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px; margin-bottom:18px;">
                 <div style="font-weight:700; color:#2d3748; font-size:14px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-                  <span>🧪 ३. नमुना व क्लिनिकल लक्षणे (Sample & Clinical Findings)</span>
+                  <span>नमुना व क्लिनिकल लक्षणे</span>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:14px;">
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>पहिले लक्षण सुरू दिनांक (Onset Date) <span style="color:#e53e3e;">*</span></label>
+                    <label>लक्षणे सुरू दिनांक <span style="color:#e53e3e;">*</span></label>
                     <input type="date" id="dgDateOnset" required>
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>नमुन्याचा प्रकार (Nature of Sample) <span style="color:#e53e3e;">*</span></label>
+                    <label>नमुना प्रकार <span style="color:#e53e3e;">*</span></label>
                     <select id="dgSampleNature" required style="font-weight:600;">
                       <option value="Serum" selected>Serum (सिरम)</option>
                       <option value="Blood">Blood (रक्त)</option>
@@ -6750,38 +6853,38 @@
                     </select>
                   </div>
                   <div class="form-group" style="margin-bottom:0;">
-                    <label>नमुना घेतल्याचा दिनांक (Collection Date) <span style="color:#e53e3e;">*</span></label>
+                    <label>नमुना घेतल्याचा दिनांक <span style="color:#e53e3e;">*</span></label>
                     <input type="date" id="dgDateCollection" required>
                   </div>
                 </div>
 
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:8px; padding:12px 14px;">
                   <div style="font-size:13px; font-weight:700; color:#4a5568; margin-bottom:10px;">
-                    क्लिनिकल लक्षणे (दिवस संख्या - Clinical Findings in Days):
+                    क्लिनिकल लक्षणे (दिवस):
                   </div>
                   <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px;">
                     <div class="form-group" style="margin-bottom:0;">
-                      <label style="font-size:12px;">१. ताप (Fever Days)</label>
+                      <label style="font-size:12px;">ताप (दिवस)</label>
                       <input type="number" id="dgClinicalFever" min="0" max="60" value="1" style="font-weight:700;">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                      <label style="font-size:12px;">२. डोकेदुखी (Headache)</label>
+                      <label style="font-size:12px;">डोकेदुखी</label>
                       <input type="number" id="dgClinicalHeadache" min="0" max="60" value="0">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                      <label style="font-size:12px;">३. अंगदुखी (Bodyache)</label>
+                      <label style="font-size:12px;">अंगदुखी</label>
                       <input type="number" id="dgClinicalBodyache" min="0" max="60" value="0">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                      <label style="font-size:12px;">४. सांधेदुखी (Joint Pain)</label>
+                      <label style="font-size:12px;">सांधेदुखी</label>
                       <input type="number" id="dgClinicalJointPain" min="0" max="60" value="0">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                      <label style="font-size:12px;">५. डोळ्यांमागे दुखणे</label>
+                      <label style="font-size:12px;">डोळ्यांमागे दुखणे</label>
                       <input type="number" id="dgClinicalRetroOrbital" min="0" max="60" value="0">
                     </div>
                     <div class="form-group" style="margin-bottom:0;">
-                      <label style="font-size:12px;">६. अंगावर पुरळ (Rash)</label>
+                      <label style="font-size:12px;">अंगावर पुरळ</label>
                       <input type="number" id="dgClinicalRash" min="0" max="60" value="0">
                     </div>
                   </div>
@@ -6792,10 +6895,10 @@
               <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; margin-bottom:20px;">
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px;">
                   <div style="font-weight:700; color:#2d3748; font-size:14px; margin-bottom:10px;">
-                    🩸 ४. रक्तस्राव लक्षणे (Haemorrhagic Manifestation)
+                    रक्तस्राव लक्षणे
                   </div>
                   <div class="form-group" style="margin-bottom:10px;">
-                    <label>रक्तस्राव लक्षणे आहेत का? (Yes / No)</label>
+                    <label>रक्तस्राव लक्षणे</label>
                     <select id="dgHaemorrhagic" onchange="toggleDengueHaemFields()" style="font-weight:700;">
                       <option value="No" selected>No (नाही)</option>
                       <option value="Yes">Yes (होय)</option>
@@ -6813,7 +6916,7 @@
 
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:16px 18px;">
                   <div style="font-weight:700; color:#2d3748; font-size:14px; margin-bottom:10px;">
-                    🩺 ५. वैद्यकीय अधिकारी माहिती (Medical Officer)
+                    वैद्यकीय अधिकारी माहिती
                   </div>
                   <div class="form-group" style="margin-bottom:8px;">
                     <label>वैद्यकीय अधिकाऱ्याचे नाव</label>
@@ -6829,13 +6932,13 @@
               <!-- Form Buttons -->
               <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
                 <button type="submit" class="btn-primary" id="btnSaveDengueRecord" style="background:#c05621;">
-                  💾 नोंद जतन करा (Save Entry)
+                  नोंद जतन करा
                 </button>
                 <button type="button" class="btn-primary" id="btnSaveAndPrintNiv" onclick="saveAndPrintNivSheet()" style="background:#2b6cb0;">
                   🖨️ जतन करा व NIV केस शीट प्रिंट करा
                 </button>
                 <button type="button" class="btn-secondary" onclick="resetDengueForm()">
-                  🔄 फॉर्म साफ करा (Reset)
+                  रीसेट करा
                 </button>
                 <span id="dengueFormMsg" style="font-weight:700; font-size:13.5px; margin-left:8px;"></span>
               </div>
@@ -6851,25 +6954,21 @@
                 <span style="font-size:24px;">🔬</span>
                 <div>
                   <div style="font-size:17px; font-weight:800; color:#1a365d;">
-                    दिनांकनिहाय (Batch) GMC प्रयोगशाळा एकत्रित अहवाल नोंदणी
+                    दिनांकनिहाय लॅब अहवाल नोंदणी
                   </div>
-                  <div style="font-size:12.5px; color:var(--text-muted); font-weight:500;">
-                    GMC लातूर प्रयोगशाळेकडून पाठवलेल्या नमुन्यांच्या संपूर्ण तारखेचा एकत्रित अहवाल (Positive/Negative/Equivocal) एकाच वेळी नोंदवा व एकच एकत्रित पत्र स्कॅन प्रत जोडा.
-                  </div>
+                  
                 </div>
               </div>
               <div class="sheet-actions">
                 <button type="button" class="sheet-btn" onclick="switchDengueSubtab('register')">
-                  📋 नोंदवही पाहा (View Register)
+                  नोंदवही पाहा
                 </button>
               </div>
             </div>
 
             <!-- Notice & Disease Tabs -->
             <div style="background:#ebf8ff; border:1px solid #bee3f8; border-radius:10px; padding:12px 16px; margin-bottom:18px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-              <div style="font-size:13px; color:#2b6cb0; font-weight:600;">
-                ℹ️ <b>GMC लातूर पद्धत:</b> नमुने दिनांकनिहाय बॅचमध्ये तपासले जातात. डेंगी व चिकनगुनिया अहवाल वेगवेगळ्या वेळी उपलब्ध झाल्यास फक्त त्या आजाराचा अहवाल निवडून एका क्लिकवर सर्व रुग्णांचे निकाल सेव्ह करा.
-              </div>
+              
               <div style="display:flex; gap:6px;">
                 <button type="button" class="sheet-btn dg-batch-disease-btn" id="btnBatchDiseaseDengue" style="padding:5px 12px; font-size:12px; font-weight:700; background:#dd6b20; color:#fff;" onclick="switchBatchDiseaseTab('dengue')">
                   🦟 डेंगी अहवाल (Dengue)
@@ -6886,7 +6985,7 @@
             <!-- Common Batch Header Form -->
             <div style="background:#f8fafc; border:1.5px solid #cbd5e0; border-radius:10px; padding:18px 20px; margin-bottom:22px;">
               <div style="font-size:14px; font-weight:800; color:#2d3748; margin-bottom:12px; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                १. एकत्रित प्रयोगशाळा अहवाल तपशील (Common Batch Details):
+                एकत्रित प्रयोगशाळा अहवाल तपशील:
               </div>
               
               <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px;">
@@ -6895,7 +6994,7 @@
                 <div>
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <label class="form-label" style="font-weight:700; color:#1a365d; margin:0;">
-                      📅 नमुना पाठवल्याचा दिनांक निवडा (Dispatch Date) <span style="color:#e53e3e;">*</span>
+                      नमुना पाठवणी दिनांक <span style="color:#e53e3e;">*</span>
                     </label>
                     <label style="font-size:11.5px; color:#4a5568; cursor:pointer; display:flex; align-items:center; gap:4px; font-weight:600;">
                       <input type="checkbox" id="chkShowCompletedBatchDates" onchange="populateBatchDateSelector()">
@@ -6910,7 +7009,7 @@
                 <!-- Report Ref No -->
                 <div>
                   <label class="form-label" style="font-weight:700; color:#1a365d;">
-                    📑 GMC अहवाल संदर्भ क्र. (Report Ref No.) <span style="color:#e53e3e;">*</span>
+                    अहवाल संदर्भ क्र. <span style="color:#e53e3e;">*</span>
                   </label>
                   <input type="text" id="dgBatchReportRef" class="form-control" placeholder="उदा. GMC/MICRO/2026/DEN-145" style="font-weight:600;">
                 </div>
@@ -6918,7 +7017,7 @@
                 <!-- Report Received Date -->
                 <div>
                   <label class="form-label" style="font-weight:700; color:#1a365d;">
-                    📅 अहवाल प्राप्त दिनांक (Received Date) <span style="color:#e53e3e;">*</span>
+                    अहवाल प्राप्त दिनांक <span style="color:#e53e3e;">*</span>
                   </label>
                   <input type="date" id="dgBatchReportDate" class="form-control" style="font-weight:600;">
                 </div>
@@ -6926,7 +7025,7 @@
                 <!-- Test Type -->
                 <div>
                   <label class="form-label" style="font-weight:700; color:#1a365d;">
-                    🧪 चाचणी प्रकार (Test Method)
+                    चाचणी प्रकार
                   </label>
                   <select id="dgBatchTestType" class="form-control">
                     <option value="NS1 Ag & IgM ELISA">NS1 Ag & IgM ELISA</option>
@@ -6965,7 +7064,7 @@
             <div style="margin-bottom:18px;">
               <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
                 <div style="font-size:14px; font-weight:800; color:#2d3748;">
-                  २. निवडलेल्या दिनांकाचे रुग्ण व निकाल (Patient Results List) - <span id="dgBatchPatientCountText" style="color:#2b6cb0;">० रुग्ण</span>:
+                  रुग्ण निकाल यादी - <span id="dgBatchPatientCountText" style="color:#2b6cb0;">० रुग्ण</span>:
                 </div>
                 
                 <!-- Quick Set Bulk Actions -->
@@ -6993,7 +7092,7 @@
                     <tr style="background:#f1f5f9;">
                       <th style="width:40px; text-align:center;">अ.क्र.</th>
                       <th style="min-width:180px;" class="text-left">रुग्णाचे नाव (Patient Name)</th>
-                      <th>गाव (Village)</th>
+                      <th>गाव</th>
                       <th style="width:90px; text-align:center;">वय / लिंग</th>
                       <th style="min-width:160px; text-align:center;" id="thBatchDengue">डेंगी निकाल (Dengue Result)</th>
                       <th style="min-width:160px; text-align:center;" id="thBatchChik">चिकनगुनिया निकाल (Chik Result)</th>
@@ -7032,11 +7131,9 @@
                 <span style="font-size:24px;">📂</span>
                 <div>
                   <div style="font-size:17px; font-weight:800; color:#44337a;">
-                    डेंगी व चिकनगुनिया जुना डेटा आयात केंद्र (Old Data CSV / Excel Import)
+                    डेटा आयात केंद्र
                   </div>
-                  <div style="font-size:12.5px; color:var(--text-muted); font-weight:500;">
-                    मागील महिन्यांमधील किंवा वर्षांमधील Excel / CSV फाईलमधील जुना डेंगी व चिकनगुनिया डेटा थेट आयात करा व नोंदवहीत समाविष्ट करा.
-                  </div>
+                  
                 </div>
               </div>
               <div class="sheet-actions">
@@ -7047,7 +7144,7 @@
                   📄 CSV टेम्पलेट (English)
                 </button>
                 <button type="button" class="sheet-btn" onclick="switchDengueSubtab('register')">
-                  📋 नोंदवही पाहा (Register)
+                  नोंदवही पाहा
                 </button>
               </div>
             </div>
@@ -7062,9 +7159,7 @@
                     <div style="font-size:14.5px; font-weight:800; color:#22543d; display:flex; align-items:center; gap:8px;">
                       <span>📥</span> नमुना टेम्पलेट डाऊनलोड करा (Download Bulk Import Sample Template)
                     </div>
-                    <div style="font-size:12.5px; color:#276749; margin-top:4px; line-height:1.5; font-weight:600;">
-                      💡 <b>टीप:</b> MS Excel मध्ये CSV उघडल्यास मराठी अक्षरे जर <code style="background:#fed7d7; color:#9b2c2c; padding:2px 6px; border-radius:4px;">à¤¨à¥‹à¤‚...</code> अशी अस्पष्ट दिसू नयेत म्हणून <b>'📗 Excel फॉरमॅट (.XLS)'</b> वापरा. ते Excel मध्ये १००% स्वच्छ व वाचता येणाऱ्या मराठी फॉन्टसह थेट उघडते!
-                    </div>
+                    
                   </div>
                   <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button type="button" class="sheet-btn" style="background:#22543d; color:#fff; font-weight:800; padding:9px 18px; font-size:13px; border-radius:8px;" onclick="downloadDengueExcelTemplate()">
@@ -7176,7 +7271,7 @@
                         <th style="width:40px; text-align:center;">अ.क्र.</th>
                         <th>नोंदणी क्र.</th>
                         <th class="text-left">रुग्णाचे नाव (Patient Name)</th>
-                        <th>गाव (Village)</th>
+                        <th>गाव</th>
                         <th style="text-align:center;">वय / लिंग</th>
                         <th style="text-align:center;">नमुना दिनांक</th>
                         <th style="text-align:center;">डेंगी अहवाल</th>
@@ -7300,7 +7395,7 @@
                       रुग्णाचे नाव (Patient Name) <span id="sortIcon_patientName" style="font-size:11px; opacity:0.35;">↕️</span>
                     </th>
                     <th class="sortable-th" onclick="sortDengueRegister('village')" title="गावाने क्रमवारी लावा (Click to sort by Village)" style="cursor:pointer; white-space:nowrap; user-select:none;">
-                      गाव (Village) <span id="sortIcon_village" style="font-size:11px; opacity:0.35;">↕️</span>
+                      गाव <span id="sortIcon_village" style="font-size:11px; opacity:0.35;">↕️</span>
                     </th>
                     <th>वय / लिंग</th>
                     <th class="sortable-th" onclick="sortDengueRegister('dateCollection')" title="नमुना दिनांकाने क्रमवारी लावा (Click to sort by Date)" style="cursor:pointer; white-space:nowrap; user-select:none;">
@@ -7309,7 +7404,7 @@
                     <th style="min-width:140px; text-align:center;">डेंगी अहवाल (Dengue)</th>
                     <th style="min-width:140px; text-align:center;">चिकनगुनिया अहवाल (Chik)</th>
                     <th>लक्षणे / रक्तस्राव</th>
-                    <th style="text-align:center; min-width:160px;">कृती (Actions)</th>
+                    <th style="text-align:center; min-width:160px;">कृती</th>
                   </tr>
                 </thead>
                 <tbody id="tblDengueRegisterBody">
@@ -7408,11 +7503,9 @@
           <div>
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
               <span style="font-size:26px;">📤</span>
-              <h2 style="margin:0; color:#2b6cb0; font-size:20px; font-weight:800;">डेटा अपलोड व दिनांक प्रमाणीकरण केंद्र (CSV Data Upload & State Store)</h2>
+              <h2 style="margin:0; color:#2b6cb0; font-size:20px; font-weight:800;">डेटा अपलोड</h2>
             </div>
-            <p style="margin:0; color:#4a5568; font-size:13.5px; line-height:1.5;">
-              CSV फाईल किंवा गुगल शीटमधील डेटा थेट अपलोड करा. <b>'दिनांक'</b> कॉलमचे मूल्य <b><code style="background:#e2e8f0; padding:2px 6px; border-radius:4px; color:#2b6cb0;">dd-mm-yyyy</code></b> (उदा. <code>11-12-2025</code>, <code>27-10-2025</code>) फॉरमॅटमध्ये तपासून त्वरित स्टेट (State) मध्ये साठवले जाते.
-            </p>
+            
           </div>
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <button class="sheet-btn" style="background:#2b6cb0; font-weight:700;" onclick="fillUploadCompSampleTemplate()">
@@ -7427,7 +7520,7 @@
         <!-- 1. Dataset Selector Pills -->
         <div style="margin-bottom:16px;">
           <label style="font-size:13px; font-weight:700; color:#2d3748; margin-bottom:8px; display:block;">
-            १. ज्या प्रकारचा डेटा अपलोड करायचा आहे तो निवडा (Select Dataset Type):
+            डेटा प्रकार निवडा:
           </label>
           <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <button type="button" class="dataset-selector-pill active" id="pillDsBsData" onclick="selectUploadCompDataset('bsData')">
@@ -7464,7 +7557,7 @@
           <!-- Textarea Input Area -->
           <div style="position:relative;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <span style="font-size:12.5px; font-weight:700; color:#4a5568;">किंवा खाली थेट CSV मजकूर पेस्ट करा (Paste Raw CSV / Excel Data):</span>
+              <span style="font-size:12.5px; font-weight:700; color:#4a5568;">किंवा खाली थेट CSV मजकूर पेस्ट करा:</span>
               <span id="uploadCompLineCountBadge" style="background:#edf2f7; color:#4a5568; font-size:11.5px; padding:2px 8px; border-radius:12px; font-weight:700;">० ओळी (Rows)</span>
             </div>
             <textarea id="uploadCompTextarea" rows="8" style="width:100%; font-family:Consolas, Monaco, monospace; font-size:12.5px; padding:12px; border:1.5px solid #cbd5e0; border-radius:8px; background:#fafafa; line-height:1.5; box-sizing:border-box;" placeholder="CSV मजकूर येथे पेस्ट करा..." oninput="onUploadCompInputChanged()"></textarea>
@@ -7478,7 +7571,7 @@
             </label>
             <div style="display:flex; gap:8px;">
               <button type="button" class="sheet-btn" style="background:#00796b; font-size:13px;" onclick="parseAndValidateUploadCompCsv()">
-                ⚡ त्वरित पार्स व प्रमाणीकरण करा (Parse & Validate)
+                पार्स व प्रमाणीकरण करा
               </button>
             </div>
           </div>
@@ -7513,7 +7606,7 @@
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:18px;">🔍</span>
-              <h3 style="margin:0; font-size:15px; font-weight:800; color:#2d3748;">डेटा व दिनांक प्रमाणीकरण पूर्वावलोकन (Parsed Records Preview)</h3>
+              <h3 style="margin:0; font-size:15px; font-weight:800; color:#2d3748;">डेटा पूर्वावलोकन</h3>
             </div>
             
             <!-- Filter Bar Inside Preview -->
@@ -7572,7 +7665,7 @@
               📥 प्रमाणीकृत CSV डाऊनलोड करा
             </button>
             <button type="button" class="sheet-btn" id="btnCommitUploadState" style="background:#2b6cb0; font-size:14px; font-weight:800; padding:10px 22px;" onclick="commitUploadCompState(this)">
-              💾 सर्व वैध नोंदी स्टेट व सिस्टीममध्ये सेव्ह करा (Store & Sync)
+              डेटा सेव्ह करा
             </button>
           </div>
         </div>
@@ -7610,7 +7703,7 @@
           <div>
             <h3 style="margin:0; font-size:18px; color:#1a202c; font-weight:800; display:flex; align-items:center; gap:8px;">
               <span>GitHub रिपॉझिटरी व सपोर्ट</span>
-              <span style="font-size:11px; background:#e2e8f0; color:#2d3748; padding:2px 8px; border-radius:12px; font-weight:600;">Open Source</span>
+              
             </h3>
             <p style="margin:3px 0 0 0; font-size:13px; color:#718096;">
               PHC Bhada Malaria Management System • Source Code & Support
@@ -7684,18 +7777,16 @@
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:2px solid #ebf8ff; padding-bottom:12px;">
         <div>
           <h3 style="margin:0; color:#2b6cb0; font-size:19px; display:flex; align-items:center; gap:8px;">
-            🔄 कर्मचारी बदली व गाव वाटप (Employee Transfer & Village Assignment)
+            कर्मचारी बदली व गाव वाटप
           </h3>
-          <p style="margin:4px 0 0 0; font-size:12.5px; color:#718096;">
-            कर्मचाऱ्याची दुसऱ्या गावात किंवा उपकेंद्रात बदली करा व सर्व संबंधित लिंक्ड रेकॉर्ड्स अद्ययावत करा.
-          </p>
+          
         </div>
         <button type="button" onclick="closeTransferModal()" style="background:#edf2f7; border:none; width:32px; height:32px; border-radius:50%; font-size:18px; cursor:pointer; color:#4a5568; display:flex; align-items:center; justify-content:center;">✕</button>
       </div>
 
       <!-- 1. Select Employee -->
       <div class="form-group" style="margin-bottom:12px;">
-        <label style="font-weight:700; color:#2d3748; font-size:13.5px;">१. बदली करावयाचा कर्मचारी निवडा (Select Employee) *</label>
+        <label style="font-weight:700; color:#2d3748; font-size:13.5px;">कर्मचारी निवडा *</label>
         <select id="tfEmpSelect" style="width:100%; padding:10px; font-weight:600; border-radius:6px; border:1.5px solid #cbd5e0; background:#fff;" onchange="onTransferEmpSelected(this.value)">
           <option value="">-- कर्मचारी निवडा --</option>
         </select>
@@ -7716,7 +7807,7 @@
       <div style="background:#f0fff4; border:1.5px solid #9ae6b4; border-radius:10px; padding:16px; margin-bottom:16px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
           <label style="color:#22543d; font-weight:700; font-size:14px; margin:0;">
-            २. नवीन गाव व कार्यक्षेत्र वाटप (Assign to New Village & Subcenter) *
+            नवीन गाव व कार्यक्षेत्र वाटप *
           </label>
           <span id="tfSelectedCountBadge" style="background:#276749; color:#fff; font-size:12px; padding:3px 10px; border-radius:12px; font-weight:700;">० गावे निवडली</span>
         </div>
@@ -7753,23 +7844,10 @@
         <div id="tfVillagesContainer" class="chips-container" style="max-height:190px; background:#fff; border:1px solid #9ae6b4; padding:10px; border-radius:8px;">
           <span style="color:#718096; font-size:13px;">गावे लोड होत आहेत...</span>
         </div>
-        <small style="color:#4a5568; display:block; margin-top:6px; font-size:11.5px;">
-          💡 <i>टीप: कोणत्याही गावावर क्लिक करताच त्या गावाचे उपकेंद्र आपोआप निश्चित केले जाईल.</i>
-        </small>
+        
       </div>
 
-      <!-- 3. Linked Records Auto-Sync Preview -->
-      <div style="background:#fffaf0; border:1px solid #feebc8; border-radius:8px; padding:12px; margin-bottom:16px; font-size:12px; color:#744210;">
-        <div style="font-weight:700; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-          <span>🔗 संबंधित लिंक्ड रेकॉर्ड्स अद्ययावतीकरण (Linked Records Auto-Sync):</span>
-        </div>
-        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:6px;">
-          <div>✅ <b>कर्मचारी मास्टर:</b> नवीन उपकेंद्र व कार्यक्षेत्र गावे.</div>
-          <div>✅ <b>गावे मास्टर:</b> नियुक्त कर्मचारी (Assigned Employees) यादी.</div>
-          <div>✅ <b>उपकेंद्र मास्टर:</b> गावे संकलन व सुसंगती.</div>
-          <div>✅ <b>मास्टर डेटा:</b> अहवाल व दैनिक नोंद प्रणाली सिंक.</div>
-          <div>✅ <b>बदली नोंदवही:</b> संपूर्ण ऑडिट ट्रेल सुरक्षित नोंद.</div>
-        </div>
+      
       </div>
 
       <!-- 4. Administrative Details -->
@@ -7780,7 +7858,7 @@
             <input type="text" id="tfNewBsCode" placeholder="उदा. 109" style="width:100%; padding:8px 10px; border:1px solid #cbd5e0; border-radius:6px;">
           </div>
           <div class="form-group" style="flex:2; min-width:200px;">
-            <label style="font-size:12.5px; font-weight:600;">बदलीचे कारण (Reason) *</label>
+            <label style="font-size:12.5px; font-weight:600;">बदलीचे कारण *</label>
             <select id="tfReason" style="width:100%; padding:8px 10px; border-radius:6px; border:1px solid #cbd5e0;">
               <option value="प्रशासकीय बदली व कार्यक्षेत्र गाव वाटप">प्रशासकीय बदली व कार्यक्षेत्र गाव वाटप (Administrative)</option>
               <option value="नवीन गाव नियुक्ती / कार्यक्षेत्र बदल">नवीन गाव नियुक्ती / कार्यक्षेत्र बदल (Village Reassignment)</option>
@@ -7793,7 +7871,7 @@
         </div>
 
         <div class="form-group" style="margin-bottom:10px;">
-          <label style="font-size:12.5px; font-weight:600;">आदेश क्र. व दिनांक (Order Number & Date)</label>
+          <label style="font-size:12.5px; font-weight:600;">आदेश क्र. व दिनांक</label>
           <input type="text" id="tfOrderNo" placeholder="उदा. जा.क्र. प्राआकें/२०२६/२४ दि. ०१/०९/२०२६" style="width:100%; padding:8px 10px; border:1px solid #cbd5e0; border-radius:6px;">
         </div>
       </div>
@@ -7803,7 +7881,7 @@
       <div style="display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" class="sheet-btn sheet-btn-secondary" onclick="closeTransferModal()">रद्द करा</button>
         <button type="button" class="sheet-btn" id="btnExecuteTransfer" style="background:#2b6cb0; font-weight:700; padding:10px 20px;" onclick="submitTransferEmployee(this)">
-          ✅ बदली व गाव वाटप आदेश लागू करा (Execute Transfer)
+          बदली आदेश लागू करा
         </button>
       </div>
     </div>
@@ -7813,7 +7891,7 @@
   <div id="assignVillagesModal" class="sheet-modal">
     <div class="sheet-modal-body" style="max-width:550px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-        <h3 style="margin:0; color:#276749; font-size:18px;">🗺️ कार्यक्षेत्र गावे अद्ययावत करा (Assign Villages)</h3>
+        <h3 style="margin:0; color:#276749; font-size:18px;">कार्यक्षेत्र गावे वाटप</h3>
         <button type="button" onclick="closeAssignVillagesModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#718096;">✕</button>
       </div>
 
@@ -7825,7 +7903,7 @@
 
       <div class="form-group" style="margin-bottom:15px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <label style="font-weight:700;">लागू असणारी गावे निवडा (Applied Villages):</label>
+          <label style="font-weight:700;">लागू असणारी गावे:</label>
           <div style="font-size:12px;">
             <a href="javascript:void(0)" onclick="selectAllAvVillages(true)" style="color:#2b6cb0; margin-right:8px; font-weight:600;">सर्व निवडा</a>
             <a href="javascript:void(0)" onclick="selectAllAvVillages(false)" style="color:#e53e3e; font-weight:600;">सर्व रद्द</a>
@@ -7839,7 +7917,7 @@
       <div style="display:flex; justify-content:flex-end; gap:10px;">
         <button type="button" class="sheet-btn sheet-btn-secondary" onclick="closeAssignVillagesModal()">रद्द करा</button>
         <button type="button" class="sheet-btn" style="background:#38a169;" onclick="submitAssignVillages(this)">
-          💾 गावे सेव्ह करा (Save Villages)
+          गावे सेव्ह करा
         </button>
       </div>
     </div>
@@ -7849,7 +7927,7 @@
   <div id="addEditEmployeeModal" class="sheet-modal">
     <div class="sheet-modal-body" style="max-width:580px; max-height:90vh; overflow-y:auto;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-        <h3 style="margin:0; color:#00796b; font-size:18px;" id="empModalTitle">👤 नवीन कर्मचारी जोडा (Add Employee)</h3>
+        <h3 style="margin:0; color:#00796b; font-size:18px;" id="empModalTitle">नवीन कर्मचारी</h3>
         <button type="button" onclick="closeAddEditEmployeeModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#718096;">✕</button>
       </div>
 
@@ -7874,11 +7952,11 @@
           </select>
         </div>
         <div class="form-group" style="flex:1; min-width:180px;">
-          <label>पद प्रवर्ग (Category) *</label>
+          <label>पद प्रवर्ग *</label>
           <select id="empFormCategory" style="width:100%; padding:9px; border-radius:6px; border:1px solid #cbd5e0;" onchange="onEmpFormCategoryChanged(this.value)">
             <option value="ANM">आरोग्य सेविका (ANM)</option>
             <option value="MPW">आरोग्य सेवक (MPW)</option>
-            <option value="ASHA">आशा स्वयंसेविका (ASHA)</option>
+            <option value="ASHA">आशा स्वयंसेविका</option>
             <option value="MO">वैद्यकीय अधिकारी (MO)</option>
           </select>
         </div>
@@ -7886,7 +7964,7 @@
 
       <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
         <div class="form-group" style="flex:1; min-width:140px;">
-          <label>पदनाम (Designation Label)</label>
+          <label>पदनाम</label>
           <input type="text" id="empFormDesignation" placeholder="उदा. आरोग्य सेविका" style="width:100%; padding:9px;">
         </div>
         <div class="form-group" style="flex:1; min-width:140px;">
@@ -7902,7 +7980,7 @@
 
       <div class="form-group" style="margin-bottom:15px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-          <label style="font-weight:700;">लागू असणारी गावे (Applied Villages):</label>
+          <label style="font-weight:700;">लागू असणारी गावे:</label>
           <div style="font-size:12px;">
             <a href="javascript:void(0)" onclick="selectAllEmpFormVillages(true)" style="color:#2b6cb0; margin-right:8px; font-weight:600;">सर्व निवडा</a>
             <a href="javascript:void(0)" onclick="selectAllEmpFormVillages(false)" style="color:#e53e3e; font-weight:600;">सर्व रद्द</a>
@@ -7926,7 +8004,7 @@
   <div id="addEditVillageModal" class="sheet-modal">
     <div class="sheet-modal-body" style="max-width:550px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-        <h3 style="margin:0; color:#276749; font-size:18px;" id="vilModalTitle">🏘️ नवीन गाव जोडा (Add Village)</h3>
+        <h3 style="margin:0; color:#276749; font-size:18px;" id="vilModalTitle">नवीन गाव</h3>
         <button type="button" onclick="closeAddEditVillageModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#718096;">✕</button>
       </div>
 
@@ -7952,18 +8030,18 @@
 
       <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
         <div class="form-group" style="flex:1; min-width:140px;">
-          <label>लोकसंख्या (Population) *</label>
+          <label>लोकसंख्या *</label>
           <input type="number" id="vilFormPopulation" placeholder="उदा. 4500" style="width:100%; padding:9px;" oninput="autoCalcVilTarget(this.value)">
         </div>
         <div class="form-group" style="flex:1; min-width:140px;">
-          <label>घरांची संख्या (No of Houses) *</label>
+          <label>घरांची संख्या *</label>
           <input type="number" id="vilFormHouses" placeholder="उदा. 890" style="width:100%; padding:9px;">
         </div>
       </div>
 
       <div style="display:flex; gap:12px; margin-bottom:12px; flex-wrap:wrap;">
         <div class="form-group" style="flex:1; min-width:140px;">
-          <label>वार्षिक रक्त नमुने उद्दिष्ट (Annual Target)</label>
+          <label>वार्षिक उद्दिष्ट</label>
           <input type="number" id="vilFormTarget" placeholder="उदा. 450" style="width:100%; padding:9px;">
         </div>
         <div class="form-group" style="flex:1; min-width:140px;">
@@ -7987,7 +8065,7 @@
   <div id="addEditSubcenterModal" class="sheet-modal">
     <div class="sheet-modal-body" style="max-width:550px;">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid #e2e8f0; padding-bottom:10px;">
-        <h3 style="margin:0; color:#00796b; font-size:18px;" id="scModalTitle">🏛️ उपकेंद्र तपशील (Subcenter Details)</h3>
+        <h3 style="margin:0; color:#00796b; font-size:18px;" id="scModalTitle">उपकेंद्र तपशील</h3>
         <button type="button" onclick="closeAddEditSubcenterModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#718096;">✕</button>
       </div>
 
@@ -7998,7 +8076,7 @@
       </div>
 
       <div class="form-group" style="margin-bottom:12px;">
-        <label>मुख्यालय (Headquarter)</label>
+        <label>मुख्यालय</label>
         <input type="text" id="scFormHq" placeholder="उदा. भादा" style="width:100%; padding:9px;">
       </div>
 
@@ -8048,11 +8126,9 @@
           </div>
           <div>
             <h3 style="margin:0; font-size:18px; font-weight:800; color:#7b341e;">
-              प्रयोगशाळा तपासणी अहवाल नोंदणी व अपडेट
+              प्रयोगशाळा तपासणी अहवाल
             </h3>
-            <p style="margin:2px 0 0 0; font-size:12.5px; color:#9c4221;">
-              शासकीय वैद्यकीय महाविद्यालय (GMC) / प्रयोगशाळेकडून प्राप्त अहवाल, संदर्भ क्र., दिनांक व स्कॅन प्रत नोंदवा.
-            </p>
+            
           </div>
         </div>
         <button type="button" class="close-btn" onclick="closeLabReportModal()" style="font-size:24px; color:#a0aec0; background:none; border:none; cursor:pointer;">✕</button>
@@ -8070,9 +8146,7 @@
 
       <!-- Time Separation Notice & Disease Tab Selectors -->
       <div style="background:#ebf8ff; border:1px solid #bee3f8; border-radius:8px; padding:10px 14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-        <div style="font-size:12px; color:#2b6cb0; font-weight:600; display:flex; align-items:center; gap:6px;">
-          <span>💡</span> डेंगी व चिकनगुनिया अहवाल वेगवेगळ्या वेळी उपलब्ध झाल्यास फक्त एका आजाराचा अहवाल स्वतंत्रपणे सेव्ह करू शकता.
-        </div>
+        
         <div style="display:flex; gap:6px;">
           <button type="button" class="sheet-btn dg-disease-btn" id="btnDiseaseBoth" style="padding:4px 10px; font-size:12px; font-weight:700; background:#3182ce; color:#fff;" onclick="switchReportDiseaseTab('both')">⭐ दोन्ही आजार</button>
           <button type="button" class="sheet-btn dg-disease-btn" id="btnDiseaseDengue" style="padding:4px 10px; font-size:12px; font-weight:700; background:#edf2f7; color:#4a5568;" onclick="switchReportDiseaseTab('dengue')">🦟 फक्त डेंगी</button>
@@ -8202,7 +8276,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px solid #fed7aa; padding-top:14px; margin-top:10px;">
         <span id="dgModalSaveMsg" style="font-size:13px; font-weight:600; color:#c05621;"></span>
         <div style="display:flex; gap:10px;">
-          <button type="button" class="sheet-btn" style="background:#e2e8f0; color:#4a5568;" onclick="closeLabReportModal()">रद्द करा (Cancel)</button>
+          <button type="button" class="sheet-btn" style="background:#e2e8f0; color:#4a5568;" onclick="closeLabReportModal()">रद्द करा</button>
           <button type="button" class="sheet-btn" id="btnSaveLabReportModal" style="background:#dd6b20; color:#fff; font-weight:700; padding:9px 20px;" onclick="saveLabReportModal()">
             💾 अहवाल सेव्ह करा (Save Report)
           </button>
@@ -8348,7 +8422,7 @@
   {
     "upkendra": "आलमला",
     "employeeName": "श्रीमती पुनम रावसाहेब काळे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F6V3",
     "villageList": [
       "आलमला"
@@ -8357,7 +8431,7 @@
   {
     "upkendra": "आलमला",
     "employeeName": "श्रीमती शिल्पा पुनम थोरात",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F6V5",
     "villageList": [
       "उंबडगा बू"
@@ -8366,7 +8440,7 @@
   {
     "upkendra": "आलमला",
     "employeeName": "श्रीमती राधा सुरेष पांचळ",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F6V4",
     "villageList": [
       "आलमला"
@@ -8375,7 +8449,7 @@
   {
     "upkendra": "आलमला",
     "employeeName": "श्रीमती मनोरमा प्रल्हाद सुवर्णकार",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F6V2",
     "villageList": [
       "आलमला"
@@ -8384,7 +8458,7 @@
   {
     "upkendra": "आलमला",
     "employeeName": "श्रीमती आनिता राजाराम बनसोडे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F6V6",
     "villageList": [
       "उंबडगा खू"
@@ -8393,7 +8467,7 @@
   {
     "upkendra": "आलमला",
     "employeeName": "श्रीमती दैवशाला गोविंद शिरसाट",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F6V1",
     "villageList": [
       "आलमला"
@@ -8426,7 +8500,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती कैसल्या विष्णू ढोक",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V4",
     "villageList": [
       "समदर्गा"
@@ -8435,7 +8509,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती छाया हेमाद्रीपंत काळे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V3",
     "villageList": [
       "समदर्गा"
@@ -8444,7 +8518,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती नजमुन अल्लाबक्श दरोगे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V1",
     "villageList": [
       "कोरंगळा"
@@ -8453,7 +8527,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती दुर्गा वैजीनाथ चांडसुरे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V5",
     "villageList": [
       "येल्लोरी"
@@ -8462,7 +8536,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती सविता गोपाळ रिंगनकर",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V6",
     "villageList": [
       "येल्लोरी"
@@ -8471,7 +8545,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती सुनिता शहाजी घाडगे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V7",
     "villageList": [
       "येल्लोरी वाडी"
@@ -8480,7 +8554,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती मंगल हिरामन चव्हाण",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V8",
     "villageList": [
       "औसा तांडा"
@@ -8489,7 +8563,7 @@
   {
     "upkendra": "कोरंगळा",
     "employeeName": "श्रीमती विमल श्रीहरी जंगाले",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F5V2",
     "villageList": [
       "कोरंगळा"
@@ -8524,7 +8598,7 @@
   {
     "upkendra": "बोरगाव",
     "employeeName": "श्रीमती सारीका बब्रुवान गजनेत्री",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F2V3",
     "villageList": [
       "काळमाथा"
@@ -8533,7 +8607,7 @@
   {
     "upkendra": "बोरगाव",
     "employeeName": "श्रीमती ललिता बालाजी साळुंके",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F2V2",
     "villageList": [
       "बोरगांव"
@@ -8542,7 +8616,7 @@
   {
     "upkendra": "बोरगाव",
     "employeeName": "श्रीमती उमा दयानंद डामगीरे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F2V1",
     "villageList": [
       "बोरगांव"
@@ -8551,7 +8625,7 @@
   {
     "upkendra": "बोरगाव",
     "employeeName": "श्रीमती तस्लीम सय्यद फकीर",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F2V3",
     "villageList": [
       "काळमाथा"
@@ -8560,7 +8634,7 @@
   {
     "upkendra": "बोरगाव",
     "employeeName": "श्रीमती आर्चना दगडु गोरे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F2V5",
     "villageList": [
       "कवठा",
@@ -8594,7 +8668,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती शिवकन्या शंकर कुर्डे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V7",
     "villageList": [
       "हाळदुर्ग"
@@ -8603,7 +8677,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती महादेवी सुखदेव वाडकर",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V1",
     "villageList": [
       "भादा"
@@ -8612,7 +8686,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती उषा शिवहरी कुंजीर",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V5",
     "villageList": [
       "भादा"
@@ -8621,7 +8695,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती जयश्री नंदकुमार बुरबुरे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V2",
     "villageList": [
       "भादा"
@@ -8630,7 +8704,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती रेखा मोहन ढवळे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V3",
     "villageList": [
       "भादा"
@@ -8639,7 +8713,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती सुवर्णमाला जगन्नाथ राउत",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V4",
     "villageList": [
       "भादा"
@@ -8648,7 +8722,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती रुक्मीन किसन गव्हाणे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V6",
     "villageList": [
       "शिंदेवाडी"
@@ -8657,7 +8731,7 @@
   {
     "upkendra": "भादा",
     "employeeName": "श्रीमती सिंधू बापू तुंदारे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F1V8",
     "villageList": [
       "ब-हाणपूर"
@@ -8702,7 +8776,7 @@
   {
     "upkendra": "भेटा",
     "employeeName": "श्रीमती पठाण फरीदा अहेमद",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F3V4",
     "villageList": [
       "आंदोरा"
@@ -8711,7 +8785,7 @@
   {
     "upkendra": "भेटा",
     "employeeName": "श्रीमती गोसीया गैबी पठाण",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F3V5",
     "villageList": [
       "आंदोरा"
@@ -8720,7 +8794,7 @@
   {
     "upkendra": "भेटा",
     "employeeName": "श्रीमती शालू रंगराव वानवडे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F3V2",
     "villageList": [
       "भेटा",
@@ -8730,7 +8804,7 @@
   {
     "upkendra": "भेटा",
     "employeeName": "श्रीमती पिंपरे चंद्रकला शंकर",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F3V6",
     "villageList": [
       "भेटा"
@@ -8739,7 +8813,7 @@
   {
     "upkendra": "भेटा",
     "employeeName": "श्रीमती गंगणे कविता सुरेष",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F3V3",
     "villageList": [
       "भेटा"
@@ -8748,7 +8822,7 @@
   {
     "upkendra": "भेटा",
     "employeeName": "श्रीमती चंद्रकला राजेंद्र पुरी",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F3V6",
     "villageList": [
       "वडजी"
@@ -8781,7 +8855,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती ललिता जनार्धन आडे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V3",
     "villageList": [
       "सत्तधरवाडी",
@@ -8791,7 +8865,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती मनिषा सिद्धाप्पा कवटे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V4",
     "villageList": [
       "सत्तधरवाडी"
@@ -8800,7 +8874,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती माधुरी पोफळे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V7",
     "villageList": [
       "उटी बु."
@@ -8809,7 +8883,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती रिहाना महताब शेख",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V2",
     "villageList": [
       "उटी बु."
@@ -8818,7 +8892,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती संगीता प्रेमसिंग राठोड",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V5",
     "villageList": [
       "सोनपट्टी तांडा"
@@ -8827,7 +8901,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती माया लिंबाजी वाघमारे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V1",
     "villageList": [
       "लखनगांव"
@@ -8836,7 +8910,7 @@
   {
     "upkendra": "लखनगाव",
     "employeeName": "श्रीमती ज्योती परशुराम इटकर",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F7V6",
     "villageList": [
       "लखनगांव"
@@ -8897,7 +8971,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती रईसा आब्दूल तांबोळी",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V2",
     "villageList": [
       "शिवली"
@@ -8906,7 +8980,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती उर्मीला मधुकर नागरसोगे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V4",
     "villageList": [
       "शिवली"
@@ -8915,7 +8989,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती तारामती चंद्रकांत फुटाणे",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V3",
     "villageList": [
       "शिवली"
@@ -8924,7 +8998,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती जयश्री हरिश्चंद्र जाधव",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V5",
     "villageList": [
       "वरवडा"
@@ -8933,7 +9007,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती पल्लवी किशोर कदम",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V7",
     "villageList": [
       "वरवडा"
@@ -8942,7 +9016,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती माया बाबुराव माने",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V6",
     "villageList": [
       "जायफळ"
@@ -8951,7 +9025,7 @@
   {
     "upkendra": "शिवली",
     "employeeName": "श्रीमती आशा राजाराम पावले",
-    "designation": "आशा स्वयंसेविका (ASHA)",
+    "designation": "आशा स्वयंसेविका",
     "bsCode": "54F4V1",
     "villageList": [
       "शिवली"
@@ -9759,7 +9833,7 @@
         employees,
         subcenters,
         designationDistribution: [
-          { name: 'आशा स्वयंसेविका (ASHA)', count: ashaCount, color: '#805ad5' },
+          { name: 'आशा स्वयंसेविका', count: ashaCount, color: '#805ad5' },
           { name: 'आरोग्य सेविका (ANM)', count: anmCount, color: '#38a169' },
           { name: 'आरोग्य सेवक (MPW)', count: mpwCount, color: '#3182ce' },
           { name: 'वैद्यकीय अधिकारी / OPD', count: moCount, color: '#dd6b20' }
@@ -9970,7 +10044,7 @@
                   style: { padding: '6px 10px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '13px', background: '#fff' }
                 }, [
                   e('option', { key: 'all', value: 'All' }, 'सर्व संवर्ग (All Roles)'),
-                  e('option', { key: 'asha', value: 'asha' }, '💜 आशा स्वयंसेविका (ASHA)'),
+                  e('option', { key: 'asha', value: 'asha' }, '💜 आशा स्वयंसेविका'),
                   e('option', { key: 'anm', value: 'anm' }, '💚 आरोग्य सेविका (ANM)'),
                   e('option', { key: 'mpw', value: 'mpw' }, '💙 आरोग्य सेवक (MPW)'),
                   e('option', { key: 'mo', value: 'mo' }, '🧡 वैद्यकीय अधिकारी (OPD)')
@@ -10166,7 +10240,7 @@
                     e(Recharts.Legend, { verticalAlign: 'top', height: 36 }),
                     e(Recharts.Bar, {
                       dataKey: 'ashaCount',
-                      name: 'आशा स्वयंसेविका (ASHA)',
+                      name: 'आशा स्वयंसेविका',
                       fill: '#805ad5',
                       stackId: barLayout === 'stacked' ? 'staff' : undefined,
                       radius: barLayout === 'stacked' ? [0, 0, 0, 0] : [4, 4, 0, 0]
@@ -10310,7 +10384,7 @@
                       e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'गावाचे नाव'),
                       e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'उपकेंद्र'),
                       e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'लोकसंख्या'),
-                      e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'आशा स्वयंसेविका (ASHA)'),
+                      e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'आशा स्वयंसेविका'),
                       e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'आरोग्य सेविका (ANM)'),
                       e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0' } }, 'आरोग्य सेवक (MPW)'),
                       e('th', { style: { padding: '10px 8px', border: '1px solid #cbd5e0', textAlign: 'center' } }, 'एकूण कर्मचारी')
@@ -10398,7 +10472,7 @@
             loader.innerHTML = '<span style="color:#e53e3e;">डॅशबोर्ड डेटा लोड करताना अडचण आली. <button onclick="loadDashboardStatsOnly()" style="margin-left:8px; padding:4px 10px; cursor:pointer; background:#00796b; color:#fff; border:none; border-radius:4px;">पुन्हा प्रयत्न करा 🔄</button></span>';
           }
         })
-        .getDashboardStats();
+        .getDashboardStats(currentMrdMonth);
     }
 
     function loadMonthlyReportDashboardData(targetMonth) {
@@ -10695,7 +10769,7 @@
       if (smearsM === 0 && d.opdVillagewise && d.opdVillagewise.monthlyTotal > 0) {
         smearsM = d.opdVillagewise.monthlyTotal;
       }
-      // 🩸 घेतलेले रक्त नमुणे (Blood Smears) = 🌡️ तापाचे रुग्ण (Fever Cases) = 💊 उपचारीत रुग्ण (Treated Cases)
+      // घेतलेले रक्त नमुने = तापाचे रुग्ण = उपचारीत रुग्ण
       let feverM = smearsM;
       let treatedM = smearsM;
 
@@ -11223,9 +11297,7 @@
       if (!monthName) {
         box.innerHTML = `
           <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; padding:12px 10px; background:#edf2f7; border-radius:8px; gap:8px; text-align:center;">
-            <div style="color:#4a5568; font-size:12.5px; font-weight:600;">
-              अहवालातील डेटा जुळणी व त्रुटी तपासण्यासाठी खालील 'Validator' बटणावर क्लिक करा:
-            </div>
+            
             <button type="button" class="sheet-btn" style="background:#2b6cb0; color:#ffffff; padding:6px 16px; font-size:12px; font-weight:700; border-radius:6px; border:none; display:inline-flex; align-items:center; gap:6px; cursor:pointer;" onclick="triggerValidatorCheck()">
               🛡️ त्रुटी व्हॅलिडेट करा (Run Validator)
             </button>
@@ -11676,7 +11748,7 @@
             if (smearsVal === 0 && d.opdVillagewise && d.opdVillagewise.monthlyTotal > 0) {
               smearsVal = d.opdVillagewise.monthlyTotal;
             }
-            // 🩸 घेतलेले रक्त नमुणे (Blood Smears) = 🌡️ तापाचे रुग्ण (Fever Cases) = 💊 उपचारीत रुग्ण (Treated Cases)
+            // घेतलेले रक्त नमुने = तापाचे रुग्ण = उपचारीत रुग्ण
             let feverVal = smearsVal;
             let treatedVal = smearsVal;
 
@@ -11783,7 +11855,7 @@
         smearsM = parseInt(document.getElementById('inpTreatedCases').value) || 0;
         document.getElementById('inpBloodSmears').value = smearsM;
       }
-      // 🩸 घेतलेले रक्त नमुणे (Blood Smears) = 🌡️ तापाचे रुग्ण (Fever Cases) = 💊 उपचारीत रुग्ण (Treated Cases)
+      // घेतलेले रक्त नमुने = तापाचे रुग्ण = उपचारीत रुग्ण
       document.getElementById('inpFeverCases').value = smearsM;
       document.getElementById('inpTreatedCases').value = smearsM;
 
@@ -12366,7 +12438,7 @@
         const cat = (emp.category || '').toUpperCase();
         if (cat === 'MPW') catBadge = '<span class="badge-role badge-mpw">आरोग्य सेवक (MPW)</span>';
         else if (cat === 'ANM') catBadge = '<span class="badge-role badge-anm">आरोग्य सेविका (ANM)</span>';
-        else if (cat === 'ASHA') catBadge = '<span class="badge-role badge-asha">आशा स्वयंसेविका (ASHA)</span>';
+        else if (cat === 'ASHA') catBadge = '<span class="badge-role badge-asha">आशा स्वयंसेविका</span>';
         else catBadge = `<span class="badge-role badge-mo">${emp.designation || 'वैद्यकीय अधिकारी'}</span>`;
 
         html += `
@@ -12839,7 +12911,7 @@
         .withSuccessHandler(res => {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '✅ बदली व गाव वाटप आदेश लागू करा (Execute Transfer)';
+            btn.textContent = 'बदली आदेश लागू करा';
           }
           if (res && res.success) {
             if (msg) {
@@ -12867,7 +12939,7 @@
         .withFailureHandler(err => {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '✅ बदली व गाव वाटप आदेश लागू करा (Execute Transfer)';
+            btn.textContent = 'बदली आदेश लागू करा';
           }
           if (msg) {
             msg.style.background = '#fff5f5';
@@ -12970,7 +13042,7 @@
         .withSuccessHandler(res => {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '💾 गावे सेव्ह करा (Save Villages)';
+            btn.textContent = 'गावे सेव्ह करा';
           }
           if (res && res.success) {
             if (msg) {
@@ -12992,7 +13064,7 @@
         .withFailureHandler(err => {
           if (btn) {
             btn.disabled = false;
-            btn.textContent = '💾 गावे सेव्ह करा (Save Villages)';
+            btn.textContent = 'गावे सेव्ह करा';
           }
           if (msg) {
             msg.style.background = '#fff5f5';
@@ -13007,7 +13079,7 @@
     // 7. EMPLOYEE CRUD MODAL
     // ==========================================
     function openAddEmployeeModal() {
-      document.getElementById('empModalTitle').textContent = '👤 नवीन कर्मचारी जोडा (Add Employee)';
+      document.getElementById('empModalTitle').textContent = 'नवीन कर्मचारी';
       document.getElementById('empFormId').value = '';
       document.getElementById('empFormName').value = '';
       document.getElementById('empFormCategory').value = 'ANM';
@@ -13213,7 +13285,7 @@
     // 8. VILLAGE CRUD MODAL
     // ==========================================
     function openAddVillageModal() {
-      document.getElementById('vilModalTitle').textContent = '🏘️ नवीन गाव जोडा (Add Village)';
+      document.getElementById('vilModalTitle').textContent = 'नवीन गाव';
       document.getElementById('vilFormId').value = '';
       document.getElementById('vilFormName').value = '';
       document.getElementById('vilFormPopulation').value = '';
@@ -13494,7 +13566,7 @@
         title: '🩸 BsDataEntry (कर्मचारीनिहाय रक्त नमुना नोंद)',
         desc: 'या शीटमध्ये कर्मचाऱ्याने घेतलेल्या रक्त नमुन्यांची नोंद असते (BS ID, तारीख, उपकेंद्र, कर्मचारी नाव, पद, BS Code, बंडल क्र., पासून, पर्यंत, एकूण).',
         sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,पदनाम,BS_Code,बंडल_क्रमांक,पासून,पर्यंत,एकूण_नमुने
-BS-1001,2026-09-02,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका (ASHA),54F6V3,BND-01,1,10,10
+BS-1001,2026-09-02,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,BND-01,1,10,10
 BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,BND-02,1,15,15
 BS-1003,2026-09-04,लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,BND-03,1,12,12
 BS-1004,2026-09-05,मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,BND-04,1,14,14
@@ -13531,7 +13603,7 @@ BS-1006,2026-09-07,शिवली,श्री पाटील व्ही ए
         title: '👥 MasterData (६५ कर्मचारी व कार्यक्षेत्र गावे)',
         desc: 'प्रा.आ. केंद्र आलमला अंतर्गत ६ उपकेंद्रांमधील ६५ कर्मचारी, त्यांची पदे, BS Code आणि कार्यक्षेत्र गावांची यादी.',
         sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी
-आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका (ASHA),54F6V3,आलमला
+आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,आलमला
 भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,"भेटा, आंदोरा, वडजी, नाव्होली"
 लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,"लखनगांव, सत्तधरवाडी, उटी बु., सोनपट्टी तांडा"
 मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,"मंगरूळ, कासार जवळगा, बोरगाव, हाळदुर्ग, शिंदेवाडी"`
@@ -13752,7 +13824,7 @@ BS-1006,2026-09-07,शिवली,श्री पाटील व्ही ए
         title: '🩸 BsDataEntry (कर्मचारी रक्त नमुने नोंद)',
         desc: 'स्तंभ: <b>BS ID, दिनांक, उपकेंद्र, कर्मचारी नाव, पद, BS Code, बंडल क्र., पासून, पर्यंत, एकूण</b><br>💡 <i>नियम: \'दिनांक\' स्तंभाचे मूल्य <b>dd-mm-yyyy</b> (उदा. 11-12-2025, 27-10-2025) स्वरूपात असणे आवश्यक आहे.</i>',
         sample: `BS ID,दिनांक,उपकेंद्र,कर्मचारी नाव,पद,BS Code,बंडल क्र.,पासून,पर्यंत,एकूण
-BS_20251211_54F6V3_1,11-12-2025,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका (ASHA),54F6V3,B_2025_1,1,10,10
+BS_20251211_54F6V3_1,11-12-2025,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,B_2025_1,1,10,10
 BS_20251027_54S3_2,27-10-2025,भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,B_2025_2,1,12,12
 BS_20250915_54F7_3,15-09-2025,लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,B_2025_3,1,8,8
 BS_20260105_54S4_4,05-01-2026,मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,B_2026_1,1,14,14
@@ -13779,7 +13851,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         title: '👥 MasterData (६५ कर्मचारी व कार्यक्षेत्र गावे)',
         desc: 'स्तंभ: <b>उपकेंद्र, कर्मचारी नाव, पदनाम, Bs Code, गावांची यादी</b>',
         sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी
-आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका (ASHA),54F6V3,आलमला
+आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,आलमला
 भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,"भेटा, आंदोरा, वडजी, नाव्होली"
 लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,"लखनगांव, सत्तधरवाडी, उटी बु., सोनपट्टी तांडा"
 मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,"मंगरूळ, कासार जवळगा, बोरगाव, हाळदुर्ग, शिंदेवाडी"`
@@ -14340,7 +14412,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const handleSuccess = res => {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = '💾 सर्व वैध नोंदी स्टेट व सिस्टीममध्ये सेव्ह करा (Store & Sync)';
+          btn.textContent = 'डेटा सेव्ह करा';
         }
         if (res && res.success) {
           state.isCommitted = true;
@@ -14362,7 +14434,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const handleFailure = err => {
         if (btn) {
           btn.disabled = false;
-          btn.textContent = '💾 सर्व वैध नोंदी स्टेट व सिस्टीममध्ये सेव्ह करा (Store & Sync)';
+          btn.textContent = 'डेटा सेव्ह करा';
         }
         showUploadCompStatus(`⚠️ सर्व्हर एरर: ${err.message}`, 'error');
       };
@@ -15475,10 +15547,10 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     function resetDengueForm() {
       document.getElementById('frmDengueEntry').reset();
       document.getElementById('dengueRecordId').value = '';
-      document.getElementById('dengueFormModeTitle').textContent = 'डेंगी व चिकनगुनिया संशयित सिरम नमुना नोंद फॉर्म';
+      document.getElementById('dengueFormModeTitle').textContent = 'डेंगी व चिकनगुनिया नोंद फॉर्म';
       const badge = document.getElementById('dengueFormStatusBadge');
       if (badge) {
-        badge.textContent = '✨ नवीन नोंद (New Record)';
+        badge.textContent = 'नवीन नोंद';
         badge.style.background = '#feebc8';
         badge.style.color = '#7b341e';
       }
@@ -16672,9 +16744,9 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 '<tr>' +
 '  <th>नोंदणी क्र. (Reg_No)</th>' +
 '  <th>रुग्णाचे नाव (Patient_Name)</th>' +
-'  <th>गाव (Village)</th>' +
+'  <th>गाव</th>' +
 '  <th>वय (Age)</th>' +
-'  <th>लिंग (Sex)</th>' +
+'  <th>लिंग</th>' +
 '  <th>मोबाईल (Mobile)</th>' +
 '  <th>घर क्र. (House_No)</th>' +
 '  <th>नमुना दिनांक (Collection_Date DD-MM-YYYY)</th>' +
@@ -16808,11 +16880,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         'Chik_Report_Date'
       ];
 
-      const sampleRows = [
-        ['101', 'Ramesh Vithal Patil', 'Bhada', '34', 'Male', '9876543210', '12', '01-09-2026', '28-08-2026', '4', '1', '1', '1', 'No', 'Positive', 'NS1 Ag ELISA', 'GMC/MICRO/2026/DEN-145', '15-09-2026', 'Negative', 'Chikungunya IgM ELISA', 'GMC/MICRO/2026/CHIK-89', '20-09-2026'],
-        ['102', 'Anita Prakash Gaikwad', 'Bhada', '28', 'Female', '9855512345', '45', '01-09-2026', '29-08-2026', '3', '1', '1', '1', 'No', 'Negative', 'NS1 Ag ELISA', 'GMC/MICRO/2026/DEN-145', '15-09-2026', 'Negative', 'Chikungunya IgM ELISA', 'GMC/MICRO/2026/CHIK-89', '20-09-2026'],
-        ['103', 'Sudhakar Maruti Shinde', 'Tapse Chincholi', '45', 'Male', '9766623456', '88', '01-09-2026', '27-08-2026', '5', '1', '1', '1', 'No', 'Negative', 'NS1 Ag ELISA', 'GMC/MICRO/2026/DEN-145', '15-09-2026', 'Positive', 'Chikungunya IgM ELISA', 'GMC/MICRO/2026/CHIK-89', '20-09-2026']
-      ];
+      const sampleRows = [];
 
       const csvContent = [templateHeaders.join(','), ...sampleRows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -16829,9 +16897,9 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const templateHeaders = [
         'नोंदणी क्र. (Reg No)',
         'रुग्णाचे नाव (Patient Name)',
-        'गाव (Village)',
+        'गाव',
         'वय (Age)',
-        'लिंग (Sex)',
+        'लिंग',
         'मोबाईल (Mobile)',
         'घर क्र. (House No)',
         'नमुना दिनांक (Collection Date DD-MM-YYYY)',
@@ -16851,11 +16919,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         'चिकनगुनिया अहवाल दिनांक (Chik Report Date DD-MM-YYYY)'
       ];
 
-      const sampleRows = [
-        ['101', 'रमेश विठ्ठल पाटील', 'भादा', '34', 'पुरुष', '9876543210', '12', '01-09-2026', '28-08-2026', '4', '1', '1', '1', 'No', 'Positive', 'NS1 Ag ELISA', 'GMC/MICRO/2026/DEN-145', '15-09-2026', 'Negative', 'Chikungunya IgM ELISA', 'GMC/MICRO/2026/CHIK-89', '20-09-2026'],
-        ['102', 'अनिता प्रकाश गायकवाड', 'भादा', '28', 'स्त्री', '9855512345', '45', '01-09-2026', '29-08-2026', '3', '1', '1', '1', 'No', 'Negative', 'NS1 Ag ELISA', 'GMC/MICRO/2026/DEN-145', '15-09-2026', 'Negative', 'Chikungunya IgM ELISA', 'GMC/MICRO/2026/CHIK-89', '20-09-2026'],
-        ['103', 'सुधाकर मारुती शिंदे', 'तपसेचिंचोली', '45', 'पुरुष', '9766623456', '88', '01-09-2026', '27-08-2026', '5', '1', '1', '1', 'No', 'Negative', 'NS1 Ag ELISA', 'GMC/MICRO/2026/DEN-145', '15-09-2026', 'Positive', 'Chikungunya IgM ELISA', 'GMC/MICRO/2026/CHIK-89', '20-09-2026']
-      ];
+      const sampleRows = [];
 
       const csvContent = '\uFEFF' + [templateHeaders.join(','), ...sampleRows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -17203,9 +17267,9 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       // Offline / GitHub Pages fallback with SheetJS
       const headers = [
         'आयडी (ID)', 'रुग्णाचे नाव (Patient Name)', 'मोबाईल (Mobile)', 'घर क्र. (House No)',
-        'गाव (Village)', 'तालुका (Taluka)', 'जिल्हा (District)', 'रुग्णालय पत्ता (Hospital Address)',
-        'नोंदणी क्र. (Reg No)', 'वार्ड (Ward)', 'बेड (Bed)', 'वय (Age)', 'लिंग (Sex)',
-        'लक्षणे सुरू दिनांक (Onset Date)', 'नमुना प्रकार (Sample Nature)', 'नमुना घेतल्याचा दिनांक (Collection Date)',
+        'गाव', 'तालुका', 'जिल्हा', 'रुग्णालय पत्ता',
+        'नोंदणी क्र. (Reg No)', 'वार्ड (Ward)', 'बेड (Bed)', 'वय (Age)', 'लिंग',
+        'लक्षणे सुरू दिनांक (Onset Date)', 'नमुना प्रकार (Sample Nature)', 'नमुना घेतल्याचा दिनांक',
         'ताप दिवस (Fever Days)', 'डोकेदुखी दिवस (Headache Days)', 'अंगदुखी दिवस (Bodyache Days)',
         'सांधेदुखी दिवस (Joint Pain Days)', 'डोळ्यांमागे दुखणे (Retro Orbital Pain Days)', 'पुरळ दिवस (Rash Days)',
         'रक्तस्राव (Haemorrhagic)', 'डॉक्टर नाव (Doctor Name)', 'डॉक्टर मोबाईल (Doctor Mobile)',

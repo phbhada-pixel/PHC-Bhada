@@ -386,17 +386,37 @@ export function generateClientSideMonthlyReportHtml(selectedMonthDisplay, {
     const s = String(name || '').trim();
     if (s === 'बोरगाव' || s === 'बोरगांव') return 'बोरगांव';
     if (s === 'लखनगाव' || s === 'लखनगांव') return 'लखनगांव';
+    if (s === 'सत्तधरवाडी' || s === 'सत्तरधरवाडी') return 'सत्तधरवाडी';
     if (s === 'उंबडगा बु' || s === 'उंबडगा बु.' || s === 'उंबडगा बू' || s === 'उंबडगा बू.') return 'उंबडगा बू';
     if (s === 'उंबडगा खु' || s === 'उंबडगा खु.' || s === 'उंबडगा खू' || s === 'उंबडगा खू.') return 'उंबडगा खू';
     if (s === 'उटी बु' || s === 'उटी बु.' || s === 'उटी बू' || s === 'उटी बू.') return 'उटी बु.';
     return s;
   };
 
+  const canonicalSubcenterVillages = [
+    { upkendra: 'आलमला', villages: ['आलमला', 'उंबडगा बू', 'उंबडगा खू', 'आलमला तांडा'] },
+    { upkendra: 'कोरंगळा', villages: ['समदर्गा', 'कोरंगळा', 'येल्लोरी', 'येल्लोरी वाडी', 'औसा तांडा'] },
+    { upkendra: 'बोरगाव', villages: ['काळमाथा', 'बोरगांव', 'कवठा', 'कवठा तांडा'] },
+    { upkendra: 'भादा', villages: ['हाळदुर्ग', 'भादा', 'शिंदेवाडी', 'ब-हाणपूर'] },
+    { upkendra: 'भेटा', villages: ['आंदोरा', 'भेटा', 'नाव्होली', 'वडजी'] },
+    { upkendra: 'लखनगाव', villages: ['सत्तधरवाडी', 'कुलकर्णी तांडा', 'उटी बु.', 'सोनपट्टी तांडा', 'लखनगांव'] },
+    { upkendra: 'शिवली', villages: ['शिवली', 'वरवडा', 'जायफळ'] }
+  ];
+
   const villageListMap = [];
+  canonicalSubcenterVillages.forEach(sc => {
+    (sc.villages || []).forEach(vName => {
+      const normV = normalizeVillageName(vName);
+      if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.village === normV)) {
+        villageListMap.push({ upkendra: sc.upkendra, village: normV });
+      }
+    });
+  });
+
   masterData.forEach(m => {
     (m.villageList || []).forEach(vName => {
       const normV = normalizeVillageName(vName);
-      if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.upkendra === m.upkendra && x.village === normV)) {
+      if (normV && !normV.includes('Phc') && !villageListMap.some(x => x.village === normV)) {
         villageListMap.push({ upkendra: m.upkendra, village: normV });
       }
     });
@@ -446,96 +466,145 @@ export function generateClientSideMonthlyReportHtml(selectedMonthDisplay, {
     return subItem ? villageDataMap[subItem.village] : Object.values(villageDataMap)[0];
   };
 
+  const addVillageAlloc = (vObj, cat, vMAlloc, vFAlloc, vTotAlloc) => {
+    if (!vObj || vTotAlloc <= 0) return;
+    if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
+    else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
+    else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
+    else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
+  };
+
+  let rotSeed = 0;
   monthBsRows.forEach(r => {
     if (isOpd(r[3], r[4], r[2], '', r[5])) return;
     const total = parseInt(r[9]) || 0;
     if (total <= 0) return;
 
     const cat = getStaffCategory(r[3], r[4], r[2], '', r[5], r[1]);
-    const emp = masterData.find(m => cleanStr(m.employeeName) === cleanStr(r[3])) || {};
-    const empVillages = (emp.villageList && emp.villageList.length > 0) 
-      ? emp.villageList.map(normalizeVillageName) 
-      : (villageListMap.filter(x => x.upkendra === r[2]).map(x => x.village));
+    const rUpk = String(r[2] || '').trim();
+    const rEmp = String(r[3] || '').trim();
+    const rCode = String(r[5] || '').trim();
 
-    let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
-    if (matchingVils.length === 0) {
-      matchingVils = monthVillageRows.filter(v => cleanStr(v[1]) === cleanStr(r[3]) && Math.abs(new Date(v[2]) - new Date(r[1])) < 86400000);
+    const scVillages = villageListMap.filter(x => x.upkendra === rUpk).map(x => x.village);
+
+    const emp = (rCode && masterData.find(m => cleanStr(m.bsCode) === cleanStr(rCode) && m.upkendra === rUpk))
+      || (rEmp && masterData.find(m => cleanStr(m.employeeName) === cleanStr(rEmp) && m.upkendra === rUpk))
+      || (rCode && masterData.find(m => cleanStr(m.bsCode) === cleanStr(rCode)))
+      || (rEmp && masterData.find(m => cleanStr(m.employeeName) === cleanStr(rEmp)))
+      || {};
+
+    let empVillages = (emp.villageList && emp.villageList.length > 0)
+      ? emp.villageList.map(normalizeVillageName).filter(v => scVillages.length === 0 || scVillages.includes(v))
+      : [];
+    if (empVillages.length === 0) {
+      empVillages = scVillages.length > 0 ? scVillages : [normalizeVillageName(rUpk)];
     }
 
+    let matchingVils = monthVillageRows.filter(v => v[0] === r[0]);
+    if (matchingVils.length === 0 && rEmp) {
+      matchingVils = monthVillageRows.filter(v => cleanStr(v[1]) === cleanStr(rEmp) && Math.abs(new Date(v[2]) - new Date(r[1])) < 86400000 && v[0] === r[0]);
+    }
+
+    let entryM = 0;
     if (matchingVils.length > 0) {
-      const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+      let vMale = 0, vFemale = 0, vTot = 0;
+      matchingVils.forEach(v => {
+        const m = parseInt(v[5]) || 0;
+        const f = parseInt(v[6]) || 0;
+        const s = parseInt(v[4]) || (m + f);
+        vMale += m; vFemale += f; vTot += s;
+      });
+      entryM = vTot > 0 ? Math.round((vMale / vTot) * total) : Math.floor(total * 0.52);
+    } else {
+      entryM = Math.floor(total * 0.52);
+    }
 
-      if (sumVils > 0) {
-        let allocated = 0;
-        let allocatedM = 0;
-        let allocatedF = 0;
-        const totalM = Math.floor(total * 0.52);
-        const totalF = total - totalM;
+    const sumVils = matchingVils.reduce((s, v) => s + (parseInt(v[4]) || (parseInt(v[5]) || 0) + (parseInt(v[6]) || 0)), 0);
+    const recordedNormSet = new Set(matchingVils.map(v => normalizeVillageName(v[3])));
+    const unrecordedEmpVillages = empVillages.filter(v => !recordedNormSet.has(v));
+    const isSubcenterDumpedSingleRow = (cat !== 'ASHA' && empVillages.length > 1 && recordedNormSet.size === 1 && sumVils >= total && total >= empVillages.length);
 
-        matchingVils.forEach((v, idx) => {
-          const vName = v[3];
-          const vTotalRow = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
-          const vMaleRow = parseInt(v[5]) || 0;
-          const vFemaleRow = parseInt(v[6]) || 0;
+    if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && (sumVils >= total || unrecordedEmpVillages.length === 0)) {
+      let allocT = 0, allocM = 0;
+      matchingVils.forEach((v, idx) => {
+        const vName = v[3];
+        const vTotalRow = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+        const vMaleRow = parseInt(v[5]) || 0;
+        const vFemaleRow = parseInt(v[6]) || 0;
+        let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+        if (idx === matchingVils.length - 1) {
+          vTotAlloc = total - allocT;
+          vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+          vFAlloc = vTotAlloc - vMAlloc;
+        } else {
+          vTotAlloc = Math.round((vTotalRow / sumVils) * total);
+          allocT += vTotAlloc;
+          vMAlloc = (vMaleRow + vFemaleRow > 0) ? Math.round((vMaleRow / (vMaleRow + vFemaleRow)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, entryM - allocM)));
+          vFAlloc = vTotAlloc - vMAlloc;
+          allocM += vMAlloc;
+        }
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+      });
+    } else if (!isSubcenterDumpedSingleRow && matchingVils.length > 0 && sumVils > 0 && sumVils < total && unrecordedEmpVillages.length > 0) {
+      let allocT = 0, allocM = 0;
+      matchingVils.forEach(v => {
+        const vName = v[3];
+        const vTotAlloc = parseInt(v[4]) || ((parseInt(v[5]) || 0) + (parseInt(v[6]) || 0));
+        let vMAlloc = parseInt(v[5]) || 0;
+        if (vMAlloc > vTotAlloc) vMAlloc = Math.floor(vTotAlloc * 0.52);
+        vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(vMAlloc, entryM - allocM)));
+        const vFAlloc = vTotAlloc - vMAlloc;
+        allocT += vTotAlloc;
+        allocM += vMAlloc;
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+      });
 
-          let vTotAlloc = 0;
-          let vMAlloc = 0;
-          let vFAlloc = 0;
-
-          if (idx === matchingVils.length - 1) {
-            vTotAlloc = total - allocated;
-            vMAlloc = Math.max(0, totalM - allocatedM);
-            vFAlloc = Math.max(0, vTotAlloc - vMAlloc);
-          } else {
-            vTotAlloc = Math.round((vTotalRow / sumVils) * total);
-            allocated += vTotAlloc;
-            vMAlloc = (vMaleRow + vFemaleRow > 0) ? Math.round((vMaleRow / (vMaleRow + vFemaleRow)) * vTotAlloc) : Math.floor(vTotAlloc * 0.52);
-            vFAlloc = vTotAlloc - vMAlloc;
-            allocatedM += vMAlloc;
-            allocatedF += vFAlloc;
-          }
-
-          const vObj = findVillageObj(vName, r[2], empVillages);
-          if (vObj) {
-            if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-            else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-            else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-            else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
-          }
-        });
-      } else {
-        const share = Math.floor(total / empVillages.length);
-        let rem = total % empVillages.length;
-        empVillages.forEach(vName => {
-          const vTotAlloc = share + (rem > 0 ? 1 : 0);
+      const remTotal = total - allocT;
+      const share = Math.floor(remTotal / unrecordedEmpVillages.length);
+      let rem = remTotal % unrecordedEmpVillages.length;
+      const startOff = (rotSeed++) % unrecordedEmpVillages.length;
+      const mRatio = total > 0 ? (entryM / total) : 0.52;
+      for (let i = 0; i < unrecordedEmpVillages.length; i++) {
+        const vName = unrecordedEmpVillages[(startOff + i) % unrecordedEmpVillages.length];
+        let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+        if (i === unrecordedEmpVillages.length - 1) {
+          vTotAlloc = total - allocT;
+          vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+          vFAlloc = vTotAlloc - vMAlloc;
+        } else {
+          vTotAlloc = share + (rem > 0 ? 1 : 0);
           if (rem > 0) rem--;
-          const vMAlloc = Math.floor(vTotAlloc * 0.52);
-          const vFAlloc = vTotAlloc - vMAlloc;
-          const vObj = findVillageObj(vName, r[2], empVillages);
-          if (vObj) {
-            if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-            else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-            else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-            else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
-          }
-        });
+          allocT += vTotAlloc;
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.round(vTotAlloc * mRatio), entryM - allocM)));
+          vFAlloc = vTotAlloc - vMAlloc;
+          allocM += vMAlloc;
+        }
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
       }
     } else {
+      let allocT = 0, allocM = 0;
       const share = Math.floor(total / empVillages.length);
       let rem = total % empVillages.length;
-      empVillages.forEach(vName => {
-        const vTotAlloc = share + (rem > 0 ? 1 : 0);
-        if (rem > 0) rem--;
-        const vMAlloc = Math.floor(vTotAlloc * 0.52);
-        const vFAlloc = vTotAlloc - vMAlloc;
-        const vObj = findVillageObj(vName, r[2], empVillages);
-        if (vObj) {
-          if (cat === 'MPW_FN1') { vObj.d50 += vMAlloc; vObj.d51 += vFAlloc; vObj.d52 += vTotAlloc; }
-          else if (cat === 'MPW_FN2') { vObj.d53 += vMAlloc; vObj.d54 += vFAlloc; vObj.d55 += vTotAlloc; }
-          else if (cat === 'ANM') { vObj.d56 += vMAlloc; vObj.d57 += vFAlloc; vObj.d58 += vTotAlloc; }
-          else if (cat === 'ASHA') { vObj.d59 += vMAlloc; vObj.d60 += vFAlloc; vObj.d61 += vTotAlloc; }
+      const startOff = (rotSeed++) % empVillages.length;
+      const mRatio = total > 0 ? (entryM / total) : 0.52;
+      for (let i = 0; i < empVillages.length; i++) {
+        const vName = empVillages[(startOff + i) % empVillages.length];
+        let vTotAlloc = 0, vMAlloc = 0, vFAlloc = 0;
+        if (i === empVillages.length - 1) {
+          vTotAlloc = total - allocT;
+          vMAlloc = Math.max(0, Math.min(vTotAlloc, entryM - allocM));
+          vFAlloc = vTotAlloc - vMAlloc;
+        } else {
+          vTotAlloc = share + (rem > 0 ? 1 : 0);
+          if (rem > 0) rem--;
+          allocT += vTotAlloc;
+          vMAlloc = Math.min(vTotAlloc, Math.max(0, Math.min(Math.round(vTotAlloc * mRatio), entryM - allocM)));
+          vFAlloc = vTotAlloc - vMAlloc;
+          allocM += vMAlloc;
         }
-      });
+        addVillageAlloc(findVillageObj(vName, rUpk, empVillages), cat, vMAlloc, vFAlloc, vTotAlloc);
+      }
     }
   });
 

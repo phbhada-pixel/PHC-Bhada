@@ -17,7 +17,8 @@ import {
   syncBatchSampleDispatchesToSupabase,
   syncSampleResultToSupabase,
   syncRetestToSupabase,
-  syncAuditLogToSupabase
+  syncAuditLogToSupabase,
+  isSupabaseOnline
 } from './nwbdcpSupabase.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -85,70 +86,24 @@ export function generateWaterSourceCode(village = "", sourceType = "") {
   return `WS-${cleanVil}-${typeCode}-${seq}`;
 }
 
-// Seed Initial Water Sources for PHC Bhada Villages if DB is empty
-function getInitialSeedWaterSources() {
-  const seedSources = [];
-  let idCounter = 1001;
+const NWBDCP_TEST_SAMPLE_IDS = new Set([
+  "NWBDCP-20260930-0001", "NWBDCP-20260930-0002", "NWBDCP-20260930-0003", "NWBDCP-20260930-0004",
+  "NWBDCP-20261015-0001", "NWBDCP-20261016-0001", "NWBDCP-20261016-0003", "NWBDCP-20261016-0006",
+  "NWBDCP-20261023-0001", "NWBDCP-20261028-0001", "NWBDCP-20261028-0002", "NWBDCP-20261028-0003",
+  "NWBDCP-20260930-TEST01", "NWBDCP-20260930-SEC01", "NWBDCP-TEST-SAFE-01", "NWBDCP-TEST-SAFE-04"
+]);
 
-  villagesMaster.forEach(v => {
-    const sc = v.subcenter || "भादा";
-    const vName = v.villageName || "भादा";
-    const vilCode = (vName || "BHD").replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || "BHD";
-
-    // Standard water sources per village with distinct Source IDs
-    seedSources.push({
-      id: `SRC_${idCounter}`,
-      sourceCode: `WS-${vilCode}-TAP-001`,
-      sourceId: `WS-${vilCode}-TAP-001`,
-      subcenter: sc,
-      gramPanchayat: vName,
-      village: vName,
-      sourceName: `${vName} सार्वजनिक पाणीपुरवठा योजना (नळ योजना)`,
-      sourceType: "सार्वजनिक पाणीपुरवठा योजना (नळ योजना)",
-      ownership: "शासकीय",
-      status: "Active",
-      location: `${vName} ग्रामपंचायत परिसर`,
-      createdDate: "2026-01-01",
-      updatedDate: "2026-01-01"
-    });
-    idCounter++;
-
-    seedSources.push({
-      id: `SRC_${idCounter}`,
-      sourceCode: `WS-${vilCode}-HP-001`,
-      sourceId: `WS-${vilCode}-HP-001`,
-      subcenter: sc,
-      gramPanchayat: vName,
-      village: vName,
-      sourceName: `${vName} जिल्हा परिषद शाळा परिसर हातपंप`,
-      sourceType: "हातपंप",
-      ownership: "शासकीय",
-      status: "Active",
-      location: `जि.प. शाळा परिसर, ${vName}`,
-      createdDate: "2026-01-01",
-      updatedDate: "2026-01-01"
-    });
-    idCounter++;
-
-    seedSources.push({
-      id: `SRC_${idCounter}`,
-      sourceCode: `WS-${vilCode}-WLL-001`,
-      sourceId: `WS-${vilCode}-WLL-001`,
-      subcenter: sc,
-      gramPanchayat: vName,
-      village: vName,
-      sourceName: `${vName} सार्वजनिक मुख्य विहीर`,
-      sourceType: "विहीर",
-      ownership: "शासकीय",
-      status: "Active",
-      location: `मुख्य रस्ता, ${vName}`,
-      createdDate: "2026-01-01",
-      updatedDate: "2026-01-01"
-    });
-    idCounter++;
-  });
-
-  return seedSources;
+function isNwbdcpTestAuditLog(a) {
+  if (!a) return true;
+  if (a.id === 'LOG_1790750670688_4') return true;
+  const u = String(a.user || '');
+  const det = String(a.details || '');
+  if (u.includes('Test') || u.includes('टेस्ट') || u === 'CutoverTester' || u === 'FinalVerifier') return true;
+  if (det.includes('Cutover Verification')) return true;
+  for (const tid of NWBDCP_TEST_SAMPLE_IDS) {
+    if (det.includes(tid)) return true;
+  }
+  return false;
 }
 
 // Save NWBDCP Database to Disk
@@ -170,6 +125,9 @@ export function saveNwbdcpDbToDisk() {
 
 // Refresh in-memory collections directly from Supabase (Primary Source of Truth)
 export async function refreshNwbdcpFromSupabase() {
+  if (!isSupabaseOnline()) {
+    return;
+  }
   try {
     const supaSources = await fetchWaterSourcesFromSupabase();
     if (Array.isArray(supaSources) && supaSources.length > 0) {
@@ -180,16 +138,18 @@ export async function refreshNwbdcpFromSupabase() {
 
     const supaDispatches = await fetchSampleDispatchesFromSupabase();
     if (Array.isArray(supaDispatches) && supaDispatches.length > 0) {
+      const cleanDispatches = supaDispatches.filter(d => !NWBDCP_TEST_SAMPLE_IDS.has(d.sampleId || d.id));
       nwbdcpSampleDispatches.length = 0;
-      supaDispatches.forEach(d => nwbdcpSampleDispatches.push(d));
-      console.log(`✅ [NWBDCP Store] Primary read: Loaded ${supaDispatches.length} Dispatched Samples directly from Supabase.`);
+      cleanDispatches.forEach(d => nwbdcpSampleDispatches.push(d));
+      console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanDispatches.length} Dispatched Samples directly from Supabase.`);
     }
 
     try {
       const supaResults = await fetchSampleResultsFromSupabase();
       if (Array.isArray(supaResults)) {
+        const cleanResults = supaResults.filter(r => !NWBDCP_TEST_SAMPLE_IDS.has(r.sample_id || r.sampleId));
         nwbdcpSampleResults.length = 0;
-        supaResults.forEach(r => {
+        cleanResults.forEach(r => {
           nwbdcpSampleResults.push(r);
           // Overlay authoritative sample results onto sample dispatches
           const sample = nwbdcpSampleDispatches.find(d => d.sampleId === r.sample_id);
@@ -210,17 +170,18 @@ export async function refreshNwbdcpFromSupabase() {
             }
           }
         });
-        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${supaResults.length} Sample Results directly from Supabase.`);
+        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanResults.length} Sample Results directly from Supabase.`);
       }
     } catch (resErr) {
-      console.warn('⚠️ [NWBDCP Store] Could not fetch Sample Results from Supabase, using local cache:', resErr.message);
+      // Offline fallback: keep local cache
     }
 
     try {
       const supaRetests = await fetchRetestsFromSupabase();
       if (Array.isArray(supaRetests)) {
+        const cleanRetests = supaRetests.filter(r => !NWBDCP_TEST_SAMPLE_IDS.has(r.original_sample_id));
         nwbdcpRetests.length = 0;
-        supaRetests.forEach(r => {
+        cleanRetests.forEach(r => {
           const localRetest = {
             id: r.id,
             retestId: r.retest_id,
@@ -257,37 +218,27 @@ export async function refreshNwbdcpFromSupabase() {
 
           nwbdcpRetests.push(localRetest);
         });
-        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${supaRetests.length} Retest records directly from Supabase.`);
+        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanRetests.length} Retest records directly from Supabase.`);
       }
     } catch (retErr) {
-      console.warn('⚠️ [NWBDCP Store] Could not fetch Retest records from Supabase, using local cache:', retErr.message);
+      // Offline fallback: keep local cache
     }
 
     try {
       const supaAuditLogs = await fetchAuditLogsFromSupabase();
       if (Array.isArray(supaAuditLogs) && supaAuditLogs.length > 0) {
+        const cleanAuditLogs = supaAuditLogs.filter(a => !isNwbdcpTestAuditLog(a));
         nwbdcpAuditLogs.length = 0;
-        supaAuditLogs.forEach(a => nwbdcpAuditLogs.push(a));
-        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${supaAuditLogs.length} Audit Logs directly from Supabase.`);
-      } else if (Array.isArray(supaAuditLogs) && supaAuditLogs.length === 0 && nwbdcpAuditLogs.length > 0) {
-        console.log(`🔄 [NWBDCP Store] Migrating ${nwbdcpAuditLogs.length} historical local audit logs to Supabase...`);
-        for (const localLog of nwbdcpAuditLogs) {
-          await syncAuditLogToSupabase(localLog);
-        }
-        const freshAuditLogs = await fetchAuditLogsFromSupabase();
-        if (Array.isArray(freshAuditLogs) && freshAuditLogs.length > 0) {
-          nwbdcpAuditLogs.length = 0;
-          freshAuditLogs.forEach(a => nwbdcpAuditLogs.push(a));
-          console.log(`✅ [NWBDCP Store] Successfully migrated and loaded ${freshAuditLogs.length} Audit Logs from Supabase.`);
-        }
+        cleanAuditLogs.forEach(a => nwbdcpAuditLogs.push(a));
+        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanAuditLogs.length} Audit Logs directly from Supabase.`);
       }
     } catch (auditErr) {
-      console.warn('⚠️ [NWBDCP Store] Could not fetch/sync Audit Logs from Supabase, using local cache:', auditErr.message);
+      // Offline fallback: keep local cache
     }
 
     saveNwbdcpDbToDisk();
   } catch (err) {
-    console.warn('⚠️ [NWBDCP Store] Primary Supabase read unavailable, using local offline fallback cache:', err.message);
+    // Supabase offline / network error: safely retain local offline cache
   }
 }
 
@@ -315,35 +266,34 @@ export function loadNwbdcpDbFromDisk() {
       }
       if (Array.isArray(parsed.sampleDispatches)) {
         nwbdcpSampleDispatches.length = 0;
-        parsed.sampleDispatches.forEach(d => {
-          if (!d.gramPanchayat) d.gramPanchayat = d.village || "";
-          nwbdcpSampleDispatches.push(d);
-        });
+        parsed.sampleDispatches
+          .filter(d => !NWBDCP_TEST_SAMPLE_IDS.has(d.sampleId || d.id))
+          .forEach(d => {
+            if (!d.gramPanchayat) d.gramPanchayat = d.village || "";
+            nwbdcpSampleDispatches.push(d);
+          });
       }
       if (Array.isArray(parsed.sampleResults)) {
         nwbdcpSampleResults.length = 0;
-        parsed.sampleResults.forEach(r => nwbdcpSampleResults.push(r));
+        parsed.sampleResults
+          .filter(r => !NWBDCP_TEST_SAMPLE_IDS.has(r.sample_id || r.sampleId))
+          .forEach(r => nwbdcpSampleResults.push(r));
       }
       if (Array.isArray(parsed.retests)) {
         nwbdcpRetests.length = 0;
-        parsed.retests.forEach(rt => nwbdcpRetests.push(rt));
+        parsed.retests
+          .filter(rt => !NWBDCP_TEST_SAMPLE_IDS.has(rt.originalSampleId || rt.original_sample_id))
+          .forEach(rt => nwbdcpRetests.push(rt));
       }
       if (Array.isArray(parsed.auditLogs)) {
         nwbdcpAuditLogs.length = 0;
-        parsed.auditLogs.forEach(a => nwbdcpAuditLogs.push(a));
+        parsed.auditLogs
+          .filter(a => !isNwbdcpTestAuditLog(a))
+          .forEach(a => nwbdcpAuditLogs.push(a));
       }
-    } else {
-      // Populate initial seed sources if empty
-      const initialSources = getInitialSeedWaterSources();
-      initialSources.forEach(s => nwbdcpWaterSources.push(s));
-      saveNwbdcpDbToDisk();
     }
   } catch (err) {
     console.error('Error loading NWBDCP DB from disk:', err);
-    if (nwbdcpWaterSources.length === 0) {
-      const initialSources = getInitialSeedWaterSources();
-      initialSources.forEach(s => nwbdcpWaterSources.push(s));
-    }
   }
 }
 
