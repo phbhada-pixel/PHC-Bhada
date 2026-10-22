@@ -89,9 +89,6 @@ export let nwbdcpFileAuditLogs = [];
 export let nwbdcpSyncQueue = [];
 
 const NWBDCP_TEST_SAMPLE_IDS = new Set([
-  "NWBDCP-20260930-0001", "NWBDCP-20260930-0002", "NWBDCP-20260930-0003", "NWBDCP-20260930-0004",
-  "NWBDCP-20261015-0001", "NWBDCP-20261016-0001", "NWBDCP-20261016-0003", "NWBDCP-20261016-0006",
-  "NWBDCP-20261023-0001", "NWBDCP-20261028-0001", "NWBDCP-20261028-0002", "NWBDCP-20261028-0003",
   "NWBDCP-20260930-TEST01", "NWBDCP-20260930-SEC01", "NWBDCP-TEST-SAFE-01", "NWBDCP-TEST-SAFE-04"
 ]);
 
@@ -508,43 +505,112 @@ export async function fetchSampleDispatchesFromSupabase() {
 
     markSupabaseOnline();
     if (Array.isArray(data)) {
-      return data.map(r => ({
-        id: r.id || r.sample_id,
-        sampleId: r.sample_id,
-        sourceId: r.source_id,
-        sourceCode: r.source_code || r.source_id,
-        subcenter: r.subcenter || '',
-        gramPanchayat: r.gram_panchayat || r.village || '',
-        village: r.village || '',
-        sourceName: r.source_name || '',
-        sourceType: r.source_type || '',
-        ownership: r.ownership || 'शासकीय',
-        location: r.location || '',
-        collectionDate: r.collection_date || r.dispatch_date || '',
-        dispatchDate: r.dispatch_date || '',
-        labName: r.lab_name || 'जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव',
-        dispatchedBy: r.dispatched_by || 'वैद्यकीय अधिकारी, प्रा.आ.केंद्र भादा',
-        remarks: r.remarks || '',
-        status: r.status || 'अहवाल अप्राप्त',
-        result: r.result || 'अहवाल अप्राप्त',
-        reportReceivedDate: r.report_received_date || '',
-        labRefNo: r.lab_ref_no || '',
-        labRemarks: r.lab_remarks || '',
-        reportFileName: r.report_file_name || '',
-        reportFileUrl: r.report_file_url || '',
-        reportFileType: r.report_file_type || '',
-        reportFileSize: r.report_file_size || '',
-        reportUploadedAt: r.report_uploaded_at || '',
-        createdDate: r.created_date || r.created_at,
-        createdBy: r.created_by || 'System',
-        history: r.history ? (typeof r.history === 'string' ? JSON.parse(r.history) : r.history) : []
-      }));
+      return data.map(r => {
+        const rawHistory = r.history ? (typeof r.history === 'string' ? JSON.parse(r.history) : r.history) : [];
+        const metaItem = Array.isArray(rawHistory) ? rawHistory.find(h => h && h.action === '__META__') : null;
+        const meta = (metaItem && metaItem.meta) ? metaItem.meta : {};
+        const sid = String(r.sample_id || '');
+        let inferredType = meta.analysisType || 'BACTERIOLOGICAL';
+        if (!meta.analysisType) {
+          if (sid.includes('-CHEM-')) inferredType = 'CHEMICAL';
+          else if (sid.includes('-TCL-')) inferredType = 'BLEACHING_POWDER';
+          else if (r.source_type && (r.source_type.includes('TCL') || r.source_type.includes('ब्लिचिंग'))) inferredType = 'BLEACHING_POWDER';
+        }
+        const params = meta.analysisParams || {};
+        return {
+          id: r.id || r.sample_id,
+          sampleId: r.sample_id,
+          sourceId: r.source_id,
+          sourceCode: r.source_code || r.source_id,
+          subcenter: r.subcenter || '',
+          gramPanchayat: r.gram_panchayat || r.village || '',
+          village: r.village || '',
+          sourceName: r.source_name || '',
+          sourceType: r.source_type || '',
+          ownership: r.ownership || 'शासकीय',
+          location: r.location || '',
+          collectionDate: r.collection_date || r.dispatch_date || '',
+          dispatchDate: r.dispatch_date || '',
+          labName: r.lab_name || 'जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव',
+          dispatchedBy: r.dispatched_by || 'वैद्यकीय अधिकारी, प्रा.आ.केंद्र भादा',
+          remarks: r.remarks || '',
+          status: r.status || 'अहवाल अप्राप्त',
+          result: r.result || 'अहवाल अप्राप्त',
+          reportReceivedDate: r.report_received_date || '',
+          labRefNo: r.lab_ref_no || '',
+          labRemarks: r.lab_remarks || '',
+          reportFileName: r.report_file_name || '',
+          reportFileUrl: r.report_file_url || '',
+          reportFileType: r.report_file_type || '',
+          reportFileSize: r.report_file_size || '',
+          reportUploadedAt: r.report_uploaded_at || '',
+          createdDate: r.created_date || r.created_at,
+          createdBy: r.created_by || 'System',
+          analysisType: inferredType,
+          analysisParams: params,
+          coliformCount: params.coliformCount ?? '',
+          ecoliPresent: params.ecoliPresent ?? '',
+          chlorinePpm: params.chlorinePpm ?? '',
+          phValue: params.phValue ?? '',
+          tdsPpm: params.tdsPpm ?? '',
+          turbidityNtu: params.turbidityNtu ?? '',
+          hardnessMgL: params.hardnessMgL ?? '',
+          chlorideMgL: params.chlorideMgL ?? '',
+          fluorideMgL: params.fluorideMgL ?? '',
+          nitrateMgL: params.nitrateMgL ?? '',
+          ironMgL: params.ironMgL ?? '',
+          alkalinityMgL: params.alkalinityMgL ?? '',
+          availableChlorinePct: params.availableChlorinePct ?? '',
+          tclBatchNo: params.tclBatchNo ?? '',
+          tclBagCondition: params.tclBagCondition ?? '',
+          tclQuantity: params.tclQuantity ?? '',
+          tclExpiryDate: params.tclExpiryDate ?? '',
+          history: Array.isArray(rawHistory) ? rawHistory.filter(h => !h || h.action !== '__META__') : []
+        };
+      });
     }
     return null;
   } catch (err) {
     markSupabaseOffline(err.message);
     return null;
   }
+}
+
+function buildHistoryWithMeta(sample) {
+  const baseHistory = Array.isArray(sample.history)
+    ? sample.history.filter(h => !h || h.action !== '__META__')
+    : [];
+  const existingParams = sample.analysisParams || {};
+  const analysisParams = {
+    ...existingParams,
+    coliformCount: sample.coliformCount ?? existingParams.coliformCount ?? '',
+    ecoliPresent: sample.ecoliPresent ?? existingParams.ecoliPresent ?? '',
+    chlorinePpm: sample.chlorinePpm ?? existingParams.chlorinePpm ?? '',
+    phValue: sample.phValue ?? existingParams.phValue ?? '',
+    tdsPpm: sample.tdsPpm ?? existingParams.tdsPpm ?? '',
+    turbidityNtu: sample.turbidityNtu ?? existingParams.turbidityNtu ?? '',
+    hardnessMgL: sample.hardnessMgL ?? existingParams.hardnessMgL ?? '',
+    chlorideMgL: sample.chlorideMgL ?? existingParams.chlorideMgL ?? '',
+    fluorideMgL: sample.fluorideMgL ?? existingParams.fluorideMgL ?? '',
+    nitrateMgL: sample.nitrateMgL ?? existingParams.nitrateMgL ?? '',
+    ironMgL: sample.ironMgL ?? existingParams.ironMgL ?? '',
+    alkalinityMgL: sample.alkalinityMgL ?? existingParams.alkalinityMgL ?? '',
+    availableChlorinePct: sample.availableChlorinePct ?? existingParams.availableChlorinePct ?? '',
+    tclBatchNo: sample.tclBatchNo ?? existingParams.tclBatchNo ?? '',
+    tclBagCondition: sample.tclBagCondition ?? existingParams.tclBagCondition ?? '',
+    tclQuantity: sample.tclQuantity ?? existingParams.tclQuantity ?? '',
+    tclExpiryDate: sample.tclExpiryDate ?? existingParams.tclExpiryDate ?? ''
+  };
+  return [
+    ...baseHistory,
+    {
+      action: '__META__',
+      meta: {
+        analysisType: sample.analysisType || 'BACTERIOLOGICAL',
+        analysisParams
+      }
+    }
+  ];
 }
 
 /**
@@ -591,6 +657,101 @@ export async function syncWaterSourceToSupabase(source) {
 }
 
 /**
+ * Batch Write: Save Multiple Water Source Master Records to Supabase (NWBDCP_WaterSources)
+ */
+export async function syncBatchWaterSourcesToSupabase(sources = []) {
+  if (!Array.isArray(sources) || sources.length === 0) return { success: true, count: 0 };
+
+  const records = sources.map(source => ({
+    id: source.id,
+    source_code: source.sourceCode || source.sourceId,
+    source_id: source.sourceId || source.sourceCode,
+    subcenter: source.subcenter,
+    gram_panchayat: source.gramPanchayat || source.village,
+    village: source.village,
+    source_name: source.sourceName,
+    source_type: source.sourceType,
+    ownership: source.ownership || 'अज्ञात / Not Specified',
+    status: source.status || 'Active',
+    location: source.location || '',
+    created_date: source.createdDate || new Date().toISOString().slice(0, 10),
+    updated_date: source.updatedDate || new Date().toISOString().slice(0, 10),
+    created_by: source.createdBy || 'System',
+    updated_by: source.updatedBy || 'System'
+  }));
+
+  if (!supabaseClient || !isSupabaseOnline()) {
+    records.forEach(r => enqueuePendingSync('WATER_SOURCE', r.id, 'UPSERT', r));
+    return { success: false, queued: true, message: 'Offline mode: batch sources enqueued' };
+  }
+
+  try {
+    const { error } = await supabaseClient
+      .from('NWBDCP_WaterSources')
+      .upsert(records, { onConflict: 'id' });
+    if (error) throw error;
+    markSupabaseOnline();
+    return { success: true, count: records.length };
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    records.forEach(r => enqueuePendingSync('WATER_SOURCE', r.id, 'UPSERT', r));
+    return { success: false, queued: true, error: err.message };
+  }
+}
+
+/**
+ * Delete Water Source Master Record from Supabase (NWBDCP_WaterSources)
+ */
+export async function deleteWaterSourceFromSupabase(sourceId) {
+  if (!sourceId || !supabaseClient || !isSupabaseOnline()) {
+    return { success: false, offline: true };
+  }
+  try {
+    const { error } = await supabaseClient
+      .from('NWBDCP_WaterSources')
+      .delete()
+      .or(`id.eq.${sourceId},source_code.eq.${sourceId},source_id.eq.${sourceId}`);
+    if (error) throw error;
+    markSupabaseOnline();
+    return { success: true };
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Fetch File Metadata & File Audit Logs directly from Supabase (nwbdcp_files, nwbdcp_file_audit_logs)
+ */
+export async function fetchFilesMetadataFromSupabase() {
+  if (!supabaseClient || !isSupabaseOnline()) return null;
+  try {
+    const [filesRes, auditRes] = await Promise.all([
+      supabaseClient.from('nwbdcp_files').select('*').order('created_at', { ascending: true }),
+      supabaseClient.from('nwbdcp_file_audit_logs').select('*').order('created_at', { ascending: true })
+    ]);
+    if (!filesRes.error && Array.isArray(filesRes.data)) {
+      nwbdcpFilesMetadata.length = 0;
+      filesRes.data
+        .filter(f => !NWBDCP_TEST_SAMPLE_IDS.has(f.sample_id))
+        .forEach(f => nwbdcpFilesMetadata.push(f));
+    }
+    if (!auditRes.error && Array.isArray(auditRes.data)) {
+      nwbdcpFileAuditLogs.length = 0;
+      auditRes.data
+        .filter(a => !NWBDCP_TEST_SAMPLE_IDS.has(a.sample_id))
+        .forEach(a => nwbdcpFileAuditLogs.push(a));
+    }
+    saveLocalFilesCache();
+    markSupabaseOnline();
+    return { files: nwbdcpFilesMetadata, auditLogs: nwbdcpFileAuditLogs };
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return null;
+  }
+}
+
+/**
  * Primary Write: Save Sample Dispatch Record to Supabase (NWBDCP_DispatchedSamples)
  */
 export async function syncSampleDispatchToSupabase(sample) {
@@ -617,7 +778,7 @@ export async function syncSampleDispatchToSupabase(sample) {
     result: sample.result || 'अहवाल अप्राप्त',
     report_received_date: sample.reportReceivedDate || '',
     lab_ref_no: sample.labRefNo || '',
-    labRemarks: sample.labRemarks || '',
+    lab_remarks: sample.labRemarks || '',
     report_file_name: sample.reportFileName || '',
     report_file_url: sample.reportFileUrl || '',
     report_file_type: sample.reportFileType || '',
@@ -625,7 +786,7 @@ export async function syncSampleDispatchToSupabase(sample) {
     report_uploaded_at: sample.reportUploadedAt || '',
     created_date: sample.createdDate || new Date().toISOString(),
     created_by: sample.createdBy || 'System',
-    history: sample.history || []
+    history: buildHistoryWithMeta(sample)
   };
 
   if (!supabaseClient || !isSupabaseOnline()) {
@@ -679,7 +840,7 @@ export async function syncBatchSampleDispatchesToSupabase(samples = []) {
     report_uploaded_at: s.reportUploadedAt || '',
     created_date: s.createdDate || new Date().toISOString(),
     created_by: s.createdBy || 'System',
-    history: s.history || []
+    history: buildHistoryWithMeta(s)
   }));
 
   if (!supabaseClient || !isSupabaseOnline()) {
@@ -749,12 +910,12 @@ export async function syncSampleResultToSupabase(resultRecord) {
     updated_at: new Date().toISOString()
   };
 
-  if (resultRecord.coliform_count !== undefined) record.coliform_count = resultRecord.coliform_count;
-  if (resultRecord.ecoli_present !== undefined) record.ecoli_present = resultRecord.ecoli_present;
-  if (resultRecord.chlorine_ppm !== undefined) record.chlorine_ppm = resultRecord.chlorine_ppm;
-  if (resultRecord.turbidity_ntu !== undefined) record.turbidity_ntu = resultRecord.turbidity_ntu;
-  if (resultRecord.ph_value !== undefined) record.ph_value = resultRecord.ph_value;
-  if (resultRecord.tds_ppm !== undefined) record.tds_ppm = resultRecord.tds_ppm;
+  if (resultRecord.coliform_count !== undefined && resultRecord.coliform_count !== '') record.coliform_count = Number(resultRecord.coliform_count) || 0;
+  if (resultRecord.ecoli_present !== undefined && resultRecord.ecoli_present !== '') record.ecoli_present = Boolean(resultRecord.ecoli_present === true || resultRecord.ecoli_present === 'true' || resultRecord.ecoli_present === 'आढळले' || resultRecord.ecoli_present === 'Present');
+  if (resultRecord.chlorine_ppm !== undefined && resultRecord.chlorine_ppm !== '') record.chlorine_ppm = Number(resultRecord.chlorine_ppm) || 0;
+  if (resultRecord.turbidity_ntu !== undefined && resultRecord.turbidity_ntu !== '') record.turbidity_ntu = Number(resultRecord.turbidity_ntu) || 0;
+  if (resultRecord.ph_value !== undefined && resultRecord.ph_value !== '') record.ph_value = Number(resultRecord.ph_value) || 0;
+  if (resultRecord.tds_ppm !== undefined && resultRecord.tds_ppm !== '') record.tds_ppm = Number(resultRecord.tds_ppm) || 0;
 
   if (!supabaseClient || !isSupabaseOnline()) {
     enqueuePendingSync('SAMPLE_RESULT', record.sample_id, 'UPSERT', record);

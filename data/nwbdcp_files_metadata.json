@@ -1,42 +1,5 @@
 {
-  "files": [
-    {
-      "id": "FILE_1791016509382_hjxpvz",
-      "sample_id": "BATCH_1791016507240",
-      "module": "laboratory_reports",
-      "file_type": "PDF",
-      "file_name": "birth_registration_report_koranjal_aug2026.pdf",
-      "google_drive_file_id": "1GgwHf6rF3ezWt5Bn8SgKcrQ53JehuVDo",
-      "google_drive_url": "https://drive.google.com/file/d/1GgwHf6rF3ezWt5Bn8SgKcrQ53JehuVDo/view?usp=drivesdk",
-      "google_drive_download_url": "https://drive.google.com/uc?export=download&id=1GgwHf6rF3ezWt5Bn8SgKcrQ53JehuVDo",
-      "mime_type": "application/pdf",
-      "file_size": "99.6 KB",
-      "folder_path": "NWBDCP/LaboratoryReports/2026/10/",
-      "uploaded_at": "2026-10-03T08:35:05.175Z",
-      "uploaded_by": "वैद्यकीय अधिकारी (MO)",
-      "is_active": true,
-      "created_at": "2026-10-03T08:35:09.382Z",
-      "updated_at": "2026-10-03T08:35:09.382Z"
-    },
-    {
-      "id": "FILE_1791016542023_r3ir0d",
-      "sample_id": "BATCH_1791016539368",
-      "module": "laboratory_reports",
-      "file_type": "PDF",
-      "file_name": "birth_registration_report_koranjal_aug2026.pdf",
-      "google_drive_file_id": "1izcq3pgxJRXO4sRoQYxHybrqYAlXZJCr",
-      "google_drive_url": "https://drive.google.com/file/d/1izcq3pgxJRXO4sRoQYxHybrqYAlXZJCr/view?usp=drivesdk",
-      "google_drive_download_url": "https://drive.google.com/uc?export=download&id=1izcq3pgxJRXO4sRoQYxHybrqYAlXZJCr",
-      "mime_type": "application/pdf",
-      "file_size": "99.6 KB",
-      "folder_path": "NWBDCP/LaboratoryReports/2026/10/",
-      "uploaded_at": "2026-10-03T08:35:37.300Z",
-      "uploaded_by": "वैद्यकीय अधिकारी (MO)",
-      "is_active": true,
-      "created_at": "2026-10-03T08:35:42.023Z",
-      "updated_at": "2026-10-03T08:35:42.023Z"
-    }
-  ],
+  "files": [],
   "auditLogs": [],
-  "lastSaved": "2026-10-21T18:34:38.322Z"
+  "lastSaved": "2026-10-22T09:14:00.376Z"
 }

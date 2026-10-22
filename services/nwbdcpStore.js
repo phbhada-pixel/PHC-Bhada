@@ -12,7 +12,10 @@ import {
   fetchSampleResultsFromSupabase,
   fetchRetestsFromSupabase,
   fetchAuditLogsFromSupabase,
-  syncWaterSourceToSupabase, 
+  fetchFilesMetadataFromSupabase,
+  syncWaterSourceToSupabase,
+  syncBatchWaterSourcesToSupabase,
+  deleteWaterSourceFromSupabase,
   syncSampleDispatchToSupabase,
   syncBatchSampleDispatchesToSupabase,
   syncSampleResultToSupabase,
@@ -87,9 +90,6 @@ export function generateWaterSourceCode(village = "", sourceType = "") {
 }
 
 const NWBDCP_TEST_SAMPLE_IDS = new Set([
-  "NWBDCP-20260930-0001", "NWBDCP-20260930-0002", "NWBDCP-20260930-0003", "NWBDCP-20260930-0004",
-  "NWBDCP-20261015-0001", "NWBDCP-20261016-0001", "NWBDCP-20261016-0003", "NWBDCP-20261016-0006",
-  "NWBDCP-20261023-0001", "NWBDCP-20261028-0001", "NWBDCP-20261028-0002", "NWBDCP-20261028-0003",
   "NWBDCP-20260930-TEST01", "NWBDCP-20260930-SEC01", "NWBDCP-TEST-SAFE-01", "NWBDCP-TEST-SAFE-04"
 ]);
 
@@ -123,25 +123,32 @@ export function saveNwbdcpDbToDisk() {
   }
 }
 
+let lastNwbdcpRefreshTime = 0;
+const NWBDCP_REFRESH_COOLDOWN_MS = 2000;
+
 // Refresh in-memory collections directly from Supabase (Primary Source of Truth)
-export async function refreshNwbdcpFromSupabase() {
+export async function refreshNwbdcpFromSupabase(force = false) {
   if (!isSupabaseOnline()) {
     return;
   }
+  const now = Date.now();
+  if (!force && (now - lastNwbdcpRefreshTime < NWBDCP_REFRESH_COOLDOWN_MS)) {
+    return;
+  }
+  lastNwbdcpRefreshTime = now;
+
   try {
     const supaSources = await fetchWaterSourcesFromSupabase();
-    if (Array.isArray(supaSources) && supaSources.length > 0) {
+    if (Array.isArray(supaSources)) {
       nwbdcpWaterSources.length = 0;
       supaSources.forEach(s => nwbdcpWaterSources.push(s));
-      console.log(`✅ [NWBDCP Store] Primary read: Loaded ${supaSources.length} Water Sources directly from Supabase.`);
     }
 
     const supaDispatches = await fetchSampleDispatchesFromSupabase();
-    if (Array.isArray(supaDispatches) && supaDispatches.length > 0) {
+    if (Array.isArray(supaDispatches)) {
       const cleanDispatches = supaDispatches.filter(d => !NWBDCP_TEST_SAMPLE_IDS.has(d.sampleId || d.id));
       nwbdcpSampleDispatches.length = 0;
       cleanDispatches.forEach(d => nwbdcpSampleDispatches.push(d));
-      console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanDispatches.length} Dispatched Samples directly from Supabase.`);
     }
 
     try {
@@ -170,7 +177,6 @@ export async function refreshNwbdcpFromSupabase() {
             }
           }
         });
-        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanResults.length} Sample Results directly from Supabase.`);
       }
     } catch (resErr) {
       // Offline fallback: keep local cache
@@ -218,7 +224,6 @@ export async function refreshNwbdcpFromSupabase() {
 
           nwbdcpRetests.push(localRetest);
         });
-        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanRetests.length} Retest records directly from Supabase.`);
       }
     } catch (retErr) {
       // Offline fallback: keep local cache
@@ -226,14 +231,19 @@ export async function refreshNwbdcpFromSupabase() {
 
     try {
       const supaAuditLogs = await fetchAuditLogsFromSupabase();
-      if (Array.isArray(supaAuditLogs) && supaAuditLogs.length > 0) {
+      if (Array.isArray(supaAuditLogs)) {
         const cleanAuditLogs = supaAuditLogs.filter(a => !isNwbdcpTestAuditLog(a));
         nwbdcpAuditLogs.length = 0;
         cleanAuditLogs.forEach(a => nwbdcpAuditLogs.push(a));
-        console.log(`✅ [NWBDCP Store] Primary read: Loaded ${cleanAuditLogs.length} Audit Logs directly from Supabase.`);
       }
     } catch (auditErr) {
       // Offline fallback: keep local cache
+    }
+
+    try {
+      await fetchFilesMetadataFromSupabase();
+    } catch (fErr) {
+      // Offline fallback
     }
 
     saveNwbdcpDbToDisk();
@@ -529,32 +539,176 @@ export function deleteWaterSource(sourceId, user = "System") {
     };
   }
 
-  const index = nwbdcpWaterSources.findIndex(s => s.id === sourceId);
+  const index = nwbdcpWaterSources.findIndex(s => s.id === sourceId || s.sourceCode === sourceId || s.sourceId === sourceId);
   if (index !== -1) {
-    nwbdcpWaterSources.splice(index, 1);
-    addNwbdcpAuditLog('DELETE_WATER_SOURCE', `जलस्त्रोत हटवला: ${source.sourceName}`, user);
+    const removed = nwbdcpWaterSources.splice(index, 1)[0];
+    addNwbdcpAuditLog('DELETE_WATER_SOURCE', `जलस्त्रोत हटवला: ${removed.sourceName}`, user);
     saveNwbdcpDbToDisk();
-    return { success: true, message: `जलस्त्रोत '${source.sourceName}' हटवण्यात आला.` };
+    deleteWaterSourceFromSupabase(removed.id || sourceId).catch(err => console.warn('[NWBDCP Supabase] delete source warning:', err.message));
+    return { success: true, message: `जलस्त्रोत '${removed.sourceName}' हटवण्यात आला.` };
   }
 
   return { success: false, message: "हटवताना त्रुटी आली." };
 }
 
-// Generate Unique Collision-Safe Sample ID
-export function generateUniqueSampleId(dispatchDateStr) {
+// Bulk Import Water Sources List (CSV / Excel / JSON)
+export async function importWaterSourcesList(sourcesArray = [], user = "System") {
+  if (!Array.isArray(sourcesArray) || sourcesArray.length === 0) {
+    return { success: false, message: "⚠️ अपलोड करण्यासाठी कोणतीही जलस्त्रोत यादी सापडली नाही." };
+  }
+
+  const normalizeSourceType = (raw) => {
+    const val = String(raw || '').trim();
+    if (!val) return "विहीर";
+    if (PREDEFINED_SOURCE_TYPES.includes(val)) return val;
+    const low = val.toLowerCase();
+    if (low.includes('हातपंप') || low.includes('handpump') || low.includes('hp') || low.includes('हँडपंप')) return "हातपंप";
+    if (low.includes('विद्युत') || low.includes('electric') || low.includes('bore') || low.includes('बोर')) return "विद्युत पंप";
+    if (low.includes('विहीर') || low.includes('well')) return "विहीर";
+    if (low.includes('आड') || low.includes('aad')) return "आड";
+    if (low.includes('नळ') || low.includes('tap') || low.includes('pws') || low.includes('पाणीपुरवठा')) return "सार्वजनिक पाणीपुरवठा योजना (नळ योजना)";
+    if (low.includes('स्टॅन्ड') || low.includes('stand')) return "स्टॅन्ड पोस्ट";
+    if (low.includes('ro') || low.includes('आरओ')) return "RO Plant";
+    return "इतर";
+  };
+
+  const normalizeOwnership = (raw) => {
+    const val = String(raw || '').trim();
+    if (!val) return "शासकीय";
+    const low = val.toLowerCase();
+    if (low.includes('खाजगी') || low.includes('private') || low.includes('pvt')) return "खाजगी";
+    if (low.includes('शासकीय') || low.includes('gov') || low.includes('सार्वजनिक') || low.includes('ग्रामपंचायत')) return "शासकीय";
+    if (PREDEFINED_OWNERSHIPS.includes(val)) return val;
+    return "शासकीय";
+  };
+
+  const importedSources = [];
+  const updatedSources = [];
+  const skippedDuplicates = [];
+  const invalidRows = [];
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  sourcesArray.forEach((item, idx) => {
+    const rowNum = idx + 1;
+    let cleanVillage = String(item.village || item['गाव'] || item['गाव (Village)'] || '').trim();
+    let cleanSubcenter = String(item.subcenter || item['उपकेंद्र'] || item['उपकेंद्र (Subcenter)'] || '').trim();
+    const cleanSourceName = String(item.sourceName || item['जलस्त्रोताचे नाव'] || item['जलस्त्रोत'] || item['स्त्रोताचे नाव'] || item['जलस्त्रोताचे नाव (Source Name)'] || '').trim();
+    const rawType = item.sourceType || item['स्त्रोत प्रकार'] || item['प्रकार'] || item['स्त्रोत प्रकार (Source Type)'] || 'विहीर';
+    const rawOwnership = item.ownership || item['मालकी'] || item['मालकी (Ownership)'] || 'शासकीय';
+    const cleanLocation = String(item.location || item['ठिकाण'] || item['पत्ता'] || item['ठिकाण/पत्ता'] || item['ठिकाण/पत्ता (Location)'] || '').trim();
+    const rawCode = String(item.sourceCode || item.sourceId || item['स्त्रोत आयडी'] || item['स्त्रोत आयडी (Source ID)'] || '').trim();
+    const rawStatus = String(item.status || item['स्थिती'] || item['स्थिती (Status)'] || 'Active').trim();
+
+    if (!cleanSourceName) {
+      invalidRows.push({ rowNum, reason: "जलस्त्रोताचे नाव रिकामे आहे." });
+      return;
+    }
+
+    // Auto-resolve subcenter from villageMaster if subcenter is missing or mismatched
+    if (cleanVillage) {
+      const vMaster = villagesMaster.find(v => v.villageName.toLowerCase() === cleanVillage.toLowerCase());
+      if (vMaster) {
+        cleanVillage = vMaster.villageName;
+        if (!cleanSubcenter) cleanSubcenter = vMaster.subcenter;
+      }
+    }
+    if (!cleanSubcenter) cleanSubcenter = "भादा";
+    if (!cleanVillage) cleanVillage = cleanSubcenter;
+
+    const cleanSourceType = normalizeSourceType(rawType);
+    const cleanOwnership = normalizeOwnership(rawOwnership);
+    const cleanStatus = (rawStatus.toLowerCase() === 'inactive' || rawStatus.includes('अकार्यक्षम')) ? 'Inactive' : 'Active';
+    const cleanGramPanchayat = String(item.gramPanchayat || item['ग्रामपंचायत'] || cleanVillage).trim();
+
+    // Check if matching sourceCode or exact duplicate exists
+    const existingByCode = rawCode ? nwbdcpWaterSources.find(s => s.sourceCode === rawCode || s.sourceId === rawCode) : null;
+    const existingByDetails = nwbdcpWaterSources.find(s =>
+      s.subcenter.toLowerCase() === cleanSubcenter.toLowerCase() &&
+      s.village.toLowerCase() === cleanVillage.toLowerCase() &&
+      s.sourceType.toLowerCase() === cleanSourceType.toLowerCase() &&
+      s.sourceName.toLowerCase() === cleanSourceName.toLowerCase()
+    );
+
+    const existing = existingByCode || existingByDetails;
+    if (existing) {
+      existing.subcenter = cleanSubcenter;
+      existing.village = cleanVillage;
+      existing.gramPanchayat = cleanGramPanchayat;
+      existing.sourceName = cleanSourceName;
+      existing.sourceType = cleanSourceType;
+      existing.ownership = cleanOwnership;
+      existing.status = cleanStatus;
+      if (cleanLocation) existing.location = cleanLocation;
+      existing.updatedDate = todayIso;
+      existing.updatedBy = user;
+      updatedSources.push(existing);
+    } else {
+      const code = (rawCode && !nwbdcpWaterSources.some(s => s.sourceCode === rawCode))
+        ? rawCode
+        : generateWaterSourceCode(cleanVillage, cleanSourceType);
+      const newSrc = {
+        id: `SRC_${Date.now()}_${idx}_${Math.floor(Math.random() * 1000)}`,
+        sourceCode: code,
+        sourceId: code,
+        subcenter: cleanSubcenter,
+        village: cleanVillage,
+        gramPanchayat: cleanGramPanchayat,
+        sourceName: cleanSourceName,
+        sourceType: cleanSourceType,
+        ownership: cleanOwnership,
+        status: cleanStatus,
+        location: cleanLocation,
+        createdDate: todayIso,
+        updatedDate: todayIso,
+        createdBy: user,
+        updatedBy: user
+      };
+      nwbdcpWaterSources.push(newSrc);
+      importedSources.push(newSrc);
+    }
+  });
+
+  const allToSync = [...importedSources, ...updatedSources];
+  if (allToSync.length > 0) {
+    addNwbdcpAuditLog(
+      'BULK_IMPORT_WATER_SOURCES',
+      `जलस्त्रोत यादी अपलोड: ${importedSources.length} नवीन व ${updatedSources.length} अपडेट केले.`,
+      user
+    );
+    saveNwbdcpDbToDisk();
+    await syncBatchWaterSourcesToSupabase(allToSync);
+  }
+
+  return {
+    success: allToSync.length > 0,
+    importedCount: importedSources.length,
+    updatedCount: updatedSources.length,
+    invalidCount: invalidRows.length,
+    totalProcessed: allToSync.length,
+    sources: allToSync,
+    invalidRows,
+    message: `✅ जलस्त्रोत यादी यशस्वीरित्या अपलोड झाली! (${importedSources.length} नवीन जलस्त्रोत जोडले, ${updatedSources.length} अपडेट केले)`
+  };
+}
+
+// Generate Unique Collision-Safe Sample ID (Supports BACTERIOLOGICAL, CHEMICAL, BLEACHING_POWDER)
+export function generateUniqueSampleId(dispatchDateStr, analysisType = 'BACTERIOLOGICAL') {
   const cleanDate = (dispatchDateStr || new Date().toISOString().slice(0, 10)).replace(/-/g, '');
-  const prefix = `NWBDCP-${cleanDate}-`;
+  let prefix = `NWBDCP-${cleanDate}-`;
+  if (analysisType === 'CHEMICAL') {
+    prefix = `NWBDCP-CHEM-${cleanDate}-`;
+  } else if (analysisType === 'BLEACHING_POWDER') {
+    prefix = `NWBDCP-TCL-${cleanDate}-`;
+  }
   
-  // Find highest existing sequence for this date
+  // Find highest existing sequence for this prefix
   let maxSeq = 0;
   nwbdcpSampleDispatches.forEach(d => {
     if (d.sampleId && d.sampleId.startsWith(prefix)) {
-      const parts = d.sampleId.split('-');
-      if (parts.length >= 3) {
-        const seq = parseInt(parts[2], 10);
-        if (!isNaN(seq) && seq > maxSeq) {
-          maxSeq = seq;
-        }
+      const suffix = d.sampleId.slice(prefix.length);
+      const seq = parseInt(suffix, 10);
+      if (!isNaN(seq) && seq > maxSeq) {
+        maxSeq = seq;
       }
     }
   });
@@ -564,17 +718,24 @@ export function generateUniqueSampleId(dispatchDateStr) {
 }
 
 // =========================================================================
-// 3. WATER SAMPLE DISPATCH CONTROLLER (MULTI-SELECTION & BATCH DISPATCH)
+// 3. WATER & TCL SAMPLE DISPATCH CONTROLLER (BACTERIOLOGICAL, CHEMICAL & BLEACHING POWDER)
 // =========================================================================
 export function dispatchWaterSamples(payload, user = "System") {
   const {
     dispatchDate = new Date().toISOString().slice(0, 10),
     collectionDate,
+    analysisType = "BACTERIOLOGICAL", // 'BACTERIOLOGICAL' | 'CHEMICAL' | 'BLEACHING_POWDER'
     selectedSources = [],
+    tclSamples = [],
+    fieldChlorinePpm = "",
     labName = "जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव",
     dispatchedBy = "वैद्यकीय अधिकारी, प्रा.आ.केंद्र भादा",
     remarks = ""
   } = payload || {};
+
+  const cleanAnalysisType = ['BACTERIOLOGICAL', 'CHEMICAL', 'BLEACHING_POWDER'].includes(analysisType)
+    ? analysisType
+    : 'BACTERIOLOGICAL';
 
   // 1. Date Validation
   const cleanDispatchDate = String(dispatchDate || '').trim().slice(0, 10);
@@ -587,8 +748,6 @@ export function dispatchWaterSamples(payload, user = "System") {
     return { success: false, message: "⚠️ अवैध पाठवणी दिनांक रचना." };
   }
 
-  // Warning/Restriction on future dates (beyond 30 days ahead)
-  const todayStr = new Date().toISOString().slice(0, 10);
   const maxAllowedFuture = new Date();
   maxAllowedFuture.setDate(maxAllowedFuture.getDate() + 30);
   const maxFutureStr = maxAllowedFuture.toISOString().slice(0, 10);
@@ -597,13 +756,108 @@ export function dispatchWaterSamples(payload, user = "System") {
   }
 
   const cleanCollectionDate = collectionDate ? String(collectionDate).trim().slice(0, 10) : cleanDispatchDate;
+  const nowIso = new Date().toISOString();
+  const createdRecords = [];
 
-  // 2. Selected Sources Validation
+  // BRANCH A: BLEACHING POWDER (TCL) SAMPLE DISPATCH
+  if (cleanAnalysisType === 'BLEACHING_POWDER') {
+    const itemsToProcess = Array.isArray(tclSamples) && tclSamples.length > 0 ? tclSamples : selectedSources;
+    if (!Array.isArray(itemsToProcess) || itemsToProcess.length === 0) {
+      return { success: false, message: "⚠️ कृपया ब्लिचिंग पावडर (TCL) नमुना पाठवण्यासाठी किमान एक गाव / साठा तपशील प्रविष्ट करा." };
+    }
+
+    itemsToProcess.forEach((tclItem, idx) => {
+      const subcenter = String(tclItem.subcenter || "भादा").trim();
+      const village = String(tclItem.village || "भादा").trim();
+      const gramPanchayat = String(tclItem.gramPanchayat || village).trim();
+      const stockLocation = String(tclItem.sourceName || tclItem.stockLocation || `ग्रामपंचायत टीसीएल साठा, ${village}`).trim();
+      const tclBatchNo = String(tclItem.tclBatchNo || tclItem.batchNo || "").trim();
+      const tclBagCondition = String(tclItem.tclBagCondition || tclItem.bagCondition || "सीलबंद पोते (Sealed)").trim();
+      const tclQuantity = String(tclItem.tclQuantity || tclItem.quantity || "250 ग्रॅम").trim();
+      const tclExpiryDate = String(tclItem.tclExpiryDate || "").trim();
+      const sampleId = generateUniqueSampleId(cleanDispatchDate, 'BLEACHING_POWDER');
+      const cleanVilCode = (village || "BHD").replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase() || "BHD";
+      const sourceCode = tclItem.sourceCode || `TCL-${cleanVilCode}-${String(idx + 1).padStart(3, '0')}`;
+
+      const record = {
+        sampleId,
+        sourceId: sourceCode,
+        sourceCode,
+        subcenter,
+        gramPanchayat,
+        village,
+        sourceName: stockLocation,
+        sourceType: "ब्लिचिंग पावडर (TCL)",
+        ownership: tclItem.ownership || "शासकीय",
+        location: tclItem.location || stockLocation,
+        collectionDate: cleanCollectionDate,
+        dispatchDate: cleanDispatchDate,
+        labName,
+        dispatchedBy,
+        remarks: remarks || (tclBatchNo ? `TCL बॅच क्र.: ${tclBatchNo} (${tclBagCondition})` : `TCL नमुना (${tclBagCondition})`),
+        status: "अहवाल अप्राप्त",
+        result: "अहवाल अप्राप्त",
+        reportReceivedDate: "",
+        labRefNo: "",
+        labRemarks: "",
+        reportFileName: "",
+        reportFileUrl: "",
+        reportFileType: "",
+        reportFileSize: "",
+        reportUploadedAt: "",
+        createdDate: nowIso,
+        createdBy: user,
+        analysisType: 'BLEACHING_POWDER',
+        tclBatchNo,
+        tclBagCondition,
+        tclQuantity,
+        tclExpiryDate,
+        availableChlorinePct: "",
+        analysisParams: {
+          tclBatchNo,
+          tclBagCondition,
+          tclQuantity,
+          tclExpiryDate,
+          availableChlorinePct: ""
+        },
+        history: [{
+          action: "DISPATCHED",
+          status: "अहवाल अप्राप्त",
+          date: cleanDispatchDate,
+          by: user,
+          notes: `ब्लिचिंग पावडर (TCL) नमुना क्लोरीन % तपासणीसाठी प्रयोगशाळेत पाठवण्यात आला.`
+        }]
+      };
+
+      nwbdcpSampleDispatches.push(record);
+      createdRecords.push(record);
+    });
+
+    const sampleIdsList = createdRecords.map(r => r.sampleId);
+    addNwbdcpAuditLog(
+      'BATCH_DISPATCH_TCL_SAMPLES',
+      `एकूण ${createdRecords.length} ब्लिचिंग पावडर (TCL) नमुने नोंदविले [${sampleIdsList.join(', ')}] (दिनांक: ${cleanDispatchDate})`,
+      user
+    );
+    saveNwbdcpDbToDisk();
+    syncBatchSampleDispatchesToSupabase(createdRecords);
+
+    return {
+      success: true,
+      message: `✅ एकूण ${createdRecords.length} ब्लिचिंग पावडर (TCL) नमुने यशस्वीरित्या नोंदविण्यात आले.`,
+      count: createdRecords.length,
+      dispatchDate: cleanDispatchDate,
+      analysisType: 'BLEACHING_POWDER',
+      sampleIds: sampleIdsList,
+      samples: createdRecords
+    };
+  }
+
+  // BRANCH B: WATER SAMPLES (BACTERIOLOGICAL OR CHEMICAL ANALYSIS)
   if (!Array.isArray(selectedSources) || selectedSources.length === 0) {
     return { success: false, message: "⚠️ कृपया नमुने पाठवण्यासाठी किमान एक नोंदणीकृत जलस्त्रोत निवडा." };
   }
 
-  // 3. Atomic Pre-Validation of all selected sources
   const validatedSources = [];
   const seenSourceIdsInBatch = new Set();
 
@@ -611,7 +865,6 @@ export function dispatchWaterSamples(payload, user = "System") {
     const srcInput = selectedSources[i];
     const rawId = typeof srcInput === 'string' ? srcInput : (srcInput.id || srcInput.sourceId || srcInput.sourceCode);
     
-    // Find master record in Water Source Master
     const masterSource = nwbdcpWaterSources.find(s => 
       s.id === rawId || 
       s.sourceId === rawId || 
@@ -626,7 +879,6 @@ export function dispatchWaterSamples(payload, user = "System") {
       };
     }
 
-    // Active Source Rule: Disallow inactive sources
     if (masterSource.status !== 'Active') {
       return { 
         success: false, 
@@ -634,7 +886,6 @@ export function dispatchWaterSamples(payload, user = "System") {
       };
     }
 
-    // Check for duplicate selection within the same batch request
     const uniqueKey = masterSource.sourceCode || masterSource.sourceId || masterSource.id;
     if (seenSourceIdsInBatch.has(uniqueKey)) {
       return {
@@ -644,11 +895,12 @@ export function dispatchWaterSamples(payload, user = "System") {
     }
     seenSourceIdsInBatch.add(uniqueKey);
 
-    // Duplicate Check: Same Source ID + Same Dispatch Date
+    // Duplicate Check: Same Source ID + Same Dispatch Date + Same Analysis Type
     const existingDuplicate = nwbdcpSampleDispatches.find(d => 
       ((d.sourceId === masterSource.id || d.sourceCode === masterSource.sourceCode || d.sourceCode === masterSource.sourceId) ||
        (d.sourceName === masterSource.sourceName && d.village === masterSource.village)) &&
-      d.dispatchDate === cleanDispatchDate
+      d.dispatchDate === cleanDispatchDate &&
+      (d.analysisType || 'BACTERIOLOGICAL') === cleanAnalysisType
     );
 
     if (existingDuplicate) {
@@ -659,19 +911,19 @@ export function dispatchWaterSamples(payload, user = "System") {
         sourceName: masterSource.sourceName,
         sourceCode: masterSource.sourceCode || masterSource.sourceId,
         dispatchDate: cleanDispatchDate,
-        message: `⚠️ या स्रोताचा या दिनांकाचा (${cleanDispatchDate}) नमुना आधीच नोंदविला आहे.\nजलस्त्रोत: ${masterSource.sourceName} [ID: ${masterSource.sourceCode || masterSource.sourceId}]\nविद्यमान नमुना आयडी: ${existingDuplicate.sampleId}` 
+        message: `⚠️ या स्रोताचा या दिनांकाचा (${cleanDispatchDate}) ${cleanAnalysisType === 'CHEMICAL' ? 'रासायनिक (Chemical)' : 'जैविक (Bacteriological)'} नमुना आधीच नोंदविला आहे.\nजलस्त्रोत: ${masterSource.sourceName} [ID: ${masterSource.sourceCode || masterSource.sourceId}]\nविद्यमान नमुना आयडी: ${existingDuplicate.sampleId}` 
       };
     }
 
     validatedSources.push(masterSource);
   }
 
-  // 4. Batch Creation (All validations passed - Atomic execution)
-  const createdRecords = [];
-  const nowIso = new Date().toISOString();
+  const typeLabelMarathi = cleanAnalysisType === 'CHEMICAL'
+    ? 'रासायनिक पाणी तपासणी (Chemical Analysis)'
+    : 'जैविक पाणी तपासणी (Bacteriological Analysis)';
 
   validatedSources.forEach((src) => {
-    const sampleId = generateUniqueSampleId(cleanDispatchDate);
+    const sampleId = generateUniqueSampleId(cleanDispatchDate, cleanAnalysisType);
 
     const record = {
       sampleId,
@@ -688,8 +940,8 @@ export function dispatchWaterSamples(payload, user = "System") {
       dispatchDate: cleanDispatchDate,
       labName,
       dispatchedBy,
-      remarks,
-      status: "अहवाल अप्राप्त", // Initial status (Requirement 10)
+      remarks: remarks || typeLabelMarathi,
+      status: "अहवाल अप्राप्त",
       result: "अहवाल अप्राप्त",
       reportReceivedDate: "",
       labRefNo: "",
@@ -701,12 +953,17 @@ export function dispatchWaterSamples(payload, user = "System") {
       reportUploadedAt: "",
       createdDate: nowIso,
       createdBy: user,
+      analysisType: cleanAnalysisType,
+      chlorinePpm: fieldChlorinePpm || "",
+      analysisParams: {
+        chlorinePpm: fieldChlorinePpm || ""
+      },
       history: [{
         action: "DISPATCHED",
         status: "अहवाल अप्राप्त",
         date: cleanDispatchDate,
         by: user,
-        notes: "पाणी नमुना नोंदवून प्रयोगशाळेत तपासणीसाठी पाठवण्यात आला."
+        notes: `${typeLabelMarathi} साठी पाणी नमुना प्रयोगशाळेत पाठवण्यात आला.`
       }]
     };
 
@@ -716,22 +973,21 @@ export function dispatchWaterSamples(payload, user = "System") {
 
   const sampleIdsList = createdRecords.map(r => r.sampleId);
 
-  // 5. Audit Logging
   addNwbdcpAuditLog(
     'BATCH_DISPATCH_SAMPLES', 
-    `एकूण ${createdRecords.length} पाणी नमुने नोंदविले [${sampleIdsList.join(', ')}] (दिनांक: ${cleanDispatchDate})`, 
+    `एकूण ${createdRecords.length} पाणी नमुने (${typeLabelMarathi}) नोंदविले [${sampleIdsList.join(', ')}] (दिनांक: ${cleanDispatchDate})`, 
     user
   );
 
-  // 6. Persistence to Disk and Supabase
   saveNwbdcpDbToDisk();
   syncBatchSampleDispatchesToSupabase(createdRecords);
 
   return {
     success: true,
-    message: `✅ एकूण ${createdRecords.length} पाणी नमुने यशस्वीरित्या नोंदविण्यात आले.`,
+    message: `✅ एकूण ${createdRecords.length} नमुने (${typeLabelMarathi}) यशस्वीरित्या नोंदविण्यात आले.`,
     count: createdRecords.length,
     dispatchDate: cleanDispatchDate,
+    analysisType: cleanAnalysisType,
     sampleIds: sampleIdsList,
     samples: createdRecords
   };
@@ -740,6 +996,9 @@ export function dispatchWaterSamples(payload, user = "System") {
 export function getDispatchedSamples(filters = {}) {
   let list = [...nwbdcpSampleDispatches];
 
+  if (filters.analysisType && filters.analysisType !== 'ALL') {
+    list = list.filter(d => (d.analysisType || 'BACTERIOLOGICAL') === filters.analysisType);
+  }
   if (filters.subcenter && filters.subcenter !== 'ALL') {
     list = list.filter(d => d.subcenter === filters.subcenter);
   }
@@ -762,11 +1021,11 @@ export function getDispatchedSamples(filters = {}) {
       (d.sourceName && d.sourceName.toLowerCase().includes(q)) ||
       (d.sourceCode && d.sourceCode.toLowerCase().includes(q)) ||
       (d.village && d.village.toLowerCase().includes(q)) ||
-      (d.subcenter && d.subcenter.toLowerCase().includes(q))
+      (d.subcenter && d.subcenter.toLowerCase().includes(q)) ||
+      (d.tclBatchNo && d.tclBatchNo.toLowerCase().includes(q))
     );
   }
 
-  // Universal Helper to parse dates into timestamp numbers for true DESCENDING date sorting
   function parseDateTimestamp(dStr) {
     if (!dStr) return 0;
     const clean = String(dStr).trim();
@@ -779,7 +1038,6 @@ export function getDispatchedSamples(filters = {}) {
     return new Date(clean).getTime() || 0;
   }
 
-  // Sort descending by dispatch date (newest first) and secondary sample ID
   list.sort((a, b) => {
     const timeA = parseDateTimestamp(a.dispatchDate);
     const timeB = parseDateTimestamp(b.dispatchDate);
@@ -791,7 +1049,7 @@ export function getDispatchedSamples(filters = {}) {
 }
 
 // =========================================================================
-// 4. LABORATORY RESULT UPDATE CONTROLLER (WITH MANDATORY REPORT COPY UPLOAD)
+// 4. LABORATORY RESULT UPDATE CONTROLLER (SUPPORTS BACTERIOLOGICAL, CHEMICAL & TCL)
 // =========================================================================
 export async function updateLabResults(payload, user = "System") {
   const {
@@ -800,7 +1058,8 @@ export async function updateLabResults(payload, user = "System") {
     labResult = "",
     labRefNo = "",
     labRemarks = "",
-    reportCopy = null // { reportFileName, reportFileUrl, reportFileType, reportFileSize, reportUploadedAt }
+    reportCopy = null,
+    skipFileCheck = false
   } = payload || {};
 
   if (!Array.isArray(sampleIds) || sampleIds.length === 0) {
@@ -819,24 +1078,26 @@ export async function updateLabResults(payload, user = "System") {
     return { success: false, message: "⚠️ कृपया प्रयोगशाळा अहवाल जावक / संदर्भ क्रमांक (Report Reference Number) प्रविष्ट करा." };
   }
 
-  // Validate that every sample has a report copy file (either newly attached or existing)
-  const missingCopySamples = [];
-  sampleIds.forEach(sId => {
-    const sample = nwbdcpSampleDispatches.find(d => d.sampleId === sId);
-    if (sample) {
-      const hasNewCopy = reportCopy && reportCopy.reportFileUrl;
-      const hasExistingCopy = sample.reportFileUrl || (sample.reportCopy && sample.reportCopy.reportFileUrl);
-      if (!hasNewCopy && !hasExistingCopy) {
-        missingCopySamples.push(sId);
+  // Validate that every sample has a report copy file unless skipFileCheck is explicitly enabled
+  if (!skipFileCheck) {
+    const missingCopySamples = [];
+    sampleIds.forEach(sId => {
+      const sample = nwbdcpSampleDispatches.find(d => d.sampleId === sId);
+      if (sample) {
+        const hasNewCopy = reportCopy && reportCopy.reportFileUrl;
+        const hasExistingCopy = sample.reportFileUrl || (sample.reportCopy && sample.reportCopy.reportFileUrl);
+        if (!hasNewCopy && !hasExistingCopy) {
+          missingCopySamples.push(sId);
+        }
       }
-    }
-  });
+    });
 
-  if (missingCopySamples.length > 0) {
-    return {
-      success: false,
-      message: "⚠️ प्रयोगशाळा अहवालाची प्रत (Laboratory Report Copy) अपलोड करणे अनिवार्य आहे."
-    };
+    if (missingCopySamples.length > 0) {
+      return {
+        success: false,
+        message: "⚠️ प्रयोगशाळा अहवालाची प्रत (Laboratory Report Copy) अपलोड करणे अनिवार्य आहे."
+      };
+    }
   }
 
   let updatedCount = 0;
@@ -845,7 +1106,66 @@ export async function updateLabResults(payload, user = "System") {
     const sample = nwbdcpSampleDispatches.find(d => d.sampleId === sId);
     if (sample) {
       const cleanDate = reportReceivedDate.slice(0, 10);
-      
+
+      // Update analytical parameters on sample
+      if (payload.coliformCount !== undefined && payload.coliformCount !== '') sample.coliformCount = payload.coliformCount;
+      if (payload.ecoliPresent !== undefined && payload.ecoliPresent !== '') sample.ecoliPresent = payload.ecoliPresent;
+      if (payload.chlorinePpm !== undefined && payload.chlorinePpm !== '') sample.chlorinePpm = payload.chlorinePpm;
+      if (payload.turbidityNtu !== undefined && payload.turbidityNtu !== '') sample.turbidityNtu = payload.turbidityNtu;
+      if (payload.phValue !== undefined && payload.phValue !== '') sample.phValue = payload.phValue;
+      if (payload.tdsPpm !== undefined && payload.tdsPpm !== '') sample.tdsPpm = payload.tdsPpm;
+      if (payload.hardnessMgL !== undefined && payload.hardnessMgL !== '') sample.hardnessMgL = payload.hardnessMgL;
+      if (payload.chlorideMgL !== undefined && payload.chlorideMgL !== '') sample.chlorideMgL = payload.chlorideMgL;
+      if (payload.fluorideMgL !== undefined && payload.fluorideMgL !== '') sample.fluorideMgL = payload.fluorideMgL;
+      if (payload.nitrateMgL !== undefined && payload.nitrateMgL !== '') sample.nitrateMgL = payload.nitrateMgL;
+      if (payload.ironMgL !== undefined && payload.ironMgL !== '') sample.ironMgL = payload.ironMgL;
+      if (payload.alkalinityMgL !== undefined && payload.alkalinityMgL !== '') sample.alkalinityMgL = payload.alkalinityMgL;
+      if (payload.availableChlorinePct !== undefined && payload.availableChlorinePct !== '') sample.availableChlorinePct = payload.availableChlorinePct;
+      if (payload.tclBatchNo !== undefined && payload.tclBatchNo !== '') sample.tclBatchNo = payload.tclBatchNo;
+
+      sample.analysisParams = {
+        ...(sample.analysisParams || {}),
+        coliformCount: sample.coliformCount ?? '',
+        ecoliPresent: sample.ecoliPresent ?? '',
+        chlorinePpm: sample.chlorinePpm ?? '',
+        phValue: sample.phValue ?? '',
+        tdsPpm: sample.tdsPpm ?? '',
+        turbidityNtu: sample.turbidityNtu ?? '',
+        hardnessMgL: sample.hardnessMgL ?? '',
+        chlorideMgL: sample.chlorideMgL ?? '',
+        fluorideMgL: sample.fluorideMgL ?? '',
+        nitrateMgL: sample.nitrateMgL ?? '',
+        ironMgL: sample.ironMgL ?? '',
+        alkalinityMgL: sample.alkalinityMgL ?? '',
+        availableChlorinePct: sample.availableChlorinePct ?? '',
+        tclBatchNo: sample.tclBatchNo ?? '',
+        tclBagCondition: sample.tclBagCondition ?? '',
+        tclQuantity: sample.tclQuantity ?? '',
+        tclExpiryDate: sample.tclExpiryDate ?? ''
+      };
+
+      // Build human-readable parameter summary if provided
+      const paramSummaryParts = [];
+      if (sample.analysisType === 'BLEACHING_POWDER' && sample.availableChlorinePct !== undefined && sample.availableChlorinePct !== '') {
+        paramSummaryParts.push(`उपलब्ध क्लोरीन: ${sample.availableChlorinePct}%`);
+      }
+      if (sample.coliformCount !== undefined && sample.coliformCount !== '') paramSummaryParts.push(`MPN: ${sample.coliformCount}/100ml`);
+      if (sample.ecoliPresent !== undefined && sample.ecoliPresent !== '') paramSummaryParts.push(`E.coli: ${sample.ecoliPresent}`);
+      if (sample.chlorinePpm !== undefined && sample.chlorinePpm !== '') paramSummaryParts.push(`Chlorine: ${sample.chlorinePpm} ppm`);
+      if (sample.phValue !== undefined && sample.phValue !== '') paramSummaryParts.push(`pH: ${sample.phValue}`);
+      if (sample.tdsPpm !== undefined && sample.tdsPpm !== '') paramSummaryParts.push(`TDS: ${sample.tdsPpm} mg/L`);
+      if (sample.turbidityNtu !== undefined && sample.turbidityNtu !== '') paramSummaryParts.push(`Turbidity: ${sample.turbidityNtu} NTU`);
+      if (sample.hardnessMgL !== undefined && sample.hardnessMgL !== '') paramSummaryParts.push(`Hardness: ${sample.hardnessMgL} mg/L`);
+      if (sample.fluorideMgL !== undefined && sample.fluorideMgL !== '') paramSummaryParts.push(`Fluoride: ${sample.fluorideMgL} mg/L`);
+      if (sample.nitrateMgL !== undefined && sample.nitrateMgL !== '') paramSummaryParts.push(`Nitrate: ${sample.nitrateMgL} mg/L`);
+      if (sample.chlorideMgL !== undefined && sample.chlorideMgL !== '') paramSummaryParts.push(`Chloride: ${sample.chlorideMgL} mg/L`);
+      if (sample.ironMgL !== undefined && sample.ironMgL !== '') paramSummaryParts.push(`Iron: ${sample.ironMgL} mg/L`);
+
+      const combinedRemarks = [
+        labRemarks ? labRemarks.trim() : '',
+        paramSummaryParts.length > 0 ? `[${paramSummaryParts.join(' | ')}]` : ''
+      ].filter(Boolean).join(' ') || (sample.labRemarks || '');
+
       // 1. PRIMARY WRITE: Construct & Sync NWBDCP_SampleResults record to Supabase
       const resultRecord = {
         id: `RESULT_${sample.sampleId}`,
@@ -855,22 +1175,21 @@ export async function updateLabResults(payload, user = "System") {
         status: 'RESULT_DECLARED',
         report_received_date: cleanDate,
         lab_ref_no: labRefNo ? labRefNo.trim() : (sample.labRefNo || ''),
-        lab_remarks: labRemarks ? labRemarks.trim() : (sample.labRemarks || ''),
+        lab_remarks: combinedRemarks,
         tested_by: user,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
-      if (payload.coliformCount !== undefined) resultRecord.coliform_count = payload.coliformCount;
-      if (payload.ecoliPresent !== undefined) resultRecord.ecoli_present = payload.ecoliPresent;
-      if (payload.chlorinePpm !== undefined) resultRecord.chlorine_ppm = payload.chlorinePpm;
-      if (payload.turbidityNtu !== undefined) resultRecord.turbidity_ntu = payload.turbidityNtu;
-      if (payload.phValue !== undefined) resultRecord.ph_value = payload.phValue;
-      if (payload.tdsPpm !== undefined) resultRecord.tds_ppm = payload.tdsPpm;
+      if (sample.coliformCount !== undefined && sample.coliformCount !== '') resultRecord.coliform_count = sample.coliformCount;
+      if (sample.ecoliPresent !== undefined && sample.ecoliPresent !== '') resultRecord.ecoli_present = sample.ecoliPresent;
+      if (sample.chlorinePpm !== undefined && sample.chlorinePpm !== '') resultRecord.chlorine_ppm = sample.chlorinePpm;
+      if (sample.turbidityNtu !== undefined && sample.turbidityNtu !== '') resultRecord.turbidity_ntu = sample.turbidityNtu;
+      if (sample.phValue !== undefined && sample.phValue !== '') resultRecord.ph_value = sample.phValue;
+      if (sample.tdsPpm !== undefined && sample.tdsPpm !== '') resultRecord.tds_ppm = sample.tdsPpm;
 
       await syncSampleResultToSupabase(resultRecord);
 
-      // Update in-memory nwbdcpSampleResults collection
       const existingResIdx = nwbdcpSampleResults.findIndex(r => r.sample_id === sample.sampleId);
       if (existingResIdx >= 0) {
         nwbdcpSampleResults[existingResIdx] = resultRecord;
@@ -882,9 +1201,8 @@ export async function updateLabResults(payload, user = "System") {
       sample.reportReceivedDate = cleanDate;
       sample.result = labResult;
       sample.labRefNo = labRefNo ? labRefNo.trim() : sample.labRefNo;
-      sample.labRemarks = labRemarks ? labRemarks.trim() : sample.labRemarks;
+      sample.labRemarks = combinedRemarks;
 
-      // Update report copy file metadata (Stored physically in Google Drive with metadata in Supabase)
       if (reportCopy && (reportCopy.reportFileUrl || reportCopy.googleDriveFileId)) {
         const prevFile = sample.reportFileName || (sample.reportCopy ? sample.reportCopy.reportFileName : '');
         sample.reportFileName = reportCopy.reportFileName;
@@ -915,8 +1233,7 @@ export async function updateLabResults(payload, user = "System") {
         }
       }
 
-      // Strict status calculation: Result + Date + LabRefNo + Report Copy File
-      if (sample.result && sample.result !== 'अहवाल अप्राप्त' && sample.reportReceivedDate && sample.labRefNo && (sample.reportFileUrl || sample.reportFileName)) {
+      if (sample.result && sample.result !== 'अहवाल अप्राप्त' && sample.reportReceivedDate && sample.labRefNo && (sample.reportFileUrl || sample.reportFileName || skipFileCheck)) {
         sample.status = "अहवाल अपडेट पूर्ण";
       } else {
         sample.status = "अहवाल अपडेट अपूर्ण";
@@ -934,12 +1251,10 @@ export async function updateLabResults(payload, user = "System") {
         by: user,
         reportFileName: sample.reportFileName,
         reportFileUrl: sample.reportFileUrl,
-        notes: `प्रयोगशाळा अहवाल नोंदवला: ${labResult} (जा.क्र. ${sample.labRefNo || '-'}), प्रत फाईल: ${sample.reportFileName}`
+        notes: `प्रयोगशाळा अहवाल नोंदवला: ${labResult} (जा.क्र. ${sample.labRefNo || '-'}) ${combinedRemarks}`
       });
 
-      // Sync updated denormalized dispatch display record to NWBDCP_DispatchedSamples
       await syncSampleDispatchToSupabase(sample);
-
       updatedCount++;
     }
   }
@@ -949,7 +1264,7 @@ export async function updateLabResults(payload, user = "System") {
 
   return {
     success: true,
-    message: `✅ ${updatedCount} नमुन्यांचे प्रयोगशाळा निकाल व अहवाल प्रत यशस्वीरित्या जतन झाले! (अहवाल अपडेट पूर्ण)`,
+    message: `✅ ${updatedCount} नमुन्यांचे प्रयोगशाळा निकाल यशस्वीरित्या जतन झाले! (अहवाल अपडेट पूर्ण)`,
     updatedCount
   };
 }
@@ -1001,6 +1316,7 @@ export function replaceNwbdcpReportCopy(payload, user = "System") {
 
   addNwbdcpAuditLog('REPLACE_REPORT_COPY', `नमुना ${sampleId} ची अहवाल प्रत बदलेली: ${previousFile} -> ${reportCopy.reportFileName}`, user);
   saveNwbdcpDbToDisk();
+  syncSampleDispatchToSupabase(sample).catch(err => console.warn('[NWBDCP Supabase] replace report copy sync warning:', err.message));
 
   return {
     success: true,
@@ -1291,28 +1607,60 @@ export function generateNwbdcpReports(reportType, options = {}) {
     sourceType = "ALL",
     ownership = "ALL",
     resultStatus = "ALL",
+    analysisType = "ALL",
     search = "",
     month = "ALL",
     year = "2026",
+    monthYear = "",
     fromDate = "",
     toDate = ""
   } = options;
 
   let samples = [...nwbdcpSampleDispatches];
 
-  // Apply Date / Period Filters
+  // Filter by reportType or explicit analysisType
+  if (reportType === 'BACTERIOLOGICAL_REG') {
+    samples = samples.filter(s => (s.analysisType || 'BACTERIOLOGICAL') === 'BACTERIOLOGICAL');
+  } else if (reportType === 'CHEMICAL_REG') {
+    samples = samples.filter(s => s.analysisType === 'CHEMICAL');
+  } else if (reportType === 'TCL_REG') {
+    samples = samples.filter(s => s.analysisType === 'BLEACHING_POWDER');
+  } else if (reportType === 'UNSUITABLE') {
+    samples = samples.filter(s => s.result === SAMPLE_STATUSES.UNSUITABLE);
+  } else if (reportType === 'AWAITED') {
+    samples = samples.filter(s => !s.result || s.result === SAMPLE_STATUSES.AWAITED);
+  } else if (analysisType && analysisType !== 'ALL' && reportType !== 'CONSOLIDATED_MONTHLY') {
+    samples = samples.filter(s => (s.analysisType || 'BACTERIOLOGICAL') === analysisType);
+  }
+
+  // Helper to normalize sample date to YYYY-MM-DD
+  function normalizeSampleDateStr(dStr) {
+    if (!dStr) return '';
+    const clean = String(dStr).trim();
+    if (clean.includes('/')) {
+      const parts = clean.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
+    return clean;
+  }
+
+  // Apply Date / Month / Period Filters
   if (fromDate && toDate) {
     samples = samples.filter(s => {
-      const d = s.dispatchDate || '';
+      const d = normalizeSampleDateStr(s.dispatchDate || s.collectionDate || '');
       return d >= fromDate && d <= toDate;
     });
   } else if (fromDate) {
-    samples = samples.filter(s => (s.dispatchDate || '') >= fromDate);
+    samples = samples.filter(s => normalizeSampleDateStr(s.dispatchDate || s.collectionDate || '') >= fromDate);
   } else if (toDate) {
-    samples = samples.filter(s => (s.dispatchDate || '') <= toDate);
+    samples = samples.filter(s => normalizeSampleDateStr(s.dispatchDate || s.collectionDate || '') <= toDate);
+  } else if (monthYear && monthYear !== 'ALL') {
+    samples = samples.filter(s => normalizeSampleDateStr(s.dispatchDate || s.collectionDate || '').startsWith(monthYear));
   } else if (month && month !== 'ALL' && year) {
     const monthNumStr = String(month).padStart(2, '0');
-    samples = samples.filter(s => (s.dispatchDate || '').startsWith(`${year}-${monthNumStr}`));
+    samples = samples.filter(s => normalizeSampleDateStr(s.dispatchDate || s.collectionDate || '').startsWith(`${year}-${monthNumStr}`));
   }
 
   if (subcenter && subcenter !== 'ALL') samples = samples.filter(s => s.subcenter === subcenter);
@@ -1365,6 +1713,11 @@ export function generateNwbdcpReports(reportType, options = {}) {
     return (a.sampleId || '').localeCompare(b.sampleId || '');
   });
 
+  // Separate Module Data Tables for Consolidated Report
+  const bacteriologicalSamples = samples.filter(s => (s.analysisType || 'BACTERIOLOGICAL') === 'BACTERIOLOGICAL');
+  const chemicalSamples = samples.filter(s => s.analysisType === 'CHEMICAL');
+  const tclSamples = samples.filter(s => s.analysisType === 'BLEACHING_POWDER');
+
   // Build Date-Grouped Data Structure
   const dateGroupsMap = {};
   samples.forEach(s => {
@@ -1389,7 +1742,25 @@ export function generateNwbdcpReports(reportType, options = {}) {
   const unsuitable = samples.filter(s => s.result === SAMPLE_STATUSES.UNSUITABLE).length;
   const awaited = totalSent - totalReceived;
 
-  // Subcenter Breakdown
+  // Module-specific Metrics
+  const bacteriologicalCount = bacteriologicalSamples.length;
+  const bacteriologicalSuitable = bacteriologicalSamples.filter(s => s.result === SAMPLE_STATUSES.SUITABLE).length;
+  const bacteriologicalUnsuitable = bacteriologicalSamples.filter(s => s.result === SAMPLE_STATUSES.UNSUITABLE).length;
+  const bacteriologicalAwaited = bacteriologicalCount - bacteriologicalSuitable - bacteriologicalUnsuitable;
+  const bacteriologicalReceived = bacteriologicalSuitable + bacteriologicalUnsuitable;
+
+  const chemicalCount = chemicalSamples.length;
+  const chemicalSuitable = chemicalSamples.filter(s => s.result === SAMPLE_STATUSES.SUITABLE).length;
+  const chemicalUnsuitable = chemicalSamples.filter(s => s.result === SAMPLE_STATUSES.UNSUITABLE).length;
+  const chemicalAwaited = chemicalCount - chemicalSuitable - chemicalUnsuitable;
+  const chemicalReceived = chemicalSuitable + chemicalUnsuitable;
+
+  const tclCount = tclSamples.length;
+  const tclSuitable = tclSamples.filter(s => s.result === SAMPLE_STATUSES.SUITABLE).length;
+  const tclUnsuitable = tclSamples.filter(s => s.result === SAMPLE_STATUSES.UNSUITABLE).length;
+  const tclAwaited = tclCount - tclSuitable - tclUnsuitable;
+
+  // Subcenter Breakdown (with Bacteriological, Chemical, and TCL module breakdown)
   const subcenterBreakdown = {};
   subcenterMaster.forEach(sc => {
     subcenterBreakdown[sc.name] = {
@@ -1398,7 +1769,19 @@ export function generateNwbdcpReports(reportType, options = {}) {
       totalReceived: 0,
       suitable: 0,
       unsuitable: 0,
-      awaited: 0
+      awaited: 0,
+      bactSent: 0,
+      bactSuitable: 0,
+      bactUnsuitable: 0,
+      bactAwaited: 0,
+      chemSent: 0,
+      chemSuitable: 0,
+      chemUnsuitable: 0,
+      chemAwaited: 0,
+      tclSent: 0,
+      tclSuitable: 0,
+      tclUnsuitable: 0,
+      tclAwaited: 0
     };
   });
 
@@ -1412,11 +1795,27 @@ export function generateNwbdcpReports(reportType, options = {}) {
       totalReceived: 0,
       suitable: 0,
       unsuitable: 0,
-      awaited: 0
+      awaited: 0,
+      bactSent: 0,
+      bactSuitable: 0,
+      bactUnsuitable: 0,
+      chemSent: 0,
+      chemSuitable: 0,
+      chemUnsuitable: 0
     };
   });
 
   samples.forEach(s => {
+    const aType = s.analysisType || 'BACTERIOLOGICAL';
+    if (!subcenterBreakdown[s.subcenter] && s.subcenter) {
+      subcenterBreakdown[s.subcenter] = {
+        subcenter: s.subcenter,
+        totalSent: 0, totalReceived: 0, suitable: 0, unsuitable: 0, awaited: 0,
+        bactSent: 0, bactSuitable: 0, bactUnsuitable: 0, bactAwaited: 0,
+        chemSent: 0, chemSuitable: 0, chemUnsuitable: 0, chemAwaited: 0,
+        tclSent: 0, tclSuitable: 0, tclUnsuitable: 0, tclAwaited: 0
+      };
+    }
     if (subcenterBreakdown[s.subcenter]) {
       const b = subcenterBreakdown[s.subcenter];
       b.totalSent++;
@@ -1428,6 +1827,23 @@ export function generateNwbdcpReports(reportType, options = {}) {
         b.unsuitable++;
       } else {
         b.awaited++;
+      }
+
+      if (aType === 'CHEMICAL') {
+        b.chemSent++;
+        if (s.result === SAMPLE_STATUSES.SUITABLE) b.chemSuitable++;
+        else if (s.result === SAMPLE_STATUSES.UNSUITABLE) b.chemUnsuitable++;
+        else b.chemAwaited++;
+      } else if (aType === 'BLEACHING_POWDER') {
+        b.tclSent++;
+        if (s.result === SAMPLE_STATUSES.SUITABLE) b.tclSuitable++;
+        else if (s.result === SAMPLE_STATUSES.UNSUITABLE) b.tclUnsuitable++;
+        else b.tclAwaited++;
+      } else {
+        b.bactSent++;
+        if (s.result === SAMPLE_STATUSES.SUITABLE) b.bactSuitable++;
+        else if (s.result === SAMPLE_STATUSES.UNSUITABLE) b.bactUnsuitable++;
+        else b.bactAwaited++;
       }
     }
 
@@ -1442,6 +1858,15 @@ export function generateNwbdcpReports(reportType, options = {}) {
         vb.unsuitable++;
       } else {
         vb.awaited++;
+      }
+      if (aType === 'CHEMICAL') {
+        vb.chemSent++;
+        if (s.result === SAMPLE_STATUSES.SUITABLE) vb.chemSuitable++;
+        else if (s.result === SAMPLE_STATUSES.UNSUITABLE) vb.chemUnsuitable++;
+      } else if (aType === 'BACTERIOLOGICAL') {
+        vb.bactSent++;
+        if (s.result === SAMPLE_STATUSES.SUITABLE) vb.bactSuitable++;
+        else if (s.result === SAMPLE_STATUSES.UNSUITABLE) vb.bactUnsuitable++;
       }
     }
   });
@@ -1465,9 +1890,14 @@ export function generateNwbdcpReports(reportType, options = {}) {
   // Retests breakdown
   const retests = [...nwbdcpRetests];
 
+  const effectiveMonthYear = monthYear && monthYear !== 'ALL'
+    ? monthYear
+    : (month && month !== 'ALL' && year ? `${year}-${String(month).padStart(2, '0')}` : 'ALL');
+
   return {
     reportType,
     options,
+    selectedMonthYear: effectiveMonthYear,
     summary: {
       totalSent,
       totalReceived,
@@ -1475,9 +1905,26 @@ export function generateNwbdcpReports(reportType, options = {}) {
       unsuitable,
       awaited,
       retestCount: retests.length,
-      fitnessPercentage: totalReceived > 0 ? ((suitable / totalReceived) * 100).toFixed(1) : 0
+      fitnessPercentage: totalReceived > 0 ? ((suitable / totalReceived) * 100).toFixed(1) : 0,
+      bacteriologicalCount,
+      bacteriologicalSuitable,
+      bacteriologicalUnsuitable,
+      bacteriologicalAwaited,
+      bacteriologicalPotabilityPct: bacteriologicalReceived > 0 ? ((bacteriologicalSuitable / bacteriologicalReceived) * 100).toFixed(1) : 0,
+      chemicalCount,
+      chemicalSuitable,
+      chemicalUnsuitable,
+      chemicalAwaited,
+      chemicalPotabilityPct: chemicalReceived > 0 ? ((chemicalSuitable / chemicalReceived) * 100).toFixed(1) : 0,
+      tclCount,
+      tclSuitable,
+      tclUnsuitable,
+      tclAwaited
     },
     samplesList: samples,
+    bacteriologicalSamples,
+    chemicalSamples,
+    tclSamples,
     dateGroups: dateGroups,
     subcenterSummary: Object.values(subcenterBreakdown),
     villageSummary: Object.values(villageBreakdown).filter(v => v.totalSent > 0),
@@ -1614,6 +2061,7 @@ export function importHistoricalWaterSamples(samplesArray = [], user = "System")
   if (validRecords.length > 0) {
     addNwbdcpAuditLog('IMPORT_HISTORICAL_SAMPLES', `${validRecords.length} जुने पाणी नमुने सिस्टीममध्ये यशस्वीरित्या इम्पोर्ट केले.`, user);
     saveNwbdcpDbToDisk();
+    syncBatchSampleDispatchesToSupabase(validRecords).catch(err => console.warn('[NWBDCP Supabase] historical import sync warning:', err.message));
   }
 
   return {

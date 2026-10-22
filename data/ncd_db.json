@@ -1,8 +1,3 @@
 {
-  "individuals": [],
-  "cbacRecords": [],
-  "screeningRecords": [],
-  "treatmentRecords": [],
-  "importBatches": [],
-  "activeDataset": null
+  "records": []
 }

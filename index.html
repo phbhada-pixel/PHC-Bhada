@@ -46,12 +46,35 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/js/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   
   <!-- React 18 & Recharts 2 UMD for Advanced Analytics Visualizations -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+
+  <style>
+    @media print {
+      body.printing-nwbdcp-report * {
+        visibility: hidden !important;
+      }
+      body.printing-nwbdcp-report #nwbdcpReportDisplayArea,
+      body.printing-nwbdcp-report #nwbdcpReportDisplayArea * {
+        visibility: visible !important;
+      }
+      body.printing-nwbdcp-report #nwbdcpReportDisplayArea {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+      }
+    }
+  </style>
 
   
   <!-- Standalone Database Snapshot for GitHub Pages / Static Hosting -->
@@ -127,6 +150,15 @@
 
       // Local Client-Side In-Memory / LocalStorage Store for Standalone / GitHub Pages Mode
       const STORAGE_PREFIX = 'phc_bhada_nvbdcp_';
+      try {
+        const RESET_KEY = STORAGE_PREFIX + 'empty_reset_oct_2026_v1';
+        if (!localStorage.getItem(RESET_KEY)) {
+          ['bsDataEntry', 'dengueChikungunyaEntries', 'villageDetails', 'monthMaster', 'transferHistory', 'bsServiceTenureHistory', 'pendingSyncQueue'].forEach(k => {
+            localStorage.removeItem(STORAGE_PREFIX + k);
+          });
+          localStorage.setItem(RESET_KEY, '1');
+        }
+      } catch (e) {}
       function getLocalStore(key, defaultVal) {
         try {
           const item = localStorage.getItem(STORAGE_PREFIX + key);
@@ -734,8 +766,8 @@
     D35 = Math.floor(parseInt(monthObj.mpwHomeVisits) / 2);
     D36 = parseInt(monthObj.mpwHomeVisits) - D35;
   } else {
-    D35 = Math.max(680, D23 * 22);
-    D36 = Math.max(720, D25 * 24);
+    D35 = 0;
+    D36 = 0;
   }
   const D37 = D35 + D36;
 
@@ -756,8 +788,8 @@
     D41 = Math.floor(parseInt(monthObj.anmHomeVisits) / 2);
     D42 = parseInt(monthObj.anmHomeVisits) - D41;
   } else {
-    D41 = Math.max(490, Math.round(D27 * 15));
-    D42 = Math.max(530, Math.round(D27 * 16));
+    D41 = 0;
+    D42 = 0;
   }
   const D43 = D41 + D42;
 
@@ -1777,7 +1809,7 @@
           <tr>
             <td>2</td><td class="text-left">आराखडे पुर्ण झालेल्या घरांची संख्या</td>
             <td>0</td><td>0</td><td>0</td>
-            <td>1250</td><td>1579</td><td>2829</td>
+            <td>0</td><td>0</td><td>0</td>
           </tr>
           <tr>
             <td>3</td><td class="text-left">गृहभेटी आरोग्य सेवक</td>
@@ -2277,15 +2309,15 @@
               result: {
                 success: true,
                 data: {
-                  total: totalSmears || 897,
-                  active: fieldSmears || 626,
-                  passive: opdSmears || 271,
-                  activePercent: activePercent || 70,
-                  passivePercent: passivePercent || 30,
-                  totalSmears: totalSmears || 897,
-                  totalEntries: totalEntries || 76,
-                  fieldSmears: fieldSmears || 626,
-                  opdSmears: opdSmears || 271,
+                  total: totalSmears || 0,
+                  active: fieldSmears || 0,
+                  passive: opdSmears || 0,
+                  activePercent: activePercent || 0,
+                  passivePercent: passivePercent || 0,
+                  totalSmears: totalSmears || 0,
+                  totalEntries: totalEntries || 0,
+                  fieldSmears: fieldSmears || 0,
+                  opdSmears: opdSmears || 0,
                   totalVillages: 30,
                   totalEmployees: clientMasterData.length || 65
                 }
@@ -2295,9 +2327,9 @@
 
           case 'getMonthlyReportDashboardData': {
             const [selectedMonth] = args;
-            const targetMonthName = cleanMonthString(selectedMonth) || "सप्टेंबर २०२६";
+            const targetMonthName = cleanMonthString(selectedMonth) || "ऑक्टोबर २०२६";
             let mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === targetMonthName);
-            if (mIdx === -1) mIdx = 8;
+            if (mIdx === -1) mIdx = 9;
             const mObj = clientMonthMaster[mIdx] || {};
 
             let priorOpd = 0;
@@ -2323,12 +2355,9 @@
               priorAnmTot += (parseInt(p.anmHomeVisits) || ((parseInt(p.anmFn1) || 0) + (parseInt(p.anmFn2) || 0)));
             }
 
-            if (priorOpd === 0 && mIdx === 8) priorOpd = 11245;
-            if (priorSmears === 0 && mIdx === 8) priorSmears = 1702;
-
-            const newOpd = mObj.newOpd != null ? parseInt(mObj.newOpd) : 1735;
+            const newOpd = mObj.newOpd != null ? parseInt(mObj.newOpd) : 0;
             const progNewOpd = mObj.progNewOpd != null ? parseInt(mObj.progNewOpd) : (priorOpd + newOpd);
-            const bloodSmears = mObj.bloodSmears != null ? parseInt(mObj.bloodSmears) : 271;
+            const bloodSmears = mObj.bloodSmears != null ? parseInt(mObj.bloodSmears) : 0;
             const progBloodSmears = mObj.progBloodSmears != null ? parseInt(mObj.progBloodSmears) : (priorSmears + bloodSmears);
             const feverCases = bloodSmears;
             const progFeverCases = progBloodSmears;
@@ -2337,28 +2366,21 @@
             const chloroquineSpent = parseInt(mObj.chloroquineSpent) || 0;
             const progChloroquineSpent = parseInt(mObj.progChloroquineSpent) || (priorCq + chloroquineSpent);
 
-            const mpwFn1 = mObj.mpwFn1 != null ? parseInt(mObj.mpwFn1) : 5460;
-            const mpwFn2 = mObj.mpwFn2 != null ? parseInt(mObj.mpwFn2) : 5421;
+            const mpwFn1 = mObj.mpwFn1 != null ? parseInt(mObj.mpwFn1) : 0;
+            const mpwFn2 = mObj.mpwFn2 != null ? parseInt(mObj.mpwFn2) : 0;
             const mpwHomeVisits = mObj.mpwHomeVisits != null ? parseInt(mObj.mpwHomeVisits) : (mpwFn1 + mpwFn2);
             const progMpwFn1 = priorMpwFn1 + mpwFn1;
             const progMpwFn2 = priorMpwFn2 + mpwFn2;
             const progMpwHomeVisits = priorMpwTot + mpwHomeVisits;
 
-            const anmFn1 = mObj.anmFn1 != null ? parseInt(mObj.anmFn1) : 2461;
-            const anmFn2 = mObj.anmFn2 != null ? parseInt(mObj.anmFn2) : 2630;
+            const anmFn1 = mObj.anmFn1 != null ? parseInt(mObj.anmFn1) : 0;
+            const anmFn2 = mObj.anmFn2 != null ? parseInt(mObj.anmFn2) : 0;
             const anmHomeVisits = mObj.anmHomeVisits != null ? parseInt(mObj.anmHomeVisits) : (anmFn1 + anmFn2);
             const progAnmFn1 = priorAnmFn1 + anmFn1;
             const progAnmFn2 = priorAnmFn2 + anmFn2;
             const progAnmHomeVisits = priorAnmTot + anmHomeVisits;
 
-            const defaultOpdVillages = [
-              { name: "भादा", villageName: "भादा", count: 65, total: 65, smears: 65, monthlyTotal: 65, male: 33, monthlyMale: 33, female: 32, monthlyFemale: 32, priorTotal: 410, ytdTotal: 475, upkendra: "भादा" },
-              { name: "आलमला", villageName: "आलमला", count: 52, total: 52, smears: 52, monthlyTotal: 52, male: 27, monthlyMale: 27, female: 25, monthlyFemale: 25, priorTotal: 330, ytdTotal: 382, upkendra: "आलमला" },
-              { name: "खडकउमरा", villageName: "खडकउमरा", count: 44, total: 44, smears: 44, monthlyTotal: 44, male: 23, monthlyMale: 23, female: 21, monthlyFemale: 21, priorTotal: 280, ytdTotal: 324, upkendra: "खडकउमरा" },
-              { name: "माकणी", villageName: "माकणी", count: 40, total: 40, smears: 40, monthlyTotal: 40, male: 20, monthlyMale: 20, female: 20, monthlyFemale: 20, priorTotal: 250, ytdTotal: 290, upkendra: "माकणी" },
-              { name: "तावशीगड", villageName: "तावशीगड", count: 38, total: 38, smears: 38, monthlyTotal: 38, male: 19, monthlyMale: 19, female: 19, monthlyFemale: 19, priorTotal: 235, ytdTotal: 273, upkendra: "तावशीगड" },
-              { name: "वडजी", villageName: "वडजी", count: 32, total: 32, smears: 32, monthlyTotal: 32, male: 17, monthlyMale: 17, female: 15, monthlyFemale: 15, priorTotal: 197, ytdTotal: 229, upkendra: "वडजी" }
-            ];
+            const defaultOpdVillages = [];
 
             return {
               result: {
@@ -2410,27 +2432,20 @@
                     progFn1: progAnmFn1, progFn2: progAnmFn2, progressive: progAnmHomeVisits,
                     priorFn1: priorAnmFn1, priorFn2: priorAnmFn2, prior: priorAnmTot
                   },
-                  fieldSmears: 626,
-                  opdSmears: 271,
-                  totalSmears: 897,
-                  smearFeverCoverage: 100,
-                  treatmentCoverage: 100,
+                  fieldSmears: 0,
+                  opdSmears: 0,
+                  totalSmears: 0,
+                  smearFeverCoverage: 0,
+                  treatmentCoverage: 0,
                   opdVillagewise: {
-                    monthlyTotal: 271,
-                    ytdTotal: 1973,
-                    monthlyMale: 139,
-                    monthlyFemale: 132,
-                    priorTotal: 1702,
+                    monthlyTotal: 0,
+                    ytdTotal: 0,
+                    monthlyMale: 0,
+                    monthlyFemale: 0,
+                    priorTotal: 0,
                     villages: defaultOpdVillages
                   },
-                  subcenterBreakdown: [
-                    { sc: "भादा", target: 50, smears: 180, fever: 180, treated: 180, opd: 350, mpwVisits: 1820, anmVisits: 850, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "आलमला", target: 50, smears: 155, fever: 155, treated: 155, opd: 310, mpwVisits: 1790, anmVisits: 840, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "खडकउमरा", target: 50, smears: 140, fever: 140, treated: 140, opd: 280, mpwVisits: 1810, anmVisits: 860, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "माकणी", target: 50, smears: 148, fever: 148, treated: 148, opd: 295, mpwVisits: 1830, anmVisits: 850, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "तावशीगड", target: 50, smears: 138, fever: 138, treated: 138, opd: 260, mpwVisits: 1815, anmVisits: 845, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "वडजी", target: 50, smears: 136, fever: 136, treated: 136, opd: 240, mpwVisits: 1816, anmVisits: 846, cqSpent: 0, status: "उत्कृष्ट" }
-                  ],
+                  subcenterBreakdown: [],
                   tableData: {
                     phcName: 'भादा',
                     month: targetMonthName,
@@ -2455,53 +2470,46 @@
           case 'getSelectedMonthIndicators':
           case 'getMonthIndicators': {
             const [mName] = args;
-            const targetMonthName = cleanMonthString(mName) || "सप्टेंबर २०२६";
-            const mObj = clientMonthMaster.find(m => cleanMonthString(m.name) === targetMonthName) || clientMonthMaster[8] || {};
-            const defaultOpdVillages = [
-              { name: "भादा", villageName: "भादा", count: 65, total: 65, smears: 65, monthlyTotal: 65, male: 33, monthlyMale: 33, female: 32, monthlyFemale: 32, priorTotal: 410, ytdTotal: 475, upkendra: "भादा" },
-              { name: "आलमला", villageName: "आलमला", count: 52, total: 52, smears: 52, monthlyTotal: 52, male: 27, monthlyMale: 27, female: 25, monthlyFemale: 25, priorTotal: 330, ytdTotal: 382, upkendra: "आलमला" },
-              { name: "खडकउमरा", villageName: "खडकउमरा", count: 44, total: 44, smears: 44, monthlyTotal: 44, male: 23, monthlyMale: 23, female: 21, monthlyFemale: 21, priorTotal: 280, ytdTotal: 324, upkendra: "खडकउमरा" },
-              { name: "माकणी", villageName: "माकणी", count: 40, total: 40, smears: 40, monthlyTotal: 40, male: 20, monthlyMale: 20, female: 20, monthlyFemale: 20, priorTotal: 250, ytdTotal: 290, upkendra: "माकणी" },
-              { name: "तावशीगड", villageName: "तावशीगड", count: 38, total: 38, smears: 38, monthlyTotal: 38, male: 19, monthlyMale: 19, female: 19, monthlyFemale: 19, priorTotal: 235, ytdTotal: 273, upkendra: "तावशीगड" },
-              { name: "वडजी", villageName: "वडजी", count: 32, total: 32, smears: 32, monthlyTotal: 32, male: 17, monthlyMale: 17, female: 15, monthlyFemale: 15, priorTotal: 197, ytdTotal: 229, upkendra: "वडजी" }
-            ];
+            const targetMonthName = cleanMonthString(mName) || "ऑक्टोबर २०२६";
+            const mObj = clientMonthMaster.find(m => cleanMonthString(m.name) === targetMonthName) || clientMonthMaster[9] || {};
+            const defaultOpdVillages = [];
 
             return {
               result: {
                 success: true,
                 data: {
                   name: targetMonthName,
-                  newOpd: mObj.newOpd || 1735,
-                  progNewOpd: mObj.progNewOpd || 12980,
-                  feverCases: mObj.feverCases || 271,
-                  progFeverCases: mObj.progFeverCases || 1973,
-                  bloodSmears: mObj.bloodSmears || 271,
-                  progBloodSmears: mObj.progBloodSmears || 1973,
-                  treatedCases: mObj.treatedCases || 271,
-                  progTreatedCases: mObj.progTreatedCases || 1973,
+                  newOpd: mObj.newOpd || 0,
+                  progNewOpd: mObj.progNewOpd || 0,
+                  feverCases: mObj.feverCases || 0,
+                  progFeverCases: mObj.progFeverCases || 0,
+                  bloodSmears: mObj.bloodSmears || 0,
+                  progBloodSmears: mObj.progBloodSmears || 0,
+                  treatedCases: mObj.treatedCases || 0,
+                  progTreatedCases: mObj.progTreatedCases || 0,
                   chloroquineSpent: mObj.chloroquineSpent || 0,
                   progChloroquineSpent: mObj.progChloroquineSpent || 0,
-                  mpwFn1: mObj.mpwFn1 || 5460,
-                  mpwFn2: mObj.mpwFn2 || 5421,
-                  mpwHomeVisits: mObj.mpwHomeVisits || 10881,
-                  progMpwFn1: mObj.progMpwFn1 || 5460,
-                  progMpwFn2: mObj.progMpwFn2 || 5421,
-                  progMpwHomeVisits: mObj.progMpwHomeVisits || 10881,
-                  anmFn1: mObj.anmFn1 || 2461,
-                  anmFn2: mObj.anmFn2 || 2630,
-                  anmHomeVisits: mObj.anmHomeVisits || 5091,
-                  progAnmFn1: mObj.progAnmFn1 || 2461,
-                  progAnmFn2: mObj.progAnmFn2 || 2630,
-                  progAnmHomeVisits: mObj.progAnmHomeVisits || 5091,
-                  priorOpdSum: mObj.priorOpdSum || 11245,
-                  priorFeverSum: mObj.priorFeverSum || 1702,
-                  priorSmearsSum: mObj.priorSmearsSum || 1702,
-                  priorTreatedSum: mObj.priorTreatedSum || 1702,
+                  mpwFn1: mObj.mpwFn1 || 0,
+                  mpwFn2: mObj.mpwFn2 || 0,
+                  mpwHomeVisits: mObj.mpwHomeVisits || 0,
+                  progMpwFn1: mObj.progMpwFn1 || 0,
+                  progMpwFn2: mObj.progMpwFn2 || 0,
+                  progMpwHomeVisits: mObj.progMpwHomeVisits || 0,
+                  anmFn1: mObj.anmFn1 || 0,
+                  anmFn2: mObj.anmFn2 || 0,
+                  anmHomeVisits: mObj.anmHomeVisits || 0,
+                  progAnmFn1: mObj.progAnmFn1 || 0,
+                  progAnmFn2: mObj.progAnmFn2 || 0,
+                  progAnmHomeVisits: mObj.progAnmHomeVisits || 0,
+                  priorOpdSum: mObj.priorOpdSum || 0,
+                  priorFeverSum: mObj.priorFeverSum || 0,
+                  priorSmearsSum: mObj.priorSmearsSum || 0,
+                  priorTreatedSum: mObj.priorTreatedSum || 0,
                   priorCqSum: 0,
                   priorMpwFn1Sum: 0, priorMpwFn2Sum: 0, priorMpwSum: 0,
                   priorAnmFn1Sum: 0, priorAnmFn2Sum: 0, priorAnmSum: 0,
                   opdVillagewise: {
-                    monthlyTotal: 271, ytdTotal: 1973, monthlyMale: 139, monthlyFemale: 132, priorTotal: 1702,
+                    monthlyTotal: 0, ytdTotal: 0, monthlyMale: 0, monthlyFemale: 0, priorTotal: 0,
                     villages: defaultOpdVillages
                   }
                 }
@@ -2759,11 +2767,11 @@
 
           case 'getDefaulterListForMonth': {
             const [selectedMonth] = args;
-            const mName = cleanMonthString(selectedMonth) || "सप्टेंबर २०२६";
+            const mName = cleanMonthString(selectedMonth) || "ऑक्टोबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
 
-            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, 8, 1);
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, 9, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, 8, 30, 23, 59, 59);
 
             const monthBs = clientBsData.filter(r => {
@@ -2813,7 +2821,7 @@
             const [month, selectedEmpNames] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -2883,7 +2891,7 @@
             const [month] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -2947,7 +2955,7 @@
             const [month, upkendra, employee, staffType] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -3004,7 +3012,7 @@
             const [month, upkendra, employee, staffType] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -5848,14 +5856,24 @@
             <div style="display:flex; align-items:center; gap:8px;">
               <span style="font-size:24px;">🚰</span>
               <h3 style="margin:0; font-size:18px; font-weight:800; color:#0369a1;">
-                जलस्त्रोत नोंदवही
+                जलस्त्रोत नोंदवही (NWBDCP Water Source Register)
               </h3>
             </div>
-            
+            <div style="font-size:12.5px; color:#475569; margin-top:4px; font-weight:600;">
+              गावानिहाय सार्वजनिक व खाजगी पाणी स्त्रोतांची नोंदणी व Excel/CSV यादी अपलोड सुविधा
+            </div>
           </div>
-          <button type="button" id="nwbdcpBtnAddSource" onclick="openNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-size:13.5px; padding:10px 18px;">
-            <span>➕ नवीन जलस्त्रोत</span>
-          </button>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#f0f9ff; color:#0369a1; border:1.5px solid #0284c7; font-size:12.5px; font-weight:800; padding:9px 14px; text-decoration:none; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+              <span>📥 यादी टेम्पलेट (.xlsx)</span>
+            </a>
+            <button type="button" id="nwbdcpBtnUploadSourceList" onclick="openNwbdcpUploadSourcesModal()" class="mui-btn mui-btn-contained-secondary" style="background:#0f766e; color:#ffffff; font-size:13px; font-weight:800; padding:10px 16px; border:none; border-radius:8px;">
+              <span>📤 जलस्त्रोत यादी अपलोड करा (Upload Source List)</span>
+            </button>
+            <button type="button" id="nwbdcpBtnAddSource" onclick="openNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-size:13.5px; padding:10px 18px;">
+              <span>➕ नवीन जलस्त्रोत</span>
+            </button>
+          </div>
         </div>
 
         <!-- Filter Bar -->
@@ -5948,18 +5966,63 @@
       <div id="nwbdcpPaneDispatch" class="nwbdcp-subpane" style="display:none;">
         
         <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:22px 26px; margin-bottom:24px; box-shadow:0 4px 14px rgba(2,132,199,0.08);">
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <span style="font-size:26px;">🧪</span>
-            <h3 style="margin:0; font-size:20px; font-weight:800; color:#0369a1;">
-              पाणी नमुना पाठवणी
-            </h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:26px;">🧪</span>
+              <div>
+                <h3 style="margin:0; font-size:20px; font-weight:800; color:#0369a1;" id="nwbdcpDispatchMainTitle">
+                  पाणी व ब्लिचिंग पावडर (TCL) नमुना पाठवणी
+                </h3>
+                <div style="font-size:12.5px; color:#475569; font-weight:600;">
+                  १) पाण्याची जैविक तपासणी (Bacteriological) • २) पाण्याची रासायनिक तपासणी (Chemical) • ३) ब्लिचिंग पावडर (TCL) नमुना तपासणी
+                </div>
+              </div>
+            </div>
           </div>
-          
+
+          <!-- Sample Analysis Type Selector Cards -->
+          <div style="margin-bottom:18px;">
+            <label style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:8px; display:block;">
+              १. नमुना तपासणीचा प्रकार निवडा (Select Sample Checking / Analysis Type):
+            </label>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;">
+              <div id="nwbdcpAnalysisCard_BACTERIOLOGICAL" onclick="setNwbdcpDispatchAnalysisType('BACTERIOLOGICAL')" style="cursor:pointer; border:2.5px solid #0284c7; background:#f0f9ff; border-radius:12px; padding:14px 16px; transition:all 0.2s;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                  <span style="font-weight:800; font-size:14.5px; color:#0369a1;">🦠 १. पाण्याची जैविक तपासणी</span>
+                  <span class="mui-chip mui-chip-primary" style="font-size:11px; font-weight:800;">Bacteriological</span>
+                </div>
+                <div style="font-size:12px; color:#334155; font-weight:600;">
+                  MPN Count (/100ml), Coliform / E. coli जंतू संसर्ग व Residual Chlorine तपासणी
+                </div>
+              </div>
+
+              <div id="nwbdcpAnalysisCard_CHEMICAL" onclick="setNwbdcpDispatchAnalysisType('CHEMICAL')" style="cursor:pointer; border:2px solid #cbd5e1; background:#ffffff; border-radius:12px; padding:14px 16px; transition:all 0.2s;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                  <span style="font-weight:800; font-size:14.5px; color:#6d28d9;">⚗️ २. पाण्याची रासायनिक तपासणी</span>
+                  <span class="mui-chip mui-chip-info" style="font-size:11px; font-weight:800;">Chemical Analysis</span>
+                </div>
+                <div style="font-size:12px; color:#334155; font-weight:600;">
+                  pH, TDS, Turbidity, Hardness, Fluoride, Nitrate, Chloride, Iron रासायनिक मानके
+                </div>
+              </div>
+
+              <div id="nwbdcpAnalysisCard_BLEACHING_POWDER" onclick="setNwbdcpDispatchAnalysisType('BLEACHING_POWDER')" style="cursor:pointer; border:2px solid #cbd5e1; background:#ffffff; border-radius:12px; padding:14px 16px; transition:all 0.2s;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                  <span style="font-weight:800; font-size:14.5px; color:#b45309;">🧪 ३. ब्लिचिंग पावडर (TCL) तपासणी</span>
+                  <span class="mui-chip mui-chip-warning" style="font-size:11px; font-weight:800;">TCL Chlorine %</span>
+                </div>
+                <div style="font-size:12px; color:#334155; font-weight:600;">
+                  ग्रामपंचायत / उपकेंद्र टीसीएल साठ्यातील उपलब्ध क्लोरीन प्रमाण (Available Chlorine ≥ 25%) तपासणी
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="nwbdcpDispatchAnalysisType" value="BACTERIOLOGICAL">
+          </div>
 
           <!-- Step 1: Dispatch Header Configuration -->
-          <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:16px 20px; margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px;">
+          <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:16px 20px; margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:16px;">
             <div>
-              <label style="font-weight:800; font-size:13px; color:#0369a1; margin-bottom:4px; display:block;">पाणी संकलन दिनांक:</label>
+              <label style="font-weight:800; font-size:13px; color:#0369a1; margin-bottom:4px; display:block;" id="nwbdcpDispatchCollectionDateLabel">नमुना संकलन दिनांक:</label>
               <input type="date" id="nwbdcpDispatchCollectionDate" class="mui-form-control" style="font-weight:700;">
             </div>
             <div>
@@ -5969,6 +6032,10 @@
             <div>
               <label style="font-weight:800; font-size:13px; color:#0369a1; margin-bottom:4px; display:block;">प्रयोगशाळेचे नाव:</label>
               <input type="text" id="nwbdcpDispatchLabName" class="mui-form-control" value="जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव" style="font-weight:700;">
+            </div>
+            <div id="nwbdcpDispatchFieldChlorineWrap">
+              <label style="font-weight:800; font-size:13px; color:#0369a1; margin-bottom:4px; display:block;">क्षेत्रीय शिल्लक क्लोरीन (OT Test ppm):</label>
+              <input type="number" step="0.1" min="0" max="10" id="nwbdcpDispatchFieldChlorine" placeholder="उदा. 0.2 किंवा 0.5 ppm" class="mui-form-control" style="font-weight:700;">
             </div>
           </div>
 
@@ -6005,11 +6072,11 @@
 
           </div>
 
-          <!-- Step 4: Multi-Select Registered Water Sources Table -->
-          <div style="border:1.5px solid #0284c7; border-radius:12px; padding:18px; background:#ffffff;">
+          <!-- Step 4A: Multi-Select Registered Water Sources Table (For BACTERIOLOGICAL & CHEMICAL) -->
+          <div id="nwbdcpWaterSourceDispatchPanel" style="border:1.5px solid #0284c7; border-radius:12px; padding:18px; background:#ffffff;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
               <div style="display:flex; align-items:center; gap:10px;">
-                <label style="font-weight:800; font-size:15px; color:#0369a1;">जलस्त्रोत निवडा:</label>
+                <label style="font-weight:800; font-size:15px; color:#0369a1;" id="nwbdcpWaterSourceSelectLabel">जलस्त्रोत निवडा (जैविक तपासणी):</label>
                 <span id="nwbdcpDispatchSelectedCounter" class="mui-chip mui-chip-primary" style="font-size:12.5px; font-weight:800;">
                   एकूण स्रोत: 0 | निवडलेले: 0
                 </span>
@@ -6062,15 +6129,93 @@
                 </tbody>
               </table>
             </div>
+          </div>
 
-            <!-- Submit Dispatch Button -->
-            <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
-              
-              <button type="button" onclick="submitNwbdcpBatchDispatch()" class="mui-btn mui-btn-contained-success" style="padding:12px 28px; font-size:15px; font-weight:800; border-radius:10px; background:#16a34a; box-shadow:0 4px 12px rgba(22,163,74,0.3);">
-                🚀 नमुने पाठवा
-              </button>
+          <!-- Step 4B: Bleaching Powder (TCL) Sample Collection & Dispatch Panel (For BLEACHING_POWDER) -->
+          <div id="nwbdcpTclDispatchPanel" style="display:none; border:2px solid #d97706; border-radius:12px; padding:18px; background:#fffbeb;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+              <div>
+                <h4 style="margin:0; font-size:16px; font-weight:800; color:#b45309; display:flex; align-items:center; gap:8px;">
+                  <span>🧪 ब्लिचिंग पावडर (TCL) नमुना तपासणी व पाठवणी यादी</span>
+                  <span id="nwbdcpTclSelectedCounter" class="mui-chip mui-chip-warning" style="font-weight:800;">एकूण TCL नमुने: 0</span>
+                </h4>
+                <div style="font-size:12px; color:#92400e; margin-top:2px; font-weight:600;">
+                  ग्रामपंचायत / उपकेंद्र पातळीवरील TCL साठ्यातील उपलब्ध क्लोरीन (Available Chlorine ≥ 25%) तपासणीसाठी नमुने जोडा
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button type="button" onclick="populateTclSamplesFromSelectedVillages()" class="mui-btn" style="background:#d97706; color:#ffffff; font-weight:800; font-size:12.5px; padding:8px 14px; border:none; border-radius:8px; cursor:pointer;">
+                  ⚡ निवडलेल्या गावांसाठी ग्रामपंचायत TCL नमुने जोडा
+                </button>
+                <button type="button" onclick="clearNwbdcpTclDraftList()" class="mui-btn" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; font-weight:800; font-size:12px; padding:8px 12px; border-radius:8px; cursor:pointer;">
+                  ✕ यादी क्लियर करा
+                </button>
+              </div>
             </div>
 
+            <!-- Add Single TCL Sample Row -->
+            <div style="background:#ffffff; border:1px solid #fde68a; border-radius:10px; padding:14px; margin-bottom:14px; display:grid; grid-template-columns:repeat(auto-fit, minmax(155px, 1fr)); gap:10px; align-items:end;">
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#78350f; display:block; margin-bottom:4px;">उपकेंद्र:</label>
+                <select id="nwbdcpTclSubcenterSelect" onchange="onNwbdcpTclSubcenterChange(this.value)" class="filter-select" style="width:100%; height:36px; font-size:12.5px;"></select>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#78350f; display:block; margin-bottom:4px;">गाव / ग्रामपंचायत:</label>
+                <select id="nwbdcpTclVillageSelect" class="filter-select" style="width:100%; height:36px; font-size:12.5px;"></select>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#78350f; display:block; margin-bottom:4px;">TCL साठा ठिकाण (Source):</label>
+                <input type="text" id="nwbdcpTclStockName" value="ग्रामपंचायत टीसीएल (Bleaching Powder) साठा" class="mui-form-control" style="height:36px; font-size:12.5px; font-weight:700;">
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#78350f; display:block; margin-bottom:4px;">बॅच क्र. (Batch No.):</label>
+                <input type="text" id="nwbdcpTclBatchNo" placeholder="उदा. TCL-2026-B1" class="mui-form-control" style="height:36px; font-size:12.5px;">
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#78350f; display:block; margin-bottom:4px;">पॅकिंग स्थिती:</label>
+                <select id="nwbdcpTclPackingType" class="filter-select" style="width:100%; height:36px; font-size:12.5px;">
+                  <option value="सीलबंद पोते (Sealed Bag)">सीलबंद पोते (Sealed Bag)</option>
+                  <option value="उघडलेले पोते (Open Bag)">उघडलेले पोते (Open Bag)</option>
+                  <option value="प्लास्टिक ड्रम साठा (Drum)">प्लास्टिक ड्रम साठा (Drum)</option>
+                </select>
+              </div>
+              <div>
+                <button type="button" onclick="addSingleNwbdcpTclSample()" class="mui-btn" style="width:100%; height:36px; background:#0369a1; color:#ffffff; font-weight:800; font-size:12.5px; border:none; border-radius:8px; cursor:pointer;">
+                  ➕ यादीत जोडा
+                </button>
+              </div>
+            </div>
+
+            <!-- TCL Draft Table -->
+            <div style="max-height:280px; overflow-y:auto; background:#ffffff; border:1px solid #fde68a; border-radius:8px;">
+              <table class="table-modern" style="margin:0;">
+                <thead>
+                  <tr>
+                    <th style="width:45px; text-align:center;">#</th>
+                    <th>उपकेंद्र</th>
+                    <th>गाव / ग्रामपंचायत</th>
+                    <th>TCL नमुना साठा ठिकाण</th>
+                    <th>बॅच क्र. (Batch No)</th>
+                    <th>पॅकिंग स्थिती</th>
+                    <th>नमुना वजन</th>
+                    <th style="width:80px; text-align:center;">कृती</th>
+                  </tr>
+                </thead>
+                <tbody id="nwbdcpTclDraftTableBody">
+                  <tr><td colspan="8" style="text-align:center; padding:20px; color:#92400e;">वर '⚡ निवडलेल्या गावांसाठी ग्रामपंचायत TCL नमुने जोडा' किंवा '➕ यादीत जोडा' वर क्लिक करा.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Submit Dispatch Button -->
+          <div style="margin-top:20px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+            <div style="font-size:12.5px; font-weight:700; color:#475569;" id="nwbdcpDispatchModeHint">
+              निवडलेला तपासणी प्रकार: <b style="color:#0369a1;">🦠 पाण्याची जैविक तपासणी (Bacteriological Water Analysis)</b>
+            </div>
+            <button type="button" onclick="submitNwbdcpBatchDispatch()" class="mui-btn mui-btn-contained-success" style="padding:12px 28px; font-size:15px; font-weight:800; border-radius:10px; background:#16a34a; box-shadow:0 4px 12px rgba(22,163,74,0.3);">
+              🚀 नमुने पाठवा
+            </button>
           </div>
 
         </div>
@@ -6092,6 +6237,9 @@
             
           </div>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" onclick="openNwbdcpConsolidatedMonthlyReport()" class="mui-btn" style="background:linear-gradient(135deg, #dc2626, #b91c1c); color:#ffffff; border:none; font-weight:800;">
+              📑 एकत्रित मासिक PDF अहवाल (Consolidated Monthly PDF)
+            </button>
             <button type="button" onclick="openNwbdcpBatchStickersModal()" class="mui-btn mui-btn-contained-secondary" style="background:#0f172a; color:#ffffff; border:none;">
               🖨️ निवडलेल्या नमुन्यांचे स्टिकर्स प्रिंट करा
             </button>
@@ -6102,7 +6250,16 @@
         </div>
 
         <!-- Filter Controls for Register -->
-        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; margin-bottom:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; align-items:end;">
+        <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:14px 18px; margin-bottom:18px; display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px; align-items:end;">
+          <div>
+            <label style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:4px; display:block;">तपासणी प्रकार:</label>
+            <select id="nwbdcpRegFilterAnalysisType" class="filter-select" onchange="filterNwbdcpRegisterTable()" style="width:100%; font-weight:800; color:#0369a1;">
+              <option value="ALL">-- सर्व तपासणी प्रकार --</option>
+              <option value="BACTERIOLOGICAL">🦠 जैविक तपासणी (Bacteriological)</option>
+              <option value="CHEMICAL">⚗️ रासायनिक तपासणी (Chemical)</option>
+              <option value="BLEACHING_POWDER">🧪 ब्लिचिंग पावडर (TCL)</option>
+            </select>
+          </div>
           <div>
             <label style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:4px; display:block;">पाठवणी दिनांक:</label>
             <div style="display:flex; gap:6px;">
@@ -6111,7 +6268,7 @@
             </div>
           </div>
           <div>
-            <label style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:4px; display:block;">पाठवणी दिनांक:</label>
+            <label style="font-size:12px; font-weight:700; color:#0369a1; margin-bottom:4px; display:block;">पाठवणी दिनांक यादी:</label>
             <select id="nwbdcpRegDateSelect" class="filter-select" onchange="onNwbdcpRegDateSelectChange(this.value)" style="width:100%; height:38px; font-weight:700; color:#0369a1;">
               <option value="ALL">-- सर्व पाठवणी दिनांक --</option>
             </select>
@@ -6134,14 +6291,14 @@
               <option value="ALL">-- सर्व स्थिती --</option>
               <option value="पाठविलेले">पाठविलेले (Dispatched)</option>
               <option value="अहवाल अप्राप्त">अहवाल अप्राप्त (Awaited)</option>
-              <option value="पिण्यास योग्य">पिण्यास योग्य (Safe)</option>
-              <option value="पिण्यास अयोग्य">पिण्यास अयोग्य (Unfit)</option>
+              <option value="पिण्यास योग्य">पिण्यास / वापरास योग्य (Safe / Standard)</option>
+              <option value="पिण्यास अयोग्य">पिण्यास / वापरास अयोग्य (Unfit / Sub-standard)</option>
               <option value="पुनर्तपासणी आवश्यक">पुनर्तपासणी आवश्यक (Re-test Needed)</option>
             </select>
           </div>
           <div>
-            <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">नमुना आयडी, दिनांक किंवा स्त्रोत शोधा:</label>
-            <input type="text" id="nwbdcpRegSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक (उदा. 28/10/2026), गाव..." oninput="filterNwbdcpRegisterTable()" class="mui-form-control" style="height:38px; font-size:13px;">
+            <label style="font-size:12px; font-weight:700; color:#334155; margin-bottom:4px; display:block;">नमुना आयडी / गाव शोधा:</label>
+            <input type="text" id="nwbdcpRegSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक, गाव..." oninput="filterNwbdcpRegisterTable()" class="mui-form-control" style="height:38px; font-size:13px;">
           </div>
         </div>
 
@@ -6155,12 +6312,12 @@
                     <input type="checkbox" id="nwbdcpRegHeaderCheckbox" onchange="toggleAllNwbdcpRegCheckboxes(this.checked)">
                   </th>
                   <th>नमुना आयडी</th>
+                  <th>तपासणी प्रकार</th>
                   <th>पाठवणी दिनांक</th>
                   <th>उपकेंद्र</th>
                   <th>गाव</th>
-                  <th>जलस्त्रोताचे नाव (Source)</th>
-                  <th>प्रकार</th>
-                  <th>मालकी</th>
+                  <th>जलस्त्रोत / TCL साठा नाव</th>
+                  <th>प्रकार व तपशील</th>
                   <th>निकाल / स्थिती</th>
                   <th style="text-align:center; width:160px;">प्रिंट / कृती</th>
                 </tr>
@@ -6184,12 +6341,96 @@
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
             <div>
               <h3 style="margin:0; font-size:18px; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:8px;">
-                <span>प्रयोगशाळा अहवाल निकाल</span>
+                <span>🔬 प्रयोगशाळा अहवाल निकाल (जैविक, रासायनिक व ब्लिचिंग पावडर TCL तपासणी)</span>
               </h3>
-              
             </div>
             <div style="font-size:12.5px; font-weight:700; color:#1e293b; background:#e0f2fe; padding:6px 14px; border-radius:8px;">
               प्रलंबित अहवाल: <span id="nwbdcpPendingResultsCount" style="color:#d97706; font-size:15px;">0</span>
+            </div>
+          </div>
+
+          <!-- Analytical Parameters Input Panel (Bacteriological / Chemical / TCL) -->
+          <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:12px 16px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+              <div style="font-weight:800; font-size:13px; color:#0369a1;">
+                🧪 तपासणी घटक / प्रयोगशाळा मानके प्रविष्ट करा (Analytical Parameters - Optional/Recommended):
+              </div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" id="nwbdcpLabParamTab_BACT" onclick="switchNwbdcpLabParamPanel('BACTERIOLOGICAL')" style="background:#0284c7; color:#fff; border:none; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:800; cursor:pointer;">🦠 जैविक (Bacteriological)</button>
+                <button type="button" id="nwbdcpLabParamTab_CHEM" onclick="switchNwbdcpLabParamPanel('CHEMICAL')" style="background:#ffffff; color:#475569; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:800; cursor:pointer;">⚗️ रासायनिक (Chemical)</button>
+                <button type="button" id="nwbdcpLabParamTab_TCL" onclick="switchNwbdcpLabParamPanel('BLEACHING_POWDER')" style="background:#ffffff; color:#475569; border:1px solid #cbd5e1; border-radius:6px; padding:4px 10px; font-size:12px; font-weight:800; cursor:pointer;">🧪 ब्लिचिंग पावडर (TCL)</button>
+              </div>
+            </div>
+
+            <!-- 1. Bacteriological Params -->
+            <div id="nwbdcpLabParamsBact" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#1e293b; display:block; margin-bottom:3px;">MPN Count (/100ml):</label>
+                <input type="number" min="0" id="nwbdcpParamMpn" placeholder="उदा. 0 (योग्य) किंवा >10" oninput="onNwbdcpBactParamInput()" class="mui-form-control" style="height:36px; font-size:12.5px; font-weight:700;">
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#1e293b; display:block; margin-bottom:3px;">Coliform / E. coli जंतू:</label>
+                <select id="nwbdcpParamEcoli" onchange="onNwbdcpBactParamInput()" class="filter-select" style="width:100%; height:36px; font-size:12.5px; font-weight:700;">
+                  <option value="">-- निवडा --</option>
+                  <option value="आढळले नाही (Absent)">🟢 आढळले नाही (Absent - Safe)</option>
+                  <option value="आढळले (Present)">🔴 आढळले (Present - Contaminated)</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#1e293b; display:block; margin-bottom:3px;">शिल्लक क्लोरीन (Residual Chlorine ppm):</label>
+                <input type="number" step="0.1" min="0" id="nwbdcpParamResidualChlorine" placeholder="उदा. 0.2 ppm" class="mui-form-control" style="height:36px; font-size:12.5px;">
+              </div>
+            </div>
+
+            <!-- 2. Chemical Params -->
+            <div id="nwbdcpLabParamsChem" style="display:none; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">pH (6.5 - 8.5):</label>
+                <input type="number" step="0.1" id="nwbdcpParamPh" placeholder="7.2" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">TDS (mg/L ≤2000):</label>
+                <input type="number" step="1" id="nwbdcpParamTds" placeholder="350" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">Turbidity (NTU ≤5):</label>
+                <input type="number" step="0.1" id="nwbdcpParamTurbidity" placeholder="1.2" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">Hardness (mg/L ≤600):</label>
+                <input type="number" step="1" id="nwbdcpParamHardness" placeholder="220" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">Fluoride (mg/L ≤1.5):</label>
+                <input type="number" step="0.01" id="nwbdcpParamFluoride" placeholder="0.6" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">Nitrate (mg/L ≤45):</label>
+                <input type="number" step="0.1" id="nwbdcpParamNitrate" placeholder="18" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">Chloride (mg/L ≤1000):</label>
+                <input type="number" step="1" id="nwbdcpParamChloride" placeholder="140" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+              <div>
+                <label style="font-size:11px; font-weight:800; color:#1e293b; display:block; margin-bottom:2px;">Iron (mg/L ≤1.0):</label>
+                <input type="number" step="0.01" id="nwbdcpParamIron" placeholder="0.15" class="mui-form-control" style="height:34px; font-size:12px;">
+              </div>
+            </div>
+
+            <!-- 3. Bleaching Powder (TCL) Params -->
+            <div id="nwbdcpLabParamsTcl" style="display:none; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; align-items:end;">
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#b45309; display:block; margin-bottom:3px;">उपलब्ध क्लोरीन % (Available Chlorine % - मानक ≥ 25%):</label>
+                <input type="number" step="0.1" min="0" max="100" id="nwbdcpParamTclChlorinePct" placeholder="उदा. 28.5% (≥25% योग्य)" oninput="onNwbdcpTclChlorineInput(this.value)" class="mui-form-control" style="height:36px; font-size:13px; font-weight:800;">
+              </div>
+              <div>
+                <label style="font-size:11.5px; font-weight:800; color:#78350f; display:block; margin-bottom:3px;">TCL बॅच क्र. (Batch No.):</label>
+                <input type="text" id="nwbdcpParamTclBatchNo" placeholder="उदा. TCL-2026-B1" class="mui-form-control" style="height:36px; font-size:12.5px;">
+              </div>
+              <div id="nwbdcpTclAutoGradeBadge" style="font-size:12px; font-weight:800; padding:8px 12px; border-radius:8px; background:#fef3c7; color:#92400e; border:1px solid #fde68a;">
+                ℹ️ मानक: क्लोरीन ≥ २५% असल्यास 'वापरास योग्य (Standard)', &lt; २५% असल्यास 'अमानक / अयोग्य'.
+              </div>
             </div>
           </div>
 
@@ -6206,8 +6447,8 @@
             <div>
               <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:4px; display:block;">तपासणी निकाल <span style="color:#dc2626;">*</span>:</label>
               <select id="nwbdcpLabResultSelect" class="filter-select" style="width:100%; font-weight:800;">
-                <option value="पिण्यास योग्य" style="color:#166534; font-weight:800;">पिण्यास योग्य</option>
-                <option value="पिण्यास अयोग्य" style="color:#991b1b; font-weight:800;">🔴 पिण्यास अयोग्य (Unfit / Contaminated)</option>
+                <option value="पिण्यास योग्य" style="color:#166534; font-weight:800;">🟢 पिण्यास योग्य / वापरास योग्य (Safe / Standard ≥25%)</option>
+                <option value="पिण्यास अयोग्य" style="color:#991b1b; font-weight:800;">🔴 पिण्यास अयोग्य / अमानक (Unfit / Sub-standard &lt;25%)</option>
                 <option value="अहवाल अप्राप्त">अहवाल अप्राप्त</option>
               </select>
             </div>
@@ -6269,15 +6510,20 @@
         <!-- Filter for Lab Results Table -->
         <div style="background:#ffffff; border:1px solid #e2e8f0; border-radius:12px; padding:12px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
           <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <select id="nwbdcpLabFilterAnalysisType" onchange="renderNwbdcpLabResultsTable()" class="filter-select" style="min-width:190px; font-weight:800; color:#0369a1;">
+              <option value="ALL">सर्व तपासणी प्रकार (All Types)</option>
+              <option value="BACTERIOLOGICAL">🦠 जैविक तपासणी (Bacteriological)</option>
+              <option value="CHEMICAL">⚗️ रासायनिक तपासणी (Chemical)</option>
+              <option value="BLEACHING_POWDER">🧪 ब्लिचिंग पावडर (TCL)</option>
+            </select>
             <select id="nwbdcpLabFilterStatus" onchange="renderNwbdcpLabResultsTable()" class="filter-select" style="min-width:180px;">
               <option value="अहवाल अप्राप्त" selected>प्रलंबित अहवाल (Pending Only)</option>
               <option value="ALL">सर्व नमुने (All Samples)</option>
-              <option value="पिण्यास योग्य">पिण्यास योग्य (Safe Only)</option>
-              <option value="पिण्यास अयोग्य">पिण्यास अयोग्य (Unfit Only)</option>
+              <option value="पिण्यास योग्य">पिण्यास / वापरास योग्य (Safe Only)</option>
+              <option value="पिण्यास अयोग्य">पिण्यास / वापरास अयोग्य (Unfit Only)</option>
             </select>
-            <input type="text" id="nwbdcpLabSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक (उदा. 28/10/2026), गाव..." oninput="renderNwbdcpLabResultsTable()" class="mui-form-control" style="width:280px; height:34px; font-size:12.5px;">
+            <input type="text" id="nwbdcpLabSearchInput" placeholder="नमुना आयडी, पाठवणी दिनांक, गाव..." oninput="renderNwbdcpLabResultsTable()" class="mui-form-control" style="width:260px; height:34px; font-size:12.5px;">
           </div>
-          
         </div>
 
         <!-- Lab Results Table -->
@@ -6290,10 +6536,12 @@
                     <input type="checkbox" id="nwbdcpLabHeaderCheckbox" onchange="toggleAllNwbdcpLabCheckboxes(this.checked)">
                   </th>
                   <th>नमुना आयडी</th>
+                  <th>तपासणी प्रकार</th>
                   <th>पाठवणी दिनांक</th>
                   <th>उपकेंद्र</th>
                   <th>गाव</th>
-                  <th>जलस्त्रोताचे नाव</th>
+                  <th>जलस्त्रोत / TCL साठा नाव</th>
+                  <th>तपासणी मानके</th>
                   <th>निकाल (Result)</th>
                   <th>अहवाल दिनांक</th>
                   <th>अहवाल प्रत</th>
@@ -6390,30 +6638,42 @@
       <div id="nwbdcpPaneReports" class="nwbdcp-subpane" style="display:none;">
         
         <!-- Reports Control Toolbar -->
-        <div style="background:#ffffff; border:1px solid #bae6fd; border-radius:14px; padding:20px 24px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
+        <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:20px 24px; margin-bottom:20px; box-shadow:0 4px 12px rgba(2,132,199,0.06);">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
             <div>
-              <h3 style="margin:0; font-size:18px; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:8px;">
-                <span>पाणी गुणवत्ता अहवाल</span>
+              <h3 style="margin:0; font-size:18.5px; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:8px;">
+                <span>📑 पाणी गुणवत्ता व एकत्रित मासिक सारांश अहवाल (Water Quality Summary Reports)</span>
               </h3>
-              
+              <div style="font-size:12.5px; color:#475569; font-weight:600; margin-top:4px;">
+                निवडलेल्या महिन्याचा रासायनिक (Chemical) व जैविक (Bacteriological) तपासणी तक्त्यांसह एकत्रित PDF अहवाल तयार करा
+              </div>
             </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-              <button type="button" onclick="window.print()" class="mui-btn mui-btn-contained-secondary" style="background:#0f172a; color:#fff;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+              <button type="button" onclick="openNwbdcpConsolidatedMonthlyReport()" class="mui-btn" style="background:#eff6ff; color:#1d4ed8; border:1.5px solid #3b82f6; font-weight:800; font-size:12.5px; padding:9px 14px; border-radius:8px;">
+                📊 एकत्रित मासिक अहवाल पहा
+              </button>
+              <button type="button" id="nwbdcpBtnDownloadConsolidatedPdf" onclick="downloadNwbdcpConsolidatedMonthlyPdf()" class="mui-btn mui-btn-contained-primary" style="background:linear-gradient(135deg, #dc2626, #b91c1c); color:#ffffff; font-weight:800; font-size:13px; padding:10px 16px; border:none; border-radius:8px; box-shadow:0 3px 10px rgba(220,38,38,0.25);">
+                📄 एकत्रित मासिक PDF डाउनलोड करा (Consolidated PDF)
+              </button>
+              <button type="button" onclick="printNwbdcpConsolidatedReport()" class="mui-btn mui-btn-contained-secondary" style="background:#0f172a; color:#fff; font-weight:800; font-size:12.5px; padding:9px 14px; border-radius:8px;">
                 🖨️ अहवाल प्रिंट करा
               </button>
-              <a href="/api/export/nwbdcp-samples.xlsx" target="_blank" download class="mui-btn mui-btn-contained-primary" style="background:#16a34a; text-decoration:none;">
-                📥 Excel एक्सपोर्ट (.xlsx)
+              <a href="/api/export/nwbdcp-samples.xlsx" target="_blank" download class="mui-btn mui-btn-contained-primary" style="background:#16a34a; text-decoration:none; font-weight:800; font-size:12.5px; padding:9px 14px; border-radius:8px;">
+                📥 Excel (.xlsx)
               </a>
             </div>
           </div>
 
           <!-- Report Type & Parameter Selectors -->
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; background:#f0f9ff; padding:14px 18px; border-radius:10px; border:1px solid #bae6fd;">
-            <div>
-              <label style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:4px; display:block;">अहवाल प्रकार:</label>
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(175px, 1fr)); gap:12px; background:#f0f9ff; padding:14px 18px; border-radius:10px; border:1px solid #bae6fd;">
+            <div style="grid-column: span 2;">
+              <label style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:4px; display:block;">अहवाल प्रकार (Report Type):</label>
               <select id="nwbdcpReportTypeSelect" onchange="renderNwbdcpReportData()" class="filter-select" style="width:100%; font-weight:800; color:#0369a1;">
-                <option value="REGISTER" selected>📋 पाणी नमुना नोंदवही (Water Sample Register)</option>
+                <option value="CONSOLIDATED_MONTHLY" selected>📑 एकत्रित मासिक पाणी गुणवत्ता सारांश अहवाल (Consolidated Monthly Chemical & Bacteriological Report)</option>
+                <option value="REGISTER">📋 एकत्रित पाणी व TCL नमुना नोंदवही (All Register)</option>
+                <option value="BACTERIOLOGICAL_REG">🦠 पाण्याची जैविक तपासणी अहवाल (Bacteriological Analysis Module)</option>
+                <option value="CHEMICAL_REG">⚗️ पाण्याची रासायनिक तपासणी अहवाल (Chemical Analysis Module)</option>
+                <option value="TCL_REG">🧪 ब्लिचिंग पावडर (TCL) नमुना तपासणी अहवाल</option>
                 <option value="MONTHLY">K. मासिक पाणी नमुना अहवाल (Monthly Report)</option>
                 <option value="PROGRESSIVE">L. प्रगतीपथावरील अहवाल (Progressive Cumulative)</option>
                 <option value="DAILY">A. दैनिक नमुना पाठवणी अहवाल (Daily Dispatch)</option>
@@ -6423,6 +6683,22 @@
                 <option value="UNSUITABLE">I. पिण्यास अयोग्य/दूषित नमुने अहवाल (Contaminated Unsafe)</option>
                 <option value="RETEST">J. पुनर्तपासणी अहवाल (Re-Test Report)</option>
                 <option value="AWAITED">H. प्रलंबित अहवाल (Pending Awaited Report)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                <span>📅 महिना निवडा (Month):</span>
+                <button type="button" onclick="clearNwbdcpReportMonthFilter()" style="background:none; border:none; color:#0284c7; font-size:11px; font-weight:800; text-decoration:underline; cursor:pointer; padding:0;">सर्व महिने</button>
+              </label>
+              <input type="month" id="nwbdcpReportMonthInput" value="2026-10" onchange="onNwbdcpReportMonthChange(this.value)" class="mui-form-control" style="height:38px; font-weight:800; color:#0f172a; background:#ffffff;">
+            </div>
+            <div>
+              <label style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:4px; display:block;">तपासणी प्रकार फिल्टर:</label>
+              <select id="nwbdcpReportAnalysisTypeSelect" onchange="renderNwbdcpReportData()" class="filter-select" style="width:100%; font-weight:700;">
+                <option value="ALL">-- सर्व प्रकार (जैविक + रासायनिक + TCL) --</option>
+                <option value="BACTERIOLOGICAL">🦠 जैविक तपासणी</option>
+                <option value="CHEMICAL">⚗️ रासायनिक तपासणी</option>
+                <option value="BLEACHING_POWDER">🧪 ब्लिचिंग पावडर (TCL)</option>
               </select>
             </div>
             <div>
@@ -6456,6 +6732,7 @@
                 <option value="सार्वजनिक पाणीपुरवठा योजना (नळ योजना)">सार्वजनिक पाणीपुरवठा योजना (नळ योजना)</option>
                 <option value="स्टॅन्ड पोस्ट">स्टॅन्ड पोस्ट</option>
                 <option value="RO Plant">RO Plant</option>
+                <option value="ब्लिचिंग पावडर (TCL) साठा">ब्लिचिंग पावडर (TCL) साठा</option>
                 <option value="इतर">इतर</option>
               </select>
             </div>
@@ -6463,8 +6740,8 @@
               <label style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:4px; display:block;">निकाल:</label>
               <select id="nwbdcpReportResultSelect" onchange="renderNwbdcpReportData()" class="filter-select" style="width:100%;">
                 <option value="ALL">-- सर्व निकाल --</option>
-                <option value="पिण्यास योग्य">पिण्यास योग्य (Safe)</option>
-                <option value="पिण्यास अयोग्य">पिण्यास अयोग्य (Unfit)</option>
+                <option value="पिण्यास योग्य">पिण्यास / वापरास योग्य (Safe)</option>
+                <option value="पिण्यास अयोग्य">पिण्यास / वापरास अयोग्य (Unfit)</option>
                 <option value="अहवाल अप्राप्त">अहवाल अप्राप्त (Pending)</option>
               </select>
             </div>
@@ -6484,18 +6761,72 @@
 
 
       <!-- ========================================================================= -->
-      <!-- SUBPANE 7: HISTORICAL DATA CONTROLLED IMPORT                              -->
+      <!-- SUBPANE 7: WATER SOURCE LIST UPLOAD & HISTORICAL DATA IMPORT              -->
       <!-- ========================================================================= -->
       <div id="nwbdcpPaneImport" class="nwbdcp-subpane" style="display:none;">
         
+        <!-- SECTION A: NWBDCP WATER SOURCE LIST BULK UPLOAD FACILITY -->
+        <div style="background:#ffffff; border:2px solid #0f766e; border-radius:14px; padding:22px 26px; box-shadow:0 4px 12px rgba(15,118,110,0.08); margin-bottom:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span style="font-size:26px;">🚰</span>
+              <div>
+                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f766e;">
+                  १. जलस्त्रोत यादी अपलोड सुविधा (NWBDCP Water Source List Bulk Upload)
+                </h3>
+                <div style="font-size:12.5px; color:#475569; font-weight:600;">
+                  Excel (.xlsx/.xls) किंवा CSV फाईलद्वारे सर्व गावांमधील पाणी स्त्रोतांची यादी थेट Supabase डेटाबेसमध्ये अपलोड करा
+                </div>
+              </div>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+              <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#0f766e; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 14px; border-radius:8px; font-weight:800;">
+                📊 जलस्त्रोत Excel टेम्पलेट (.xlsx)
+              </a>
+              <a href="/api/export/nwbdcp-source-template.csv" target="_blank" download class="mui-btn" style="background:#115e59; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 14px; border-radius:8px; font-weight:800;">
+                📄 जलस्त्रोत CSV टेम्पलेट (.csv)
+              </a>
+            </div>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
+            <div style="border:1.5px dashed #0f766e; background:#f0fdfa; border-radius:12px; padding:18px;">
+              <label style="font-weight:800; font-size:13px; color:#0f766e; margin-bottom:8px; display:block;">
+                जलस्त्रोत यादी Excel / CSV फाईल निवडा किंवा खाली पेस्ट करा:
+              </label>
+              <textarea id="nwbdcpSourceUploadTextarea" rows="6" placeholder="उपकेंद्र, गाव, जलस्त्रोताचे नाव, स्त्रोत प्रकार, मालकी, स्थिती, पत्ता/ठिकाण&#10;भादा, भादा, ग्रामपंचायत मुख्य विहीर क्र. १, सार्वजनिक विहीर, सार्वजनिक, सुरू, हनुमान मंदिराजवळ" class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:12px;"></textarea>
+              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+                <input type="file" id="nwbdcpSourceUploadFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpSourceUploadFile(this, 'nwbdcpSourceUploadTextarea')" style="font-size:12px;">
+                <button type="button" onclick="submitNwbdcpSourceListUpload('nwbdcpSourceUploadTextarea')" class="mui-btn mui-btn-contained-primary" style="background:#0f766e; font-weight:800;">
+                  📤 जलस्त्रोत यादी अपलोड व सेव्ह करा
+                </button>
+              </div>
+            </div>
+
+            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:18px;">
+              <h4 style="margin:0 0 8px 0; font-size:14px; font-weight:800; color:#1e293b;">
+                📋 जलस्त्रोत यादी कॉलम रचना (Source List Columns):
+              </h4>
+              <ul style="margin:0; padding-left:18px; font-size:12.5px; color:#475569; line-height:1.7;">
+                <li><b>उपकेंद्र (Subcenter):</b> भादा, आलमला, कोरंगळा, बोरगाव बु., नागूर, शिंदाळा (गाव दिल्यास आपोआप ओळखले जाते)</li>
+                <li><b>गाव (Village):</b> गावाचे नाव (अनिवार्य)</li>
+                <li><b>जलस्त्रोताचे नाव (Source Name):</b> उदा. ग्रामपंचायत विहीर क्र. १, जि.प. शाळा हातपंप (अनिवार्य)</li>
+                <li><b>स्त्रोत प्रकार (Source Type):</b> विहीर / हातपंप / विद्युत पंप / नळ योजना / RO Plant / आड</li>
+                <li><b>मालकी (Ownership):</b> सार्वजनिक (शासकीय) किंवा खाजगी</li>
+                <li><b>पत्ता/ठिकाण (Location):</b> मंदिर परिसर, वॉर्ड क्र. १ इ.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECTION B: HISTORICAL SAMPLE & RESULT IMPORT -->
         <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:22px 26px; box-shadow:0 4px 12px rgba(2,132,199,0.08); margin-bottom:20px;">
           <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
             <span style="font-size:26px;">📥</span>
-            <h3 style="margin:0; font-size:20px; font-weight:800; color:#0369a1;">
-              डेटा आयात
+            <h3 style="margin:0; font-size:19px; font-weight:800; color:#0369a1;">
+              २. जुने पाणी व TCL नमुने डेटा आयात (Historical Sample Import)
             </h3>
           </div>
-          
 
           <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
             <!-- File / Text Upload Area -->
@@ -6503,11 +6834,11 @@
               <label style="font-weight:800; font-size:13.5px; color:#0369a1; margin-bottom:8px; display:block;">
                 CSV / Excel फाईल किंवा मजकूर:
               </label>
-              <textarea id="nwbdcpImportTextarea" rows="8" placeholder="उपकेंद्र, गाव, स्त्रोताचे नाव, पाठवणी दिनांक, नमुना निकाल..." class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:12px;"></textarea>
+              <textarea id="nwbdcpImportTextarea" rows="7" placeholder="उपकेंद्र, गाव, स्त्रोताचे नाव, पाठवणी दिनांक, नमुना निकाल..." class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:12px;"></textarea>
               <div style="display:flex; justify-content:space-between; align-items:center;">
                 <input type="file" id="nwbdcpImportFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpImportFile(this)" style="font-size:12px;">
                 <button type="button" onclick="previewNwbdcpHistoricalImport()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7;">
-                  डेटा पडताळणी करा
+                  डेटा आयात करा
                 </button>
               </div>
             </div>
@@ -6523,7 +6854,7 @@
                   <li><b>स्त्रोत आयडी:</b> WS-BHD-TAP-001 (पर्यायी)</li>
                   <li><b>जलस्त्रोताचे नाव:</b> ग्रामपंचायत नळ योजना, जि.प. हातपंप...</li>
                   <li><b>स्त्रोत प्रकार / मालकी:</b> नळ योजना/विहीर, शासकीय/खाजगी</li>
-                  <li><b>पाठवणी दिनांक:</b> YYYY-MM-DD (उदा. 2026-01-15)</li>
+                  <li><b>पाठवणी दिनांक:</b> YYYY-MM-DD (उदा. 2026-10-15)</li>
                   <li><b>तपासणी निकाल:</b> पिण्यास योग्य / पिण्यास अयोग्य / अहवाल अप्राप्त</li>
                 </ul>
               </div>
@@ -6531,7 +6862,7 @@
               <!-- Download Excel / CSV Unicode Template Buttons -->
               <div style="margin-top:16px; border-top:1px solid #cbd5e1; padding-top:14px;">
                 <div style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:8px;">
-                  टेम्पलेट डाउनलोड:
+                  नमुना आयात टेम्पलेट डाउनलोड:
                 </div>
                 <div style="display:flex; flex-wrap:wrap; gap:8px;">
                   <a href="/api/export/nwbdcp-template.xlsx" target="_blank" download class="mui-btn mui-btn-contained-primary" style="background:#0284c7; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 12px; border-radius:8px; font-weight:800; display:inline-flex; align-items:center; gap:6px;">
@@ -6543,48 +6874,6 @@
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-
-        <!-- Import Validation Preview Box -->
-        <div id="nwbdcpImportPreviewBox" style="display:none; background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04);">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <h4 style="margin:0; font-size:16px; font-weight:800; color:#0f172a;">
-              पडताळणी निकाल
-            </h4>
-            <div style="display:flex; gap:10px;">
-              <span id="nwbdcpImportValidBadge" class="mui-chip mui-chip-success">वैध नोंदी: 0</span>
-              <span id="nwbdcpImportDupBadge" class="mui-chip mui-chip-warning">दुबार नोंद: 0</span>
-            </div>
-          </div>
-
-          <div style="max-height:240px; overflow-y:auto; margin-bottom:16px; border:1px solid #e2e8f0; border-radius:8px;">
-            <table class="table-modern" style="margin:0;">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>नमुना आयडी</th>
-                  <th>उपकेंद्र</th>
-                  <th>गाव</th>
-                  <th>जलस्त्रोत</th>
-                  <th>दिनांक</th>
-                  <th>निकाल</th>
-                  <th>स्थिती</th>
-                </tr>
-              </thead>
-              <tbody id="nwbdcpImportPreviewTableBody">
-                <!-- Rendered dynamically -->
-              </tbody>
-            </table>
-          </div>
-
-          <div style="display:flex; justify-content:flex-end; gap:12px;">
-            <button type="button" onclick="cancelNwbdcpImportPreview()" class="mui-btn mui-btn-contained-secondary">
-              रद्द करा
-            </button>
-            <button type="button" onclick="commitNwbdcpHistoricalImport()" class="mui-btn mui-btn-contained-success" style="background:#16a34a; font-weight:800;">
-              डेटा सेव्ह करा
-            </button>
           </div>
         </div>
 
@@ -17246,48 +17535,22 @@
       bsData: {
         title: '🩸 BsDataEntry (कर्मचारीनिहाय रक्त नमुना नोंद)',
         desc: 'या शीटमध्ये कर्मचाऱ्याने घेतलेल्या रक्त नमुन्यांची नोंद असते (BS ID, तारीख, उपकेंद्र, कर्मचारी नाव, पद, BS Code, बंडल क्र., पासून, पर्यंत, एकूण).',
-        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,पदनाम,BS_Code,बंडल_क्रमांक,पासून,पर्यंत,एकूण_नमुने
-BS-1001,2026-09-02,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,BND-01,1,10,10
-BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,BND-02,1,15,15
-BS-1003,2026-09-04,लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,BND-03,1,12,12
-BS-1004,2026-09-05,मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,BND-04,1,14,14
-BS-1005,2026-09-06,मातोळा,श्रीमती म्हेत्रे एस.एम.,आरोग्य सेविका (ANM),54F1,BND-05,1,16,16
-BS-1006,2026-09-07,शिवली,श्री पाटील व्ही एम,आरोग्य सेवक (MPW),54S2,BND-06,1,18,18`
+        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,पदनाम,BS_Code,बंडल_क्रमांक,पासून,पर्यंत,एकूण_नमुने`
       },
       village: {
         title: '🏡 VillageDetails (गावनिहाय रक्त नमुना तपशील)',
         desc: 'या शीटमध्ये गावनिहाय घेतलेल्या रक्त नमुन्यांची (पुरुष, स्त्री, एकूण) माहिती असते. BS ID द्वारे ही नोंद मुख्य रक्त नमुन्याशी जोडली जाते.',
-        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,गाव_नाव,पुरुष,स्त्री,एकूण_नमुने
-BS-1001,2026-09-02,आलमला,श्रीमती पुनम रावसाहेब काळे,आलमला,4,6,10
-BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,भेटा,5,4,9
-BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,आंदोरा,3,3,6
-BS-1003,2026-09-04,लखनगाव,श्रीमती जगताप ए टी,लखनगांव,6,6,12
-BS-1004,2026-09-05,मंगरूळ,श्री शिंदे एस एम,मंगरूळ,7,7,14
-BS-1005,2026-09-06,मातोळा,श्रीमती म्हेत्रे एस.एम.,मातोळा,8,8,16
-BS-1006,2026-09-07,शिवली,श्री पाटील व्ही एम,शिवली,9,9,18`
+        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,गाव_नाव,पुरुष,स्त्री,एकूण_नमुने`
       },
       month: {
         title: '📅 MonthMaster (मासिक पंधरवडा, OPD, गृहभेटी व निर्देशांक)',
         desc: 'या शीटमध्ये प्रत्येक महिन्याचे पंधरवडा १ व २, नवीन OPD, MPW गृहभेटी, ANM गृहभेटी, आशा गृहभेटी, तापाचे रुग्ण, रक्त नमुने, उपचारीत रुग्ण व क्लोरोक्वीन गोळ्यांचा खर्च समाविष्ट असतो.',
-        sample: `महिना,नवीन_OPD,प्र_नवीन_OPD,MPW_गृहभेटी,प्र_MPW_गृहभेटी,ANM_गृहभेटी,प्र_ANM_गृहभेटी,आशा_गृहभेटी,प्र_आशा_गृहभेटी,तापाचे_रुग्ण,प्र_तापाचे_रुग्ण,रक्त_नमुने,प्र_रक्त_नमुने,उपचारीत_रुग्ण,प्र_उपचारीत_रुग्ण,क्लोरोक्वीन_खर्च,प्र_क्लोरोक्वीन_खर्च,पंधरवडा_१,पंधरवडा_२
-जानेवारी २०२६,1450,1450,420,420,380,380,620,620,135,135,128,128,128,128,512,512,01/01/2026 ते 15/01/2026,16/01/2026 ते 31/01/2026
-फेब्रुवारी २०२६,1380,2830,410,830,370,750,590,1210,120,255,115,243,115,243,460,972,01/02/2026 ते 14/02/2026,15/02/2026 ते 28/02/2026
-मार्च २०२६,1520,4350,430,1260,390,1140,640,1850,142,397,136,379,136,379,544,1516,01/03/2026 ते 15/03/2026,16/03/2026 ते 31/03/2026
-एप्रिल २०२६,1490,5840,415,1675,385,1525,610,2460,138,535,130,509,130,509,520,2036,01/04/2026 ते 15/04/2026,16/04/2026 ते 30/04/2026
-मे २०२६,1600,7440,440,2115,400,1925,650,3110,155,690,148,657,148,657,592,2628,01/05/2026 ते 15/05/2026,16/05/2026 ते 31/05/2026
-जून २०२६,1750,9190,460,2575,420,2345,690,3800,180,870,172,829,172,829,688,3316,01/06/2026 ते 15/06/2026,16/06/2026 ते 30/06/2026
-जुलै २०२६,1920,11110,480,3055,440,2785,730,4530,210,1080,205,1034,205,1034,820,4136,01/07/2026 ते 15/07/2026,16/07/2026 ते 31/07/2026
-ऑगस्ट २०२६,2050,13160,510,3565,460,3245,780,5310,240,1320,235,1269,235,1269,940,5076,01/08/2026 ते 15/08/2026,16/08/2026 ते 31/08/2026
-सप्टेंबर २०२६,2180,15340,530,4095,480,3725,820,6130,265,1585,258,1527,258,1527,1032,6108,01/09/2026 ते 15/09/2026,16/09/2026 ते 30/09/2026`
+        sample: `महिना,नवीन_OPD,प्र_नवीन_OPD,MPW_गृहभेटी,प्र_MPW_गृहभेटी,ANM_गृहभेटी,प्र_ANM_गृहभेटी,आशा_गृहभेटी,प्र_आशा_गृहभेटी,तापाचे_रुग्ण,प्र_तापाचे_रुग्ण,रक्त_नमुने,प्र_रक्त_नमुने,उपचारीत_रुग्ण,प्र_उपचारीत_रुग्ण,क्लोरोक्वीन_खर्च,प्र_क्लोरोक्वीन_खर्च,पंधरवडा_१,पंधरवडा_२`
       },
       master: {
         title: '👥 MasterData (६५ कर्मचारी व कार्यक्षेत्र गावे)',
         desc: 'प्रा.आ. केंद्र आलमला अंतर्गत ६ उपकेंद्रांमधील ६५ कर्मचारी, त्यांची पदे, BS Code आणि कार्यक्षेत्र गावांची यादी.',
-        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी
-आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,आलमला
-भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,"भेटा, आंदोरा, वडजी, नाव्होली"
-लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,"लखनगांव, सत्तधरवाडी, उटी बु., सोनपट्टी तांडा"
-मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,"मंगरूळ, कासार जवळगा, बोरगाव, हाळदुर्ग, शिंदेवाडी"`
+        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी`
       }
     };
 
@@ -17504,38 +17767,22 @@ BS-1006,2026-09-07,शिवली,श्री पाटील व्ही ए
       bsData: {
         title: '🩸 BsDataEntry (कर्मचारी रक्त नमुने नोंद)',
         desc: 'स्तंभ: <b>BS ID, दिनांक, उपकेंद्र, कर्मचारी नाव, पद, BS Code, बंडल क्र., पासून, पर्यंत, एकूण</b><br>💡 <i>नियम: \'दिनांक\' स्तंभाचे मूल्य <b>dd-mm-yyyy</b> (उदा. 11-12-2025, 27-10-2025) स्वरूपात असणे आवश्यक आहे.</i>',
-        sample: `BS ID,दिनांक,उपकेंद्र,कर्मचारी नाव,पद,BS Code,बंडल क्र.,पासून,पर्यंत,एकूण
-BS_20251211_54F6V3_1,11-12-2025,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,B_2025_1,1,10,10
-BS_20251027_54S3_2,27-10-2025,भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,B_2025_2,1,12,12
-BS_20250915_54F7_3,15-09-2025,लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,B_2025_3,1,8,8
-BS_20260105_54S4_4,05-01-2026,मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,B_2026_1,1,14,14
-BS_20260218_54S1_5,18-02-2026,भादा,श्री सुर्यवंशी एस. आर.,आरोग्य सेवक (MPW),54S1,B_2026_2,1,15,15`
+        sample: `BS ID,दिनांक,उपकेंद्र,कर्मचारी नाव,पद,BS Code,बंडल क्र.,पासून,पर्यंत,एकूण`
       },
       village: {
         title: '🏡 VillageDetails (गावनिहाय रक्त नमुने तपशील)',
         desc: 'स्तंभ: <b>BS ID, कर्मचारी नाव, दिनांक, गाव, एकूण नमुने, पुरुष, स्त्री, उपकेंद्र</b><br>💡 <i>नियम: \'दिनांक\' स्तंभाचे मूल्य <b>dd-mm-yyyy</b> (उदा. 11-12-2025, 27-10-2025) स्वरूपात असणे आवश्यक आहे.</i>',
-        sample: `BS ID,कर्मचारी नाव,दिनांक,गाव,एकूण नमुने,पुरुष,स्त्री,उपकेंद्र
-BS_VIL_1,श्रीमती पुनम रावसाहेब काळे,11-12-2025,आलमला,10,5,5,आलमला
-BS_VIL_2,श्री परमेश्वर काळे,27-10-2025,भेटा,12,6,6,भेटा
-BS_VIL_3,श्रीमती जगताप ए टी,15-09-2025,लखनगाव,8,4,4,लखनगाव
-BS_VIL_4,श्री शिंदे एस एम,05-01-2026,मंगरूळ,14,7,7,मंगरूळ
-BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भादा,15,8,7,भादा`
+        sample: `BS ID,कर्मचारी नाव,दिनांक,गाव,एकूण नमुने,पुरुष,स्त्री,उपकेंद्र`
       },
       month: {
         title: '📅 MonthMaster (मासिक व पंधरवडा निर्देशांक)',
         desc: 'स्तंभ: <b>महिना, नवीन OPD, प्र. नवीन OPD, MPW गृहभेटी, ANM गृहभेटी, आशा गृहभेटी, तापाचे रुग्ण, रक्त नमुणे, उपचारीत रुग्ण, क्लोरोक्वीन खर्च, FN1, FN2</b>',
-        sample: `महिना,नवीन OPD,प्र. नवीन OPD,MPW गृहभेटी,प्र. MPW गृहभेटी,ANM गृहभेटी,प्र. ANM गृहभेटी,आशा गृहभेटी,प्र. आशा गृहभेटी,तापाचे रुग्ण,प्र. तापाचे रुग्ण,रक्त नमुणे,प्र. रक्त नमुणे,उपचारीत रुग्ण,प्र. उपचारीत रुग्ण,क्लोरोक्वीन खर्च,प्र. क्लोरोक्वीन खर्च,FN1,FN2
-सप्टेंबर २०२६,2450,22000,1200,11000,980,8900,1450,13200,142,1250,138,1210,0,2,0,4,01/09/2026 ते 15/09/2026,16/09/2026 ते 30/09/2026
-ऑक्टोबर २०२६,2380,24380,1150,12150,920,9820,1390,14590,135,1385,130,1340,1,3,0,4,01/10/2026 ते 15/10/2026,16/10/2026 ते 31/10/2026`
+        sample: `महिना,नवीन OPD,प्र. नवीन OPD,MPW गृहभेटी,प्र. MPW गृहभेटी,ANM गृहभेटी,प्र. ANM गृहभेटी,आशा गृहभेटी,प्र. आशा गृहभेटी,तापाचे रुग्ण,प्र. तापाचे रुग्ण,रक्त नमुणे,प्र. रक्त नमुणे,उपचारीत रुग्ण,प्र. उपचारीत रुग्ण,क्लोरोक्वीन खर्च,प्र. क्लोरोक्वीन खर्च,FN1,FN2`
       },
       master: {
         title: '👥 MasterData (६५ कर्मचारी व कार्यक्षेत्र गावे)',
         desc: 'स्तंभ: <b>उपकेंद्र, कर्मचारी नाव, पदनाम, Bs Code, गावांची यादी</b>',
-        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी
-आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,आलमला
-भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,"भेटा, आंदोरा, वडजी, नाव्होली"
-लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,"लखनगांव, सत्तधरवाडी, उटी बु., सोनपट्टी तांडा"
-मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,"मंगरूळ, कासार जवळगा, बोरगाव, हाळदुर्ग, शिंदेवाडी"`
+        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी`
       }
     };
 
@@ -21125,6 +21372,52 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     </div>
   </div>
 
+  <!-- 1b. Bulk Upload Water Sources Modal -->
+  <div id="nwbdcpModalUploadSources" class="sheet-modal">
+    <div class="sheet-modal-body" style="max-width:680px; padding:24px; border-radius:14px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:2px solid #e2e8f0; padding-bottom:12px;">
+        <h3 style="margin:0; font-size:18px; font-weight:800; color:#0f766e; display:flex; align-items:center; gap:8px;">
+          <span>📤 जलस्त्रोत यादी अपलोड करा (NWBDCP Water Source List Bulk Upload)</span>
+        </h3>
+        <button type="button" onclick="closeNwbdcpUploadSourcesModal()" style="background:#edf2f7; border:none; width:32px; height:32px; border-radius:50%; font-size:16px; cursor:pointer; color:#4a5568;">✕</button>
+      </div>
+
+      <div style="background:#f0fdfa; border:1px solid #99f6e4; border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+        <div style="font-size:12.5px; color:#115e59; font-weight:700;">
+          Excel (.xlsx) किंवा CSV फाईल निवडा. गावाच्या नावावरून उपकेंद्र व स्त्रोत आयडी आपोआप तयार केले जातात.
+        </div>
+        <div style="display:flex; gap:8px;">
+          <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#0f766e; color:#fff; text-decoration:none; font-size:12px; padding:6px 12px; border-radius:6px; font-weight:800;">
+            📥 Excel टेम्पलेट (.xlsx)
+          </a>
+          <a href="/api/export/nwbdcp-source-template.csv" target="_blank" download class="mui-btn" style="background:#115e59; color:#fff; text-decoration:none; font-size:12px; padding:6px 12px; border-radius:6px; font-weight:800;">
+            📄 CSV टेम्पलेट (.csv)
+          </a>
+        </div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:6px; display:block;">
+          १. Excel (.xlsx/.xls) किंवा CSV फाईल निवडा:
+        </label>
+        <input type="file" id="nwbdcpModalSourceUploadFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpSourceUploadFile(this, 'nwbdcpModalSourceUploadTextarea')" style="font-size:12.5px; margin-bottom:10px;">
+        <label style="font-weight:800; font-size:12.5px; color:#1e293b; margin-bottom:6px; display:block;">
+          २. किंवा खाली थेट यादी पेस्ट करा (उपकेंद्र, गाव, जलस्त्रोताचे नाव, स्त्रोत प्रकार, मालकी, स्थिती, ठिकाण):
+        </label>
+        <textarea id="nwbdcpModalSourceUploadTextarea" rows="7" placeholder="उपकेंद्र, गाव, जलस्त्रोताचे नाव, स्त्रोत प्रकार, मालकी, स्थिती, पत्ता/ठिकाण&#10;भादा, भादा, ग्रामपंचायत मुख्य विहीर क्र. १, सार्वजनिक विहीर, सार्वजनिक, सुरू, हनुमान मंदिराजवळ" class="mui-form-control" style="font-family:monospace; font-size:12px;"></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:12px; border-top:1px solid #f1f5f9; padding-top:16px;">
+        <button type="button" onclick="closeNwbdcpUploadSourcesModal()" class="mui-btn mui-btn-contained-secondary">
+          रद्द करा
+        </button>
+        <button type="button" id="nwbdcpBtnCommitSourceUpload" onclick="submitNwbdcpSourceListUpload('nwbdcpModalSourceUploadTextarea')" class="mui-btn mui-btn-contained-primary" style="background:#0f766e; font-weight:800;">
+          📤 यादी अपलोड व सेव्ह करा
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- 2. Sample Bottle Sticker Print Modal -->
   <div id="nwbdcpModalStickerPrint" class="sheet-modal">
     <div class="sheet-modal-body" style="max-width:720px; padding:24px; border-radius:14px;">
@@ -21386,10 +21679,10 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         if (logoutBtn) logoutBtn.style.display = 'inline-block';
         if (gisWrapper) gisWrapper.style.display = 'none';
       } else {
-        badge.innerHTML = `⚠️ अनामिक (Sign-in required for mutations)`;
-        badge.style.background = '#f1f5f9';
-        badge.style.borderColor = '#cbd5e1';
-        badge.style.color = '#64748b';
+        badge.innerHTML = `✅ <span style="font-weight:700;">प्राथमिक आरोग्य केंद्र, भादा</span> (<span style="color:#0284c7; font-weight:700;">सक्रिय सत्र - Active PHC Session</span>)`;
+        badge.style.background = '#f0fdf4';
+        badge.style.borderColor = '#86efac';
+        badge.style.color = '#15803d';
         if (logoutBtn) logoutBtn.style.display = 'none';
         if (gisWrapper) gisWrapper.style.display = 'inline-block';
       }
@@ -22269,14 +22562,365 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       selectAllNwbdcpDispatchSources(isChecked);
     }
 
-    function submitNwbdcpBatchDispatch() {
-      if (isNwbdcpDispatchSubmitting) return;
+    // =========================================================================
+    // NWBDCP WATER SOURCE LIST BULK UPLOAD CONTROLLER
+    // =========================================================================
+    function openNwbdcpUploadSourcesModal() {
+      const modal = document.getElementById('nwbdcpModalUploadSources');
+      if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('open');
+      }
+    }
 
-      if (selectedDispatchSources.size === 0) {
-        alert('⚠️ कृपया नमुने पाठवण्यासाठी किमान एक जलस्त्रोत निवडा.');
+    function closeNwbdcpUploadSourcesModal() {
+      const modal = document.getElementById('nwbdcpModalUploadSources');
+      if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('open');
+      }
+    }
+
+    function readNwbdcpSourceUploadFile(input, targetTextareaId = 'nwbdcpModalSourceUploadTextarea') {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const fileName = file.name.toLowerCase();
+      const targetEl = document.getElementById(targetTextareaId);
+
+      if (typeof XLSX !== 'undefined' && (fileName.endsWith('.xlsx') || fileName.endsWith('.xls') || fileName.endsWith('.csv'))) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheetName = workbook.SheetNames[0];
+            const worksheet = workbook.Sheets[firstSheetName];
+            const jsonRows = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+            window._lastParsedNwbdcpSourceRows = jsonRows;
+            const csvText = XLSX.utils.sheet_to_csv(worksheet);
+            if (targetEl) targetEl.value = csvText;
+            showToast(`✅ Excel/CSV फाईलमधून ${jsonRows.length} जलस्त्रोत ओळी लोड झाल्या!`);
+          } catch (err) {
+            console.error('Error reading source upload Excel file:', err);
+            const txtReader = new FileReader();
+            txtReader.onload = ev => { if (targetEl) targetEl.value = ev.target.result; };
+            txtReader.readAsText(file, 'UTF-8');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        const txtReader = new FileReader();
+        txtReader.onload = ev => {
+          window._lastParsedNwbdcpSourceRows = null;
+          if (targetEl) targetEl.value = ev.target.result;
+          showToast('✅ फाईलमधून जलस्त्रोत मसुदा लोड झाला!');
+        };
+        txtReader.readAsText(file, 'UTF-8');
+      }
+    }
+
+    function parseCsvLineRespectingQuotes(line) {
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          if (inQuotes && line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (ch === ',' && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur.trim());
+      return result;
+    }
+
+    function submitNwbdcpSourceListUpload(textareaId = 'nwbdcpModalSourceUploadTextarea') {
+      const text = document.getElementById(textareaId)?.value || '';
+      if (!text.trim() && (!window._lastParsedNwbdcpSourceRows || window._lastParsedNwbdcpSourceRows.length === 0)) {
+        alert('⚠️ कृपया जलस्त्रोत यादीची Excel/CSV फाईल निवडा किंवा मजकूर पेस्ट करा.');
         return;
       }
 
+      let sourcesPayload = [];
+      const lines = text.trim().split(/\r?\n/).filter(l => l.trim().length > 0);
+
+      if (lines.length > 0) {
+        const firstCols = parseCsvLineRespectingQuotes(lines[0]);
+        const isHeaderRow = firstCols.some(c =>
+          /subcenter|village|source|उपकेंद्र|गाव|जलस्त्रोत|स्त्रोत|प्रकार|मालकी/i.test(c)
+        );
+
+        if (isHeaderRow && lines.length > 1) {
+          const headers = firstCols;
+          for (let i = 1; i < lines.length; i++) {
+            const cols = parseCsvLineRespectingQuotes(lines[i]);
+            if (cols.every(c => !c)) continue;
+            const obj = {};
+            headers.forEach((h, idx) => {
+              obj[h] = cols[idx] !== undefined ? cols[idx] : '';
+            });
+            sourcesPayload.push(obj);
+          }
+        } else {
+          for (let i = 0; i < lines.length; i++) {
+            const cols = parseCsvLineRespectingQuotes(lines[i]);
+            if (cols.every(c => !c)) continue;
+            if (cols.length >= 2) {
+              sourcesPayload.push({
+                subcenter: cols.length >= 3 ? cols[0] : '',
+                village: cols.length >= 3 ? cols[1] : cols[0],
+                sourceName: cols.length >= 3 ? cols[2] : cols[1],
+                sourceType: cols[3] || 'सार्वजनिक विहीर',
+                ownership: cols[4] || 'सार्वजनिक',
+                status: cols[5] || 'Active',
+                location: cols[6] || ''
+              });
+            }
+          }
+        }
+      }
+
+      if (sourcesPayload.length === 0) {
+        alert('⚠️ अपलोड करण्यासाठी वैध जलस्त्रोत नोंदी सापडल्या नाहीत.');
+        return;
+      }
+
+      nwbdcpFetch('/api/nwbdcp/import-water-sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: sourcesPayload })
+      })
+      .then(r => r.json())
+      .then(res => {
+        if (res && res.success) {
+          showToast(res.message || '✅ जलस्त्रोत यादी यशस्वीरित्या अपलोड झाली!');
+          alert(res.message);
+          closeNwbdcpUploadSourcesModal();
+          const ta = document.getElementById(textareaId);
+          if (ta) ta.value = '';
+          window._lastParsedNwbdcpSourceRows = null;
+          loadNwbdcpWaterSources();
+          switchNwbdcpSubtab('sources');
+        } else {
+          alert(res.error || res.message || '⚠️ जलस्त्रोत यादी अपलोड करताना त्रुटी आली.');
+        }
+      })
+      .catch(err => alert('⚠️ नेटवर्क त्रुटी: ' + err.message));
+    }
+
+    window.openNwbdcpUploadSourcesModal = openNwbdcpUploadSourcesModal;
+    window.closeNwbdcpUploadSourcesModal = closeNwbdcpUploadSourcesModal;
+    window.readNwbdcpSourceUploadFile = readNwbdcpSourceUploadFile;
+    window.submitNwbdcpSourceListUpload = submitNwbdcpSourceListUpload;
+
+    // =========================================================================
+    // 3-TYPE SAMPLE CHECKING & DISPATCH (BACTERIOLOGICAL, CHEMICAL, TCL)
+    // =========================================================================
+    let currentNwbdcpDispatchAnalysisType = 'BACTERIOLOGICAL';
+    let nwbdcpTclDraftSamples = [];
+
+    function getNwbdcpAnalysisBadgeHtml(analysisType, analysisParams) {
+      const p = analysisParams || {};
+      if (analysisType === 'CHEMICAL') {
+        const details = [
+          p.ph ? `pH:${p.ph}` : '',
+          p.tds ? `TDS:${p.tds}` : '',
+          p.turbidity ? `Turb:${p.turbidity}` : '',
+          p.fluoride ? `F:${p.fluoride}` : '',
+          p.nitrate ? `NO3:${p.nitrate}` : '',
+          p.hardness ? `Hard:${p.hardness}` : ''
+        ].filter(Boolean).join(', ');
+        return `<span class="mui-chip mui-chip-info" style="font-weight:800;">⚗️ रासायनिक (Chemical)</span>` +
+          (details ? `<div style="font-size:11px; color:#475569; margin-top:2px; font-weight:700;">${details}</div>` : '');
+      }
+      if (analysisType === 'BLEACHING_POWDER') {
+        const clStr = p.availableChlorinePct !== undefined && p.availableChlorinePct !== '' ? `क्लोरीन: <b>${p.availableChlorinePct}%</b>` : '';
+        const batchStr = p.tclBatchNo ? `बॅच: ${p.tclBatchNo}` : '';
+        const info = [clStr, batchStr].filter(Boolean).join(' | ');
+        return `<span class="mui-chip mui-chip-warning" style="font-weight:800;">🧪 ब्लिचिंग पावडर (TCL)</span>` +
+          (info ? `<div style="font-size:11px; color:#92400e; margin-top:2px;">${info}</div>` : '');
+      }
+      const bDetails = [
+        p.mpnCount !== undefined && p.mpnCount !== '' ? `MPN:${p.mpnCount}` : '',
+        p.ecoliStatus ? `E.coli:${p.ecoliStatus}` : '',
+        p.residualChlorine ? `RC:${p.residualChlorine}ppm` : ''
+      ].filter(Boolean).join(', ');
+      return `<span class="mui-chip mui-chip-primary" style="font-weight:800;">🦠 जैविक (Bacteriological)</span>` +
+        (bDetails ? `<div style="font-size:11px; color:#0369a1; margin-top:2px; font-weight:700;">${bDetails}</div>` : '');
+    }
+
+    function setNwbdcpDispatchAnalysisType(type) {
+      currentNwbdcpDispatchAnalysisType = type || 'BACTERIOLOGICAL';
+      const hiddenEl = document.getElementById('nwbdcpDispatchAnalysisType');
+      if (hiddenEl) hiddenEl.value = currentNwbdcpDispatchAnalysisType;
+
+      const cards = {
+        BACTERIOLOGICAL: { id: 'nwbdcpAnalysisCard_BACTERIOLOGICAL', border: '#0284c7', bg: '#f0f9ff' },
+        CHEMICAL: { id: 'nwbdcpAnalysisCard_CHEMICAL', border: '#7c3aed', bg: '#f5f3ff' },
+        BLEACHING_POWDER: { id: 'nwbdcpAnalysisCard_BLEACHING_POWDER', border: '#d97706', bg: '#fffbeb' }
+      };
+
+      Object.keys(cards).forEach(k => {
+        const el = document.getElementById(cards[k].id);
+        if (!el) return;
+        if (k === currentNwbdcpDispatchAnalysisType) {
+          el.style.border = `2.5px solid ${cards[k].border}`;
+          el.style.background = cards[k].bg;
+          el.style.boxShadow = '0 4px 10px rgba(0,0,0,0.06)';
+        } else {
+          el.style.border = '2px solid #cbd5e1';
+          el.style.background = '#ffffff';
+          el.style.boxShadow = 'none';
+        }
+      });
+
+      const waterPanel = document.getElementById('nwbdcpWaterSourceDispatchPanel');
+      const tclPanel = document.getElementById('nwbdcpTclDispatchPanel');
+      const fieldClWrap = document.getElementById('nwbdcpDispatchFieldChlorineWrap');
+      const sourceLabel = document.getElementById('nwbdcpWaterSourceSelectLabel');
+      const modeHint = document.getElementById('nwbdcpDispatchModeHint');
+
+      if (currentNwbdcpDispatchAnalysisType === 'BLEACHING_POWDER') {
+        if (waterPanel) waterPanel.style.display = 'none';
+        if (tclPanel) tclPanel.style.display = 'block';
+        if (fieldClWrap) fieldClWrap.style.display = 'none';
+        if (modeHint) modeHint.innerHTML = `निवडलेला तपासणी प्रकार: <b style="color:#b45309;">🧪 ब्लिचिंग पावडर (TCL) उपलब्ध क्लोरीन % नमुना तपासणी</b>`;
+        populateNwbdcpTclDropdowns();
+        if (nwbdcpTclDraftSamples.length === 0) {
+          populateTclSamplesFromSelectedVillages();
+        }
+      } else {
+        if (waterPanel) waterPanel.style.display = 'block';
+        if (tclPanel) tclPanel.style.display = 'none';
+        if (fieldClWrap) fieldClWrap.style.display = 'block';
+        if (currentNwbdcpDispatchAnalysisType === 'CHEMICAL') {
+          if (sourceLabel) sourceLabel.innerText = 'जलस्त्रोत निवडा (रासायनिक तपासणी - Chemical Water Analysis):';
+          if (modeHint) modeHint.innerHTML = `निवडलेला तपासणी प्रकार: <b style="color:#6d28d9;">⚗️ पाण्याची रासायनिक तपासणी (Chemical Analysis of Water)</b>`;
+        } else {
+          if (sourceLabel) sourceLabel.innerText = 'जलस्त्रोत निवडा (जैविक तपासणी - Bacteriological Water Analysis):';
+          if (modeHint) modeHint.innerHTML = `निवडलेला तपासणी प्रकार: <b style="color:#0369a1;">🦠 पाण्याची जैविक तपासणी (Bacteriological Analysis of Water)</b>`;
+        }
+      }
+    }
+
+    function populateNwbdcpTclDropdowns() {
+      const scSelect = document.getElementById('nwbdcpTclSubcenterSelect');
+      if (!scSelect) return;
+      const scList = nwbdcpMasterData.subcenters || [];
+      scSelect.innerHTML = scList.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+      if (scList.length > 0) {
+        onNwbdcpTclSubcenterChange(scList[0].name);
+      }
+    }
+
+    function onNwbdcpTclSubcenterChange(scName) {
+      const vSelect = document.getElementById('nwbdcpTclVillageSelect');
+      if (!vSelect) return;
+      const filteredV = (nwbdcpMasterData.villages || []).filter(v => v.subcenter === scName);
+      vSelect.innerHTML = filteredV.map(v => `<option value="${v.villageName}">${v.villageName}</option>`).join('');
+    }
+
+    function populateTclSamplesFromSelectedVillages() {
+      const villages = (nwbdcpMasterData.villages || []).filter(v =>
+        selectedDispatchSubcenters.has(v.subcenter) && selectedDispatchVillages.has(v.villageName)
+      );
+      if (villages.length === 0) {
+        alert('⚠️ कृपया वरून किमान एक उपकेंद्र व गाव निवडा.');
+        return;
+      }
+      const defaultBatch = document.getElementById('nwbdcpTclBatchNo')?.value || `TCL-${new Date().getFullYear()}`;
+      const defaultPacking = document.getElementById('nwbdcpTclPackingType')?.value || 'सीलबंद पोते (Sealed Bag)';
+
+      nwbdcpTclDraftSamples = villages.map((v, idx) => ({
+        subcenter: v.subcenter,
+        village: v.villageName,
+        sourceName: `ग्रामपंचायत ${v.villageName} टीसीएल (Bleaching Powder) साठा`,
+        sourceType: 'ब्लिचिंग पावडर (TCL) साठा',
+        ownership: 'सार्वजनिक',
+        tclBatchNo: `${defaultBatch}-${String(idx + 1).padStart(2, '0')}`,
+        tclPackingType: defaultPacking,
+        tclSampleQty: '250 ग्रॅम'
+      }));
+      renderNwbdcpTclDraftTable();
+    }
+
+    function addSingleNwbdcpTclSample() {
+      const subcenter = document.getElementById('nwbdcpTclSubcenterSelect')?.value || 'भादा';
+      const village = document.getElementById('nwbdcpTclVillageSelect')?.value || 'भादा';
+      const sourceName = document.getElementById('nwbdcpTclStockName')?.value || `ग्रामपंचायत ${village} टीसीएल साठा`;
+      const tclBatchNo = document.getElementById('nwbdcpTclBatchNo')?.value || `TCL-${new Date().getFullYear()}`;
+      const tclPackingType = document.getElementById('nwbdcpTclPackingType')?.value || 'सीलबंद पोते (Sealed Bag)';
+
+      nwbdcpTclDraftSamples.push({
+        subcenter,
+        village,
+        sourceName,
+        sourceType: 'ब्लिचिंग पावडर (TCL) साठा',
+        ownership: 'सार्वजनिक',
+        tclBatchNo,
+        tclPackingType,
+        tclSampleQty: '250 ग्रॅम'
+      });
+      renderNwbdcpTclDraftTable();
+    }
+
+    function removeNwbdcpTclDraftSample(idx) {
+      nwbdcpTclDraftSamples.splice(idx, 1);
+      renderNwbdcpTclDraftTable();
+    }
+
+    function clearNwbdcpTclDraftList() {
+      nwbdcpTclDraftSamples = [];
+      renderNwbdcpTclDraftTable();
+    }
+
+    function renderNwbdcpTclDraftTable() {
+      const tbody = document.getElementById('nwbdcpTclDraftTableBody');
+      const badge = document.getElementById('nwbdcpTclSelectedCounter');
+      if (badge) badge.innerText = `एकूण TCL नमुने: ${nwbdcpTclDraftSamples.length}`;
+      if (!tbody) return;
+
+      if (nwbdcpTclDraftSamples.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:20px; color:#92400e;">कोणताही TCL नमुना निवडलेला नाही. वर '⚡ निवडलेल्या गावांसाठी ग्रामपंचायत TCL नमुने जोडा' किंवा '➕ यादीत जोडा' वर क्लिक करा.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = nwbdcpTclDraftSamples.map((item, idx) => `
+        <tr>
+          <td style="text-align:center; font-weight:800;">${idx + 1}</td>
+          <td><b>${item.subcenter}</b></td>
+          <td><b>${item.village}</b></td>
+          <td style="font-weight:700; color:#b45309;">${item.sourceName}</td>
+          <td><span style="font-family:monospace; font-weight:700; background:#fef3c7; padding:2px 6px; border-radius:4px;">${item.tclBatchNo || '--'}</span></td>
+          <td>${item.tclPackingType || '--'}</td>
+          <td>${item.tclSampleQty || '250 ग्रॅम'}</td>
+          <td style="text-align:center;">
+            <button type="button" onclick="removeNwbdcpTclDraftSample(${idx})" style="background:#fef2f2; color:#dc2626; border:1px solid #fecaca; border-radius:6px; padding:3px 8px; font-size:11.5px; font-weight:800; cursor:pointer;">🗑️ काढा</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    window.setNwbdcpDispatchAnalysisType = setNwbdcpDispatchAnalysisType;
+    window.onNwbdcpTclSubcenterChange = onNwbdcpTclSubcenterChange;
+    window.populateTclSamplesFromSelectedVillages = populateTclSamplesFromSelectedVillages;
+    window.addSingleNwbdcpTclSample = addSingleNwbdcpTclSample;
+    window.removeNwbdcpTclDraftSample = removeNwbdcpTclDraftSample;
+    window.clearNwbdcpTclDraftList = clearNwbdcpTclDraftList;
+
+    function submitNwbdcpBatchDispatch() {
+      if (isNwbdcpDispatchSubmitting) return;
+
+      const analysisType = document.getElementById('nwbdcpDispatchAnalysisType')?.value || currentNwbdcpDispatchAnalysisType || 'BACTERIOLOGICAL';
       const dispatchDateInput = document.getElementById('nwbdcpDispatchDate');
       const dispatchDate = dispatchDateInput ? dispatchDateInput.value : '';
       if (!dispatchDate) {
@@ -22287,20 +22931,43 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const collectionDateInput = document.getElementById('nwbdcpDispatchCollectionDate');
       const collectionDate = collectionDateInput ? collectionDateInput.value : dispatchDate;
       const labName = document.getElementById('nwbdcpDispatchLabName')?.value || 'जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव';
+      const fieldChlorine = document.getElementById('nwbdcpDispatchFieldChlorine')?.value || '';
 
-      const sourcesToDispatch = nwbdcpWaterSourcesList.filter(s => selectedDispatchSources.has(s.id) && s.status === 'Active');
-      if (sourcesToDispatch.length === 0) {
-        alert('⚠️ निवडलेल्या जलस्त्रोतांपैकी एकही सक्रिय (Active) स्त्रोत नाही.');
-        return;
+      let payload = null;
+
+      if (analysisType === 'BLEACHING_POWDER') {
+        if (nwbdcpTclDraftSamples.length === 0) {
+          alert('⚠️ कृपया पाठवण्यासाठी किमान एक ब्लिचिंग पावडर (TCL) नमुना यादीत जोडा.');
+          return;
+        }
+        payload = {
+          analysisType: 'BLEACHING_POWDER',
+          collectionDate,
+          dispatchDate,
+          labName,
+          tclSamples: nwbdcpTclDraftSamples,
+          user: 'आरोग्य कर्मचारी'
+        };
+      } else {
+        if (selectedDispatchSources.size === 0) {
+          alert('⚠️ कृपया नमुने पाठवण्यासाठी किमान एक जलस्त्रोत निवडा.');
+          return;
+        }
+        const sourcesToDispatch = nwbdcpWaterSourcesList.filter(s => selectedDispatchSources.has(s.id) && (s.status === 'Active' || s.status === 'सुरू' || !s.status));
+        if (sourcesToDispatch.length === 0) {
+          alert('⚠️ निवडलेल्या जलस्त्रोतांपैकी एकही सक्रिय (Active) स्त्रोत नाही.');
+          return;
+        }
+        payload = {
+          analysisType,
+          collectionDate,
+          dispatchDate,
+          labName,
+          analysisParams: fieldChlorine !== '' ? { residualChlorine: fieldChlorine } : {},
+          selectedSources: sourcesToDispatch,
+          user: 'आरोग्य कर्मचारी'
+        };
       }
-
-      const payload = {
-        collectionDate,
-        dispatchDate,
-        labName,
-        selectedSources: sourcesToDispatch,
-        user: 'आरोग्य कर्मचारी'
-      };
 
       isNwbdcpDispatchSubmitting = true;
       const submitBtn = document.querySelector('button[onclick="submitNwbdcpBatchDispatch()"]');
@@ -22327,6 +22994,8 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
           alert(`${res.message}\n\nपाठवणी दिनांक: ${res.dispatchDate}\nजनरेट झालेले नमुना आयडी:\n${sampleListStr}`);
           showToast(res.message || '✅ नमुने यशस्वीरित्या नोंदविले गेले!');
           selectedDispatchSources.clear();
+          nwbdcpTclDraftSamples = [];
+          renderNwbdcpTclDraftTable();
           loadNwbdcpDispatchedSamples();
           renderNwbdcpDispatchSourcesList();
         } else {
@@ -22442,6 +23111,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     }
 
     function renderNwbdcpRegisterTable() {
+      const aTypeFilter = document.getElementById('nwbdcpRegFilterAnalysisType')?.value || 'ALL';
       const filterDate = document.getElementById('nwbdcpRegFilterDate')?.value || '';
       const sc = document.getElementById('nwbdcpRegFilterSubcenter')?.value || 'ALL';
       const vil = document.getElementById('nwbdcpRegFilterVillage')?.value || 'ALL';
@@ -22450,6 +23120,9 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       let list = [...nwbdcpDispatchedSamplesList];
 
+      if (aTypeFilter !== 'ALL') {
+        list = list.filter(d => (d.analysisType || 'BACTERIOLOGICAL') === aTypeFilter);
+      }
       // 1. Filter by Sending Date (dispatchDate / createdDate)
       if (filterDate) {
         list = list.filter(d => nwbdcpDatesMatch(d.dispatchDate, filterDate) || nwbdcpDatesMatch(d.createdDate, filterDate));
@@ -22458,7 +23131,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (vil !== 'ALL') list = list.filter(d => d.village === vil);
       if (st !== 'ALL') list = list.filter(d => d.status === st || d.result === st);
 
-      // 2. Comprehensive Search Filter (Sample ID, Sending Date in any format, Village, Source)
+      // 2. Comprehensive Search Filter
       if (q) {
         list = list.filter(d => {
           const dRaw = (d.dispatchDate || '').toLowerCase();
@@ -22488,7 +23161,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (!tbody) return;
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">कोणतेही पाणी नमुने सापडले नाहीत.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:30px; color:#64748b;">कोणतेही पाणी किंवा TCL नमुने सापडले नाहीत.</td></tr>`;
         return;
       }
 
@@ -22499,6 +23172,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         else if (d.result === 'पिण्यास अयोग्य') resultBadgeClass = 'mui-chip-danger';
 
         const displayDate = nwbdcpFormatDateForDisplay(d.dispatchDate || d.createdDate) || '-';
+        const aBadge = getNwbdcpAnalysisBadgeHtml(d.analysisType || 'BACTERIOLOGICAL', d.analysisParams);
 
         return `
           <tr style="${isChecked ? 'background:#f0f9ff;' : ''}">
@@ -22506,6 +23180,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
               <input type="checkbox" value="${d.sampleId}" ${isChecked ? 'checked' : ''} onchange="onNwbdcpRegCheckboxChange('${d.sampleId}', this.checked)">
             </td>
             <td style="font-family:monospace; font-weight:800; color:#0369a1;">${d.sampleId}</td>
+            <td>${aBadge}</td>
             <td><b>${displayDate}</b></td>
             <td>${d.subcenter || ''}</td>
             <td><b>${d.village || ''}</b></td>
@@ -22513,8 +23188,10 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
               <span style="font-family:monospace; font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 5px; border-radius:4px; margin-right:5px; border:1px solid #bae6fd;">${d.sourceCode || d.sourceId || ''}</span>
               ${d.sourceName || ''}
             </td>
-            <td><span class="mui-chip mui-chip-info">${d.sourceType || ''}</span></td>
-            <td><span class="mui-chip mui-chip-primary">${d.ownership || ''}</span></td>
+            <td>
+              <span class="mui-chip mui-chip-info">${d.sourceType || ''}</span>
+              <span class="mui-chip mui-chip-primary" style="margin-left:4px;">${d.ownership || ''}</span>
+            </td>
             <td><span class="mui-chip ${resultBadgeClass}">${d.result || d.status}</span></td>
             <td style="text-align:center;">
               <button type="button" onclick="openNwbdcpSingleStickerModal('${d.sampleId}')" style="background:#f1f5f9; border:none; padding:4px 8px; border-radius:6px; font-weight:700; font-size:11.5px; cursor:pointer;" title="नमुना स्टिकर">🖨️ स्टिकर</button>
@@ -22600,20 +23277,36 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     }
 
     function renderStickerHtml(sample) {
+      const aType = sample.analysisType || 'BACTERIOLOGICAL';
+      const p = sample.analysisParams || {};
+      let stickerTag = '🦠 जैविक पाणी नमुना';
+      let borderColor = '#0369a1';
+      let extraMeta = '';
+
+      if (aType === 'CHEMICAL') {
+        stickerTag = '⚗️ रासायनिक पाणी नमुना';
+        borderColor = '#6d28d9';
+      } else if (aType === 'BLEACHING_POWDER') {
+        stickerTag = '🧪 ब्लिचिंग पावडर (TCL) नमुना';
+        borderColor = '#b45309';
+        extraMeta = `<div><b>बॅच क्र.:</b> ${p.tclBatchNo || '--'} | <b>पॅकिंग:</b> ${p.tclPackingType || 'सीलबंद'}</div>`;
+      }
+
       return `
-        <div style="background:#ffffff; border:2px solid #0369a1; border-radius:10px; padding:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); font-family:sans-serif;">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #0369a1; padding-bottom:6px; margin-bottom:8px;">
-            <span style="font-weight:800; font-size:13px; color:#0369a1;">💧 NWBDCP - प्रा.आ.के. भादा</span>
-            <span style="font-size:10px; background:#e0f2fe; color:#0369a1; font-weight:800; padding:2px 6px; border-radius:4px;">पाणी नमुना</span>
+        <div style="background:#ffffff; border:2px solid ${borderColor}; border-radius:10px; padding:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); font-family:sans-serif;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid ${borderColor}; padding-bottom:6px; margin-bottom:8px;">
+            <span style="font-weight:800; font-size:13px; color:${borderColor};">💧 NWBDCP - प्रा.आ.के. भादा</span>
+            <span style="font-size:10px; background:#f1f5f9; color:${borderColor}; font-weight:800; padding:2px 6px; border-radius:4px;">${stickerTag}</span>
           </div>
           <div style="font-size:14px; font-weight:800; font-family:monospace; color:#000000; background:#f1f5f9; padding:4px 8px; border-radius:4px; text-align:center; margin-bottom:8px; border:1px solid #cbd5e1;">
             ${sample.sampleId}
           </div>
           <div style="font-size:11.5px; line-height:1.5; color:#1e293b;">
             <div><b>उपकेंद्र:</b> ${sample.subcenter} | <b>गाव:</b> ${sample.village}</div>
-            <div><b>स्त्रोत ID:</b> <span style="font-family:monospace; font-weight:800; color:#0369a1;">${sample.sourceCode || sample.sourceId || '--'}</span></div>
-            <div><b>जलस्त्रोत:</b> ${sample.sourceName}</div>
+            <div><b>स्त्रोत ID:</b> <span style="font-family:monospace; font-weight:800; color:${borderColor};">${sample.sourceCode || sample.sourceId || '--'}</span></div>
+            <div><b>स्त्रोत/साठा:</b> ${sample.sourceName}</div>
             <div><b>प्रकार:</b> ${sample.sourceType} (${sample.ownership})</div>
+            ${extraMeta}
             <div style="display:flex; justify-content:space-between; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px; font-size:10.5px; color:#475569;">
               <span>संकलन: ${sample.collectionDate}</span>
               <span>पाठवणी: ${sample.dispatchDate}</span>
@@ -22644,61 +23337,75 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const todayStr = new Date().toLocaleDateString('mr-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const currentYear = new Date().getFullYear();
 
+      const hasTcl = samples.some(s => s.analysisType === 'BLEACHING_POWDER');
+      const hasChem = samples.some(s => s.analysisType === 'CHEMICAL');
+      const hasBact = samples.some(s => !s.analysisType || s.analysisType === 'BACTERIOLOGICAL');
+
+      let subjectParts = [];
+      if (hasBact) subjectParts.push('पाण्याच्या नमुन्यांची जैविक (Bacteriological) तपासणी');
+      if (hasChem) subjectParts.push('पाण्याच्या नमुन्यांची रासायनिक (Chemical) तपासणी');
+      if (hasTcl) subjectParts.push('ब्लिचिंग पावडर (TCL) नमुन्यातील उपलब्ध क्लोरीन (Available Chlorine %) तपासणी');
+      const subjectLine = subjectParts.join(' व ') || 'पाण्याच्या नमुन्यांची रासायनिक व जैविक तपासणी';
+
       const letterHtml = `
         <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:16px;">
           <div style="font-size:16px; font-weight:800; color:#000;">महाराष्ट्र शासन</div>
           <div style="font-size:18px; font-weight:800; color:#000; margin:2px 0;">प्राथमिक आरोग्य केंद्र, भादा</div>
-          <div style="font-size:13px; font-weight:600; color:#333;">तालुका: औसा, जिल्हा: धाराशीव (महाराष्ट्र शासन - सार्वजनिक आरोग्य विभाग)</div>
+          <div style="font-size:13px; font-weight:600; color:#333;">तालुका: औसा, जिल्हा: लातूर (महाराष्ट्र शासन - सार्वजनिक आरोग्य विभाग)</div>
         </div>
 
         <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:700; margin-bottom:16px;">
-          <div>जा.क्र./प्राआकेभा/NWBDCP/पाणी-नमुने/${currentYear}/______</div>
+          <div>जा.क्र./प्राआकेभा/NWBDCP/नमुना-तपासणी/${currentYear}/______</div>
           <div>दिनांक: ${todayStr}</div>
         </div>
 
         <div style="font-size:13.5px; margin-bottom:14px; line-height:1.6;">
           प्रति,<br>
           <b>मा. सहाय्यक संचालक / वैज्ञानिक,</b><br>
-          जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा, धाराशीव.<br>
-          जिल्हा: धाराशीव (महाराष्ट्र).
+          जिल्हा सार्वजनिक आरोग्य प्रयोगशाळा.<br>
+          महाराष्ट्र शासन.
         </div>
 
         <div style="font-size:14px; font-weight:800; margin-bottom:14px; background:#f1f5f9; padding:8px 12px; border-left:4px solid #0f172a;">
-          विषय: राष्ट्रीय जलजन्य रोग नियंत्रण कार्यक्रम (NWBDCP) अंतर्गत पिण्याच्या पाण्याच्या नमुन्यांची रासायनिक व जैविक तपासणी अहवाल मिळणेबाबत.
+          विषय: राष्ट्रीय जलजन्य रोग नियंत्रण कार्यक्रम (NWBDCP) अंतर्गत ${subjectLine} अहवाल मिळणेबाबत.
         </div>
 
         <div style="font-size:13.5px; margin-bottom:16px; text-align:justify; line-height:1.6;">
-          महोदय,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;उपरोक्त विषयान्वये प्राथमिक आरोग्य केंद्र भादा कार्य क्षेत्रातील विविध गावांमधील पिण्याच्या पाण्याच्या सार्वजनिक व खाजगी स्त्रोतांचे नमुने गोळा करण्यात आले आहेत. सदर नमुने रासायनिक व जैविक (Bacteriological) तपासणीसाठी या पत्रासोबत पाठवण्यात येत आहेत. कृपया सोबत जोडलेल्या <b>${samples.length}</b> पाणी नमुन्यांचा तपासणी निष्कर्ष अहवाल लवकरात लवकर या कार्यालयास पाठवून सहकार्य करावे, ही नम्र विनंती.
+          महोदय,<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;उपरोक्त विषयान्वये प्राथमिक आरोग्य केंद्र भादा कार्य क्षेत्रातील विविध गावांमधील पिण्याच्या पाण्याच्या स्त्रोतांचे / टीसीएल ब्लिचिंग पावडर साठ्याचे नमुने गोळा करण्यात आले आहेत. सदर नमुने <b>${subjectLine}</b> साठी या पत्रासोबत पाठवण्यात येत आहेत. कृपया सोबत जोडलेल्या <b>${samples.length}</b> नमुन्यांचा तपासणी निष्कर्ष अहवाल लवकरात लवकर या कार्यालयास पाठवून सहकार्य करावे, ही नम्र विनंती.
         </div>
 
         <div style="margin-bottom:20px;">
-          <div style="font-weight:800; font-size:13.5px; margin-bottom:8px;">पाठवण्यात येत असलेल्या पाणी नमुन्यांचा सविस्तर तक्ता:</div>
+          <div style="font-weight:800; font-size:13.5px; margin-bottom:8px;">पाठवण्यात येत असलेल्या नमुन्यांचा सविस्तर तक्ता:</div>
           <table style="width:100%; border-collapse:collapse; font-size:12px; border:1px solid #000;">
             <thead>
               <tr style="background:#f1f5f9;">
                 <th style="border:1px solid #000; padding:6px; text-align:center;">अ.क्र.</th>
                 <th style="border:1px solid #000; padding:6px;">नमुना आयडी</th>
+                <th style="border:1px solid #000; padding:6px;">तपासणी प्रकार</th>
                 <th style="border:1px solid #000; padding:6px;">उपकेंद्र</th>
                 <th style="border:1px solid #000; padding:6px;">गाव</th>
-                <th style="border:1px solid #000; padding:6px;">जलस्त्रोताचे नाव</th>
-                <th style="border:1px solid #000; padding:6px;">स्त्रोत प्रकार</th>
-                <th style="border:1px solid #000; padding:6px;">मालकी</th>
+                <th style="border:1px solid #000; padding:6px;">जलस्त्रोत / TCL साठा नाव</th>
+                <th style="border:1px solid #000; padding:6px;">स्त्रोत प्रकार / बॅच</th>
                 <th style="border:1px solid #000; padding:6px; text-align:center;">संकलन दिनांक</th>
               </tr>
             </thead>
             <tbody>
-              ${samples.map((s, idx) => `
+              ${samples.map((s, idx) => {
+                const aTypeLabel = s.analysisType === 'CHEMICAL' ? 'रासायनिक तपासणी' : (s.analysisType === 'BLEACHING_POWDER' ? 'ब्लिचिंग पावडर (TCL)' : 'जैविक तपासणी');
+                const p = s.analysisParams || {};
+                const typeOrBatch = s.analysisType === 'BLEACHING_POWDER' ? `${s.sourceType} (${p.tclBatchNo || 'TCL'})` : `${s.sourceType} (${s.ownership})`;
+                return `
                 <tr>
                   <td style="border:1px solid #000; padding:5px; text-align:center;">${idx + 1}</td>
                   <td style="border:1px solid #000; padding:5px; font-family:monospace; font-weight:800;">${s.sampleId}</td>
+                  <td style="border:1px solid #000; padding:5px; font-weight:700;">${aTypeLabel}</td>
                   <td style="border:1px solid #000; padding:5px;">${s.subcenter}</td>
                   <td style="border:1px solid #000; padding:5px;"><b>${s.village}</b></td>
                   <td style="border:1px solid #000; padding:5px;">${s.sourceName}</td>
-                  <td style="border:1px solid #000; padding:5px;">${s.sourceType}</td>
-                  <td style="border:1px solid #000; padding:5px;">${s.ownership}</td>
+                  <td style="border:1px solid #000; padding:5px;">${typeOrBatch}</td>
                   <td style="border:1px solid #000; padding:5px; text-align:center;">${s.collectionDate}</td>
                 </tr>
-              `).join('')}
+              `}).join('')}
             </tbody>
           </table>
         </div>
@@ -22712,7 +23419,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
             <b>आपला विश्वासू,</b><br><br><br>
             <b>(डॉ. वैद्यकीय अधिकारी)</b><br>
             प्राथमिक आरोग्य केंद्र, भादा<br>
-            ता. औसा, जि. धाराशीव
+            ता. औसा, जि. लातूर
           </div>
         </div>
       `;
@@ -22888,17 +23595,94 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     window.onNwbdcpLabFilterDateChange = onNwbdcpLabFilterDateChange;
     window.clearNwbdcpLabDateFilter = clearNwbdcpLabDateFilter;
 
+    function switchNwbdcpLabParamPanel(panelType) {
+      const pBact = document.getElementById('nwbdcpLabParamsBact');
+      const pChem = document.getElementById('nwbdcpLabParamsChem');
+      const pTcl = document.getElementById('nwbdcpLabParamsTcl');
+
+      const btnBact = document.getElementById('nwbdcpLabParamTab_BACT');
+      const btnChem = document.getElementById('nwbdcpLabParamTab_CHEM');
+      const btnTcl = document.getElementById('nwbdcpLabParamTab_TCL');
+
+      if (pBact) pBact.style.display = panelType === 'BACTERIOLOGICAL' ? 'grid' : 'none';
+      if (pChem) pChem.style.display = panelType === 'CHEMICAL' ? 'grid' : 'none';
+      if (pTcl) pTcl.style.display = panelType === 'BLEACHING_POWDER' ? 'grid' : 'none';
+
+      const setBtnStyle = (btn, active, color) => {
+        if (!btn) return;
+        btn.style.background = active ? color : '#ffffff';
+        btn.style.color = active ? '#ffffff' : '#475569';
+        btn.style.border = active ? 'none' : '1px solid #cbd5e1';
+      };
+
+      setBtnStyle(btnBact, panelType === 'BACTERIOLOGICAL', '#0284c7');
+      setBtnStyle(btnChem, panelType === 'CHEMICAL', '#6d28d9');
+      setBtnStyle(btnTcl, panelType === 'BLEACHING_POWDER', '#d97706');
+    }
+
+    function onNwbdcpBactParamInput() {
+      const mpnVal = document.getElementById('nwbdcpParamMpn')?.value;
+      const ecoliVal = document.getElementById('nwbdcpParamEcoli')?.value || '';
+      const resSelect = document.getElementById('nwbdcpLabResultSelect');
+      if (!resSelect) return;
+      if (ecoliVal.includes('आढळले (Present)') || (mpnVal !== '' && Number(mpnVal) > 10)) {
+        resSelect.value = 'पिण्यास अयोग्य';
+      } else if (ecoliVal.includes('आढळले नाही') || (mpnVal !== '' && Number(mpnVal) === 0)) {
+        resSelect.value = 'पिण्यास योग्य';
+      }
+    }
+
+    function onNwbdcpTclChlorineInput(val) {
+      const badge = document.getElementById('nwbdcpTclAutoGradeBadge');
+      const resSelect = document.getElementById('nwbdcpLabResultSelect');
+      if (val === '' || val === null || val === undefined) {
+        if (badge) {
+          badge.style.background = '#fef3c7';
+          badge.style.color = '#92400e';
+          badge.innerHTML = 'ℹ️ मानक: क्लोरीन ≥ २५% असल्यास \'वापरास योग्य (Standard)\', &lt; २५% असल्यास \'अमानक / अयोग्य\'.';
+        }
+        return;
+      }
+      const num = Number(val);
+      if (!isNaN(num)) {
+        if (num >= 25) {
+          if (badge) {
+            badge.style.background = '#dcfce7';
+            badge.style.color = '#166534';
+            badge.innerHTML = `🟢 उपलब्ध क्लोरीन ${num}% (≥ २५%) — मानक दर्जा: <b>वापरास योग्य (Standard Quality)</b>`;
+          }
+          if (resSelect) resSelect.value = 'पिण्यास योग्य';
+        } else {
+          if (badge) {
+            badge.style.background = '#fee2e2';
+            badge.style.color = '#991b1b';
+            badge.innerHTML = `🔴 उपलब्ध क्लोरीन ${num}% (&lt; २५%) — अमानक दर्जा: <b>वापरास अयोग्य (Sub-standard TCL)</b>`;
+          }
+          if (resSelect) resSelect.value = 'पिण्यास अयोग्य';
+        }
+      }
+    }
+
+    window.switchNwbdcpLabParamPanel = switchNwbdcpLabParamPanel;
+    window.onNwbdcpBactParamInput = onNwbdcpBactParamInput;
+    window.onNwbdcpTclChlorineInput = onNwbdcpTclChlorineInput;
+
     function renderNwbdcpLabResultsTable() {
       updateNwbdcpPendingDispatchDateDropdown();
 
       const dateSelectEl = document.getElementById('nwbdcpLabDispatchDateSelect');
       const selectedDate = dateSelectEl ? dateSelectEl.value : 'ALL_PENDING';
       const filterDateInput = document.getElementById('nwbdcpLabFilterDate')?.value || '';
-
+      const aTypeFilter = document.getElementById('nwbdcpLabFilterAnalysisType')?.value || 'ALL';
       const stFilter = document.getElementById('nwbdcpLabFilterStatus')?.value || 'अहवाल अप्राप्त';
       const q = (document.getElementById('nwbdcpLabSearchInput')?.value || '').toLowerCase().trim();
 
       let list = [...nwbdcpDispatchedSamplesList];
+
+      if (aTypeFilter !== 'ALL') {
+        list = list.filter(d => (d.analysisType || 'BACTERIOLOGICAL') === aTypeFilter);
+        switchNwbdcpLabParamPanel(aTypeFilter);
+      }
 
       // 1. Filter by Sending Date (either from date input or dropdown)
       const activeDateFilter = filterDateInput || (selectedDate !== 'ALL_PENDING' && selectedDate !== 'ALL' && selectedDate !== 'NONE' ? selectedDate : '');
@@ -22906,7 +23690,6 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (activeDateFilter) {
         list = list.filter(d => nwbdcpDatesMatch(d.dispatchDate, activeDateFilter) || nwbdcpDatesMatch(d.createdDate, activeDateFilter));
       } else if (selectedDate === 'ALL_PENDING') {
-        // When viewing all pending dates, prioritize pending samples
         list = list.filter(d => !d.result || d.result === 'अहवाल अप्राप्त' || d.result === 'Pending' || d.result === 'Awaited' || (!d.reportFileUrl && !d.reportFileName));
       }
 
@@ -22915,7 +23698,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         list = list.filter(d => d.result === stFilter || d.status === stFilter);
       }
 
-      // 3. Filter by Comprehensive Search Query (Sample ID, Sending Date in any format, Village, Source)
+      // 3. Filter by Comprehensive Search Query
       if (q) {
         list = list.filter(d => {
           const dRaw = (d.dispatchDate || '').toLowerCase();
@@ -22937,12 +23720,10 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         });
       }
 
-      // Update total pending badge
       const pendingCount = nwbdcpDispatchedSamplesList.filter(d => !d.result || d.result === 'अहवाल अप्राप्त' || d.result === 'Pending' || (!d.reportFileUrl && !d.reportFileName)).length;
       const countEl = document.getElementById('nwbdcpPendingResultsCount');
       if (countEl) countEl.innerText = pendingCount;
 
-      // Update Dispatch Date Summary Badge
       const summaryEl = document.getElementById('nwbdcpLabDispatchDateSummary');
       if (summaryEl) {
         if (activeDateFilter) {
@@ -22960,7 +23741,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (!tbody) return;
 
       if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="11" style="text-align:center; padding:30px; color:#64748b;">निवडलेल्या पाठवणी दिनांकासाठी कोणतेही नमुने सापडले नाहीत.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="13" style="text-align:center; padding:30px; color:#64748b;">निवडलेल्या पाठवणी दिनांकासाठी कोणतेही नमुने सापडले नाहीत.</td></tr>`;
         return;
       }
 
@@ -22981,12 +23762,24 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
           statusBadge = '<span class="mui-chip mui-chip-warning">🟡 अहवाल अपूर्ण (प्रत बाकी)</span>';
         }
 
+        const aBadge = getNwbdcpAnalysisBadgeHtml(d.analysisType || 'BACTERIOLOGICAL', d.analysisParams);
+        const p = d.analysisParams || {};
+        let paramText = '--';
+        if (d.analysisType === 'BLEACHING_POWDER') {
+          paramText = p.availableChlorinePct !== undefined && p.availableChlorinePct !== '' ? `क्लोरीन: <b>${p.availableChlorinePct}%</b>` : (p.tclBatchNo ? `बॅच: ${p.tclBatchNo}` : '--');
+        } else if (d.analysisType === 'CHEMICAL') {
+          paramText = [p.ph ? `pH:${p.ph}` : '', p.tds ? `TDS:${p.tds}` : '', p.fluoride ? `F:${p.fluoride}` : '', p.nitrate ? `NO3:${p.nitrate}` : ''].filter(Boolean).join(', ') || '--';
+        } else {
+          paramText = [p.mpnCount !== undefined && p.mpnCount !== '' ? `MPN:${p.mpnCount}` : '', p.ecoliStatus ? `${p.ecoliStatus}` : '', p.residualChlorine ? `RC:${p.residualChlorine}ppm` : ''].filter(Boolean).join(', ') || '--';
+        }
+
         return `
           <tr style="${isChecked ? 'background:#f0f9ff;' : ''}">
             <td style="text-align:center;">
               <input type="checkbox" value="${d.sampleId}" ${isChecked ? 'checked' : ''} onchange="onNwbdcpLabCheckboxChange('${d.sampleId}', this.checked)">
             </td>
             <td style="font-family:monospace; font-weight:800; color:#0369a1;">${d.sampleId}</td>
+            <td>${aBadge}</td>
             <td><b>${nwbdcpFormatDateForDisplay(d.dispatchDate)}</b></td>
             <td>${d.subcenter}</td>
             <td><b>${d.village}</b></td>
@@ -22994,6 +23787,7 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
               <span style="font-family:monospace; font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 5px; border-radius:4px; margin-right:5px; border:1px solid #bae6fd;">${d.sourceCode || d.sourceId || ''}</span>
               ${d.sourceName}
             </td>
+            <td style="font-size:11.5px; color:#334155;">${paramText}</td>
             <td><span class="mui-chip ${resultBadgeStyle}">${d.result || d.status}</span></td>
             <td>${nwbdcpFormatDateForDisplay(d.reportReceivedDate) || '--'}</td>
             <td style="text-align:center;">
@@ -23027,8 +23821,15 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     }
 
     function onNwbdcpLabCheckboxChange(sampleId, isChecked) {
-      if (isChecked) checkedLabSamples.add(sampleId);
-      else checkedLabSamples.delete(sampleId);
+      if (isChecked) {
+        checkedLabSamples.add(sampleId);
+        const sample = nwbdcpDispatchedSamplesList.find(d => d.sampleId === sampleId);
+        if (sample && sample.analysisType) {
+          switchNwbdcpLabParamPanel(sample.analysisType);
+        }
+      } else {
+        checkedLabSamples.delete(sampleId);
+      }
     }
 
     function toggleAllNwbdcpLabCheckboxes(isChecked) {
@@ -23037,6 +23838,40 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         else checkedLabSamples.delete(d.sampleId);
       });
       renderNwbdcpLabResultsTable();
+    }
+
+    function collectNwbdcpLabAnalysisParams() {
+      const params = {};
+      const mpn = document.getElementById('nwbdcpParamMpn')?.value;
+      const ecoli = document.getElementById('nwbdcpParamEcoli')?.value;
+      const rc = document.getElementById('nwbdcpParamResidualChlorine')?.value;
+      if (mpn !== undefined && mpn !== '') params.mpnCount = mpn;
+      if (ecoli) params.ecoliStatus = ecoli;
+      if (rc !== undefined && rc !== '') params.residualChlorine = rc;
+
+      const ph = document.getElementById('nwbdcpParamPh')?.value;
+      const tds = document.getElementById('nwbdcpParamTds')?.value;
+      const turb = document.getElementById('nwbdcpParamTurbidity')?.value;
+      const hard = document.getElementById('nwbdcpParamHardness')?.value;
+      const fl = document.getElementById('nwbdcpParamFluoride')?.value;
+      const nit = document.getElementById('nwbdcpParamNitrate')?.value;
+      const cl = document.getElementById('nwbdcpParamChloride')?.value;
+      const iron = document.getElementById('nwbdcpParamIron')?.value;
+      if (ph !== undefined && ph !== '') params.ph = ph;
+      if (tds !== undefined && tds !== '') params.tds = tds;
+      if (turb !== undefined && turb !== '') params.turbidity = turb;
+      if (hard !== undefined && hard !== '') params.hardness = hard;
+      if (fl !== undefined && fl !== '') params.fluoride = fl;
+      if (nit !== undefined && nit !== '') params.nitrate = nit;
+      if (cl !== undefined && cl !== '') params.chloride = cl;
+      if (iron !== undefined && iron !== '') params.iron = iron;
+
+      const tclPct = document.getElementById('nwbdcpParamTclChlorinePct')?.value;
+      const tclBatch = document.getElementById('nwbdcpParamTclBatchNo')?.value;
+      if (tclPct !== undefined && tclPct !== '') params.availableChlorinePct = tclPct;
+      if (tclBatch) params.tclBatchNo = tclBatch;
+
+      return params;
     }
 
     function submitNwbdcpBatchLabResults() {
@@ -23062,7 +23897,6 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       const selectedSampleIds = Array.from(checkedLabSamples);
 
-      // MANDATORY CHECK: File must be provided if selected samples don't already have one
       const samplesMissingFile = selectedSampleIds.filter(sId => {
         const s = nwbdcpDispatchedSamplesList.find(d => d.sampleId === sId);
         return !s || (!s.reportFileUrl && !s.reportFileName);
@@ -23073,7 +23907,6 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         return;
       }
 
-      // If a new report file is selected, upload it first!
       if (selectedLabReportFileObj) {
         const uploadPayload = {
           sampleId: selectedSampleIds.length === 1 ? selectedSampleIds[0] : `BATCH_${Date.now()}`,
@@ -23097,18 +23930,19 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
         })
         .catch(err => alert('⚠️ फाईल अपलोड त्रुटी: ' + err.message));
       } else {
-        // Save using existing attached file
         commitNwbdcpLabResultsBatch(selectedSampleIds, reportReceivedDate, labResult, labRefNo, labRemarks, null);
       }
     }
 
     function commitNwbdcpLabResultsBatch(sampleIds, reportReceivedDate, labResult, labRefNo, labRemarks, reportCopyMeta) {
+      const analysisParams = collectNwbdcpLabAnalysisParams();
       const payload = {
         sampleIds,
         reportReceivedDate,
         labResult,
         labRefNo,
         labRemarks,
+        analysisParams,
         reportCopy: reportCopyMeta
       };
 
@@ -23702,8 +24536,137 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     window.submitNwbdcpCreateFollowupRetest = submitNwbdcpCreateFollowupRetest;
 
     // =========================================================================
-    // DYNAMIC NWBDCP REPORTS CONTROLLER
+    // DYNAMIC NWBDCP REPORTS & CONSOLIDATED MONTHLY PDF GENERATOR
     // =========================================================================
+    let lastNwbdcpReportResponse = null;
+
+    function nwbdcpFormatMonthYearLabel(ym) {
+      if (!ym || ym === 'ALL') return 'सर्व महिने (All Months)';
+      const parts = String(ym).split('-');
+      if (parts.length !== 2) return ym;
+      const yearStr = parts[0];
+      const mIdx = parseInt(parts[1], 10);
+      const marathiMonths = {
+        1: 'जानेवारी (January)',
+        2: 'फेब्रुवारी (February)',
+        3: 'मार्च (March)',
+        4: 'एप्रिल (April)',
+        5: 'मे (May)',
+        6: 'जून (June)',
+        7: 'जुलै (July)',
+        8: 'ऑगस्ट (August)',
+        9: 'सप्टेंबर (September)',
+        10: 'ऑक्टोबर (October)',
+        11: 'नोव्हेंबर (November)',
+        12: 'डिसेंबर (December)'
+      };
+      const marathiDigits = { '0':'०','1':'१','2':'२','3':'३','4':'४','5':'५','6':'६','7':'७','8':'८','9':'९' };
+      const mrYear = yearStr.split('').map(c => marathiDigits[c] || c).join('');
+      return `${marathiMonths[mIdx] || ym} ${mrYear} (${yearStr})`;
+    }
+
+    function onNwbdcpReportMonthChange(val) {
+      if (val) {
+        const fromEl = document.getElementById('nwbdcpReportFromDate');
+        const toEl = document.getElementById('nwbdcpReportToDate');
+        if (fromEl) fromEl.value = '';
+        if (toEl) toEl.value = '';
+      }
+      renderNwbdcpReportData();
+    }
+
+    function clearNwbdcpReportMonthFilter() {
+      const mEl = document.getElementById('nwbdcpReportMonthInput');
+      if (mEl) mEl.value = '';
+      renderNwbdcpReportData();
+      showToast('📅 सर्व महिन्यांचा अहवाल दर्शविला जात आहे.');
+    }
+
+    function openNwbdcpConsolidatedMonthlyReport() {
+      switchNwbdcpSubtab('reports');
+      const typeSelect = document.getElementById('nwbdcpReportTypeSelect');
+      if (typeSelect) {
+        typeSelect.value = 'CONSOLIDATED_MONTHLY';
+      }
+      const mEl = document.getElementById('nwbdcpReportMonthInput');
+      if (mEl && !mEl.value) {
+        mEl.value = '2026-10';
+      }
+      renderNwbdcpReportData();
+    }
+
+    function printNwbdcpConsolidatedReport() {
+      document.body.classList.add('printing-nwbdcp-report');
+      setTimeout(() => {
+        window.print();
+        setTimeout(() => {
+          document.body.classList.remove('printing-nwbdcp-report');
+        }, 500);
+      }, 150);
+    }
+
+    async function downloadNwbdcpConsolidatedMonthlyPdf() {
+      const btn = document.getElementById('nwbdcpBtnDownloadConsolidatedPdf');
+      const origText = btn ? btn.innerHTML : '';
+      try {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerHTML = '⏳ PDF तयार होत आहे...';
+        }
+
+        const typeSelect = document.getElementById('nwbdcpReportTypeSelect');
+        if (typeSelect && typeSelect.value !== 'CONSOLIDATED_MONTHLY') {
+          typeSelect.value = 'CONSOLIDATED_MONTHLY';
+          await renderNwbdcpReportData();
+        } else if (!document.getElementById('nwbdcpConsolidatedPdfContainer')) {
+          await renderNwbdcpReportData();
+        }
+
+        const targetEl = document.getElementById('nwbdcpConsolidatedPdfContainer') || document.getElementById('nwbdcpReportDisplayArea');
+        if (!targetEl) {
+          showToast('⚠️ अहवाल कंटेनर उपलब्ध नाही.');
+          return;
+        }
+
+        const monthVal = document.getElementById('nwbdcpReportMonthInput')?.value || 'ALL_Months';
+        const fileName = `PHC_Bhada_NWBDCP_Consolidated_Water_Quality_Report_${monthVal}.pdf`;
+
+        if (typeof html2pdf !== 'undefined') {
+          showToast('📄 एकत्रित मासिक पाणी गुणवत्ता PDF अहवाल तयार केला जात आहे...');
+          const opt = {
+            margin: [8, 8, 8, 8],
+            filename: fileName,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: {
+              scale: 2,
+              useCORS: true,
+              letterRendering: true,
+              scrollY: 0
+            },
+            jsPDF: {
+              unit: 'mm',
+              format: 'a4',
+              orientation: 'landscape'
+            },
+            pagebreak: { mode: ['css', 'legacy'] }
+          };
+          await html2pdf().set(opt).from(targetEl).save();
+          showToast(`✅ एकत्रित मासिक PDF अहवाल (${fileName}) यशस्वीरित्या डाउनलोड झाला!`);
+        } else {
+          printNwbdcpConsolidatedReport();
+        }
+      } catch (err) {
+        console.error('Error generating NWBDCP Consolidated PDF:', err);
+        showToast('⚠️ थेट PDF डाउनलोडमध्ये अडचण आली; प्रिंट संवाद उघडला जात आहे.');
+        printNwbdcpConsolidatedReport();
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText || '📄 एकत्रित मासिक PDF डाउनलोड करा (Consolidated PDF)';
+        }
+      }
+    }
+
     function onNwbdcpReportSubcenterChange(scName) {
       const vSelect = document.getElementById('nwbdcpReportVillageSelect');
       if (!vSelect) return;
@@ -23720,7 +24683,13 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
     }
 
     function renderNwbdcpReportData() {
-      const type = document.getElementById('nwbdcpReportTypeSelect')?.value || 'REGISTER';
+      const type = document.getElementById('nwbdcpReportTypeSelect')?.value || 'CONSOLIDATED_MONTHLY';
+      let analysisType = document.getElementById('nwbdcpReportAnalysisTypeSelect')?.value || 'ALL';
+      if (type === 'BACTERIOLOGICAL_REG') analysisType = 'BACTERIOLOGICAL';
+      else if (type === 'CHEMICAL_REG') analysisType = 'CHEMICAL';
+      else if (type === 'TCL_REG') analysisType = 'BLEACHING_POWDER';
+
+      const monthYear = document.getElementById('nwbdcpReportMonthInput')?.value || 'ALL';
       const fromDate = document.getElementById('nwbdcpReportFromDate')?.value || '';
       const toDate = document.getElementById('nwbdcpReportToDate')?.value || '';
       const subcenter = document.getElementById('nwbdcpReportSubcenterSelect')?.value || 'ALL';
@@ -23729,26 +24698,466 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       const resultStatus = document.getElementById('nwbdcpReportResultSelect')?.value || 'ALL';
       const search = encodeURIComponent(document.getElementById('nwbdcpReportSearchInput')?.value || '');
 
-      const url = `/api/nwbdcp/reports?type=${type}&fromDate=${fromDate}&toDate=${toDate}&subcenter=${subcenter}&village=${village}&sourceType=${sourceType}&resultStatus=${resultStatus}&search=${search}`;
+      const url = `/api/nwbdcp/reports?type=${type}&analysisType=${analysisType}&monthYear=${encodeURIComponent(monthYear)}&fromDate=${fromDate}&toDate=${toDate}&subcenter=${encodeURIComponent(subcenter)}&village=${encodeURIComponent(village)}&sourceType=${encodeURIComponent(sourceType)}&resultStatus=${encodeURIComponent(resultStatus)}&search=${search}`;
 
-      fetch(url)
+      return fetch(url)
         .then(r => r.json())
         .then(res => {
           if (res && res.success) {
+            lastNwbdcpReportResponse = res;
             displayNwbdcpReportHtml(res);
           }
+          return res;
         });
+    }
+
+    function renderNwbdcpConsolidatedMonthlyHtml(data) {
+      const s = data.summary || {};
+      const bactList = data.bacteriologicalSamples || [];
+      const chemList = data.chemicalSamples || [];
+      const tclList = data.tclSamples || [];
+      const scSummary = data.subcenterSummary || [];
+      const selectedMonthYear = data.selectedMonthYear || document.getElementById('nwbdcpReportMonthInput')?.value || 'ALL';
+      const monthLabel = nwbdcpFormatMonthYearLabel(selectedMonthYear);
+      const todayFmt = nwbdcpFormatDateForDisplay(new Date().toISOString().slice(0, 10));
+      const subcenterFilter = document.getElementById('nwbdcpReportSubcenterSelect')?.value || 'ALL';
+      const villageFilter = document.getElementById('nwbdcpReportVillageSelect')?.value || 'ALL';
+
+      // Helper for highlighting out-of-range chemical parameters per IS 10500:2012
+      function fmtChemVal(val, minOk, maxOk, unit = '') {
+        if (val === undefined || val === null || val === '') return '<span style="color:#94a3b8;">--</span>';
+        const num = parseFloat(val);
+        if (isNaN(num)) return `<span>${val}</span>`;
+        const isOut = (minOk !== null && num < minOk) || (maxOk !== null && num > maxOk);
+        if (isOut) {
+          return `<span style="color:#dc2626; font-weight:800; background:#fef2f2; padding:2px 5px; border-radius:4px; border:1px solid #fecaca;">${val}${unit ? ' ' + unit : ''} ⚠️</span>`;
+        }
+        return `<span style="color:#0f172a; font-weight:700;">${val}${unit ? ' ' + unit : ''}</span>`;
+      }
+
+      // Coliform positive count in Bacteriological module
+      const ecoliPosCount = bactList.filter(item => {
+        const p = item.analysisParams || {};
+        return String(p.ecoliStatus || '').includes('आढळले (Present)') || (parseFloat(p.mpnCount) > 10) || item.result === 'पिण्यास अयोग्य';
+      }).length;
+
+      return `
+        <div id="nwbdcpConsolidatedPdfContainer" style="font-family:'Noto Sans Devanagari','Plus Jakarta Sans',sans-serif; color:#0f172a; background:#ffffff; padding:8px;">
+          
+          <!-- OFFICIAL GOVERNMENT REPORT HEADER -->
+          <div style="border:2px solid #0369a1; border-radius:12px; padding:16px 20px; margin-bottom:18px; background:linear-gradient(180deg, #f0f9ff 0%, #ffffff 100%);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px; border-bottom:2px solid #0284c7; padding-bottom:12px;">
+              <div>
+                <div style="font-size:12px; font-weight:800; color:#0369a1; letter-spacing:0.4px;">महाराष्ट्र शासन — सार्वजनिक आरोग्य विभाग | जिल्हा परिषद लातूर</div>
+                <h2 style="margin:3px 0; font-size:21px; font-weight:800; color:#0f172a;">प्राथमिक आरोग्य केंद्र भादा (आयुष्यमान आरोग्य मंदिर लखनगाव)</h2>
+                <div style="font-size:12.5px; font-weight:700; color:#334155;">तालुका: औसा, जिल्हा: लातूर | राष्ट्रीय जलजन्य आजार नियंत्रण कार्यक्रम (NWBDCP)</div>
+              </div>
+              <div style="text-align:right; background:#ffffff; border:1.5px solid #bae6fd; border-radius:8px; padding:8px 14px;">
+                <div style="font-size:11px; font-weight:800; color:#64748b;">अहवाल महिना (Selected Month)</div>
+                <div style="font-size:15px; font-weight:800; color:#0369a1;">📅 ${monthLabel}</div>
+                <div style="font-size:11px; font-weight:700; color:#475569; margin-top:2px;">अहवाल दिनांक: ${todayFmt}</div>
+              </div>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; padding-top:10px;">
+              <div style="font-size:16px; font-weight:800; color:#0369a1;">
+                📑 एकत्रित मासिक पाणी गुणवत्ता सारांश अहवाल — जैविक (Bacteriological) व रासायनिक (Chemical) विश्लेषण तक्ते
+              </div>
+              <div style="font-size:12px; font-weight:700; color:#334155;">
+                उपकेंद्र: <b>${subcenterFilter === 'ALL' ? 'सर्व उपकेंद्रे (All Subcenters)' : subcenterFilter}</b> |
+                गाव: <b>${villageFilter === 'ALL' ? 'सर्व गावे (All Villages)' : villageFilter}</b>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 1: EXECUTIVE MONTHLY SUMMARY KPIs -->
+          <div style="margin-bottom:20px;">
+            <div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:10px; display:flex; align-items:center; gap:6px;">
+              <span>📊 १. एकत्रित मासिक पाणी गुणवत्ता कार्यकारी गोषवारा (Executive Monthly Water Quality Summary)</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:12px;">
+              <!-- Overall Card -->
+              <div style="background:#f8fafc; border:1.5px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:12px; font-weight:800; color:#0369a1;">एकूण पाठवलेले नमुने (Total Samples)</div>
+                <div style="font-size:24px; font-weight:800; color:#0f172a; margin:4px 0;">${s.totalSent || 0}</div>
+                <div style="font-size:11.5px; font-weight:700; color:#334155; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                  <span style="color:#16a34a;">योग्य: ${s.suitable || 0}</span>
+                  <span style="color:#dc2626;">अयोग्य: ${s.unsuitable || 0}</span>
+                  <span style="color:#d97706;">प्रलंबित: ${s.awaited || 0}</span>
+                  <span style="color:#7c3aed;">शुद्धता: ${s.fitnessPercentage || 0}%</span>
+                </div>
+              </div>
+
+              <!-- Bacteriological Module Card -->
+              <div style="background:#f0f9ff; border:1.5px solid #bae6fd; border-top:4px solid #0369a1; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:12px; font-weight:800; color:#0369a1;">🦠 जैविक तपासणी (Bacteriological Module)</div>
+                <div style="font-size:24px; font-weight:800; color:#0369a1; margin:4px 0;">${s.bacteriologicalCount || 0} <span style="font-size:12px; font-weight:700; color:#0284c7;">(${s.bacteriologicalPotabilityPct || 0}% योग्य)</span></div>
+                <div style="font-size:11.5px; font-weight:700; color:#334155; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                  <span style="color:#16a34a;">योग्य: ${s.bacteriologicalSuitable || 0}</span>
+                  <span style="color:#dc2626;">दूषित: ${s.bacteriologicalUnsuitable || 0}</span>
+                  <span style="color:#d97706;">प्रलंबित: ${s.bacteriologicalAwaited || 0}</span>
+                </div>
+              </div>
+
+              <!-- Chemical Module Card -->
+              <div style="background:#f5f3ff; border:1.5px solid #ddd6fe; border-top:4px solid #6d28d9; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:12px; font-weight:800; color:#6d28d9;">⚗️ रासायनिक तपासणी (Chemical Module)</div>
+                <div style="font-size:24px; font-weight:800; color:#6d28d9; margin:4px 0;">${s.chemicalCount || 0} <span style="font-size:12px; font-weight:700; color:#7c3aed;">(${s.chemicalPotabilityPct || 0}% योग्य)</span></div>
+                <div style="font-size:11.5px; font-weight:700; color:#334155; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                  <span style="color:#16a34a;">योग्य: ${s.chemicalSuitable || 0}</span>
+                  <span style="color:#dc2626;">अयोग्य: ${s.chemicalUnsuitable || 0}</span>
+                  <span style="color:#d97706;">प्रलंबित: ${s.chemicalAwaited || 0}</span>
+                </div>
+              </div>
+
+              <!-- TCL Module Card -->
+              <div style="background:#fffbeb; border:1.5px solid #fde68a; border-top:4px solid #d97706; border-radius:10px; padding:12px 14px;">
+                <div style="font-size:12px; font-weight:800; color:#b45309;">🧪 ब्लिचिंग पावडर (TCL Chlorine Module)</div>
+                <div style="font-size:24px; font-weight:800; color:#b45309; margin:4px 0;">${s.tclCount || 0}</div>
+                <div style="font-size:11.5px; font-weight:700; color:#334155; display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px;">
+                  <span style="color:#16a34a;">मानक (≥33%): ${s.tclSuitable || 0}</span>
+                  <span style="color:#dc2626;">अमानक (<33%): ${s.tclUnsuitable || 0}</span>
+                  <span style="color:#d97706;">प्रलंबित: ${s.tclAwaited || 0}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SECTION 2: SUBCENTER-WISE CONSOLIDATED BACTERIOLOGICAL & CHEMICAL SUMMARY TABLE -->
+          <div style="margin-bottom:22px;">
+            <div style="background:#0f172a; color:#ffffff; padding:8px 14px; border-radius:8px 8px 0 0; font-size:13.5px; font-weight:800; display:flex; justify-content:space-between; align-items:center;">
+              <span>🏥 २. उपकेंद्रनिहाय जैविक व रासायनिक पाणी गुणवत्ता तुलनात्मक गोषवारा तक्ता (Subcenter-wise Consolidated Breakdown)</span>
+              <span style="font-size:11.5px; font-weight:600; color:#cbd5e1;">प्रा.आ.केंद्र भादा अंतर्गत उपकेंद्रे</span>
+            </div>
+            <div style="overflow-x:auto; border:1px solid #cbd5e1; border-top:none; border-radius:0 0 8px 8px;">
+              <table class="table-modern" style="margin:0; font-size:12px;">
+                <thead>
+                  <tr style="background:#f1f5f9;">
+                    <th rowspan="2" style="text-align:center; vertical-align:middle; border-right:1px solid #cbd5e1; width:45px;">अ.क्र.</th>
+                    <th rowspan="2" style="vertical-align:middle; border-right:1px solid #cbd5e1;">उपकेंद्राचे नाव (Subcenter)</th>
+                    <th colspan="4" style="text-align:center; background:#e0f2fe; color:#0369a1; border-right:1px solid #cbd5e1;">🦠 जैविक तपासणी (Bacteriological)</th>
+                    <th colspan="4" style="text-align:center; background:#ede9fe; color:#6d28d9; border-right:1px solid #cbd5e1;">⚗️ रासायनिक तपासणी (Chemical)</th>
+                    <th colspan="3" style="text-align:center; background:#fef3c7; color:#b45309; border-right:1px solid #cbd5e1;">🧪 TCL नमुने</th>
+                    <th rowspan="2" style="text-align:center; vertical-align:middle; background:#f8fafc;">एकूण नमुने</th>
+                  </tr>
+                  <tr style="background:#f8fafc; font-size:11px;">
+                    <th style="text-align:center; background:#f0f9ff;">पाठवले</th>
+                    <th style="text-align:center; background:#f0f9ff; color:#16a34a;">योग्य</th>
+                    <th style="text-align:center; background:#f0f9ff; color:#dc2626;">अयोग्य</th>
+                    <th style="text-align:center; background:#f0f9ff; color:#d97706; border-right:1px solid #cbd5e1;">प्रलंबित</th>
+                    <th style="text-align:center; background:#f5f3ff;">पाठवले</th>
+                    <th style="text-align:center; background:#f5f3ff; color:#16a34a;">योग्य</th>
+                    <th style="text-align:center; background:#f5f3ff; color:#dc2626;">अयोग्य</th>
+                    <th style="text-align:center; background:#f5f3ff; color:#d97706; border-right:1px solid #cbd5e1;">प्रलंबित</th>
+                    <th style="text-align:center; background:#fffbeb;">पाठवले</th>
+                    <th style="text-align:center; background:#fffbeb; color:#16a34a;">मानक</th>
+                    <th style="text-align:center; background:#fffbeb; color:#dc2626; border-right:1px solid #cbd5e1;">अमानक</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${scSummary.map((row, i) => `
+                    <tr>
+                      <td style="text-align:center; font-weight:700; border-right:1px solid #e2e8f0;">${i + 1}</td>
+                      <td style="font-weight:800; color:#0f172a; border-right:1px solid #e2e8f0;">${row.subcenter}</td>
+                      <td style="text-align:center; font-weight:700;">${row.bactSent || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#16a34a;">${row.bactSuitable || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#dc2626;">${row.bactUnsuitable || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#d97706; border-right:1px solid #e2e8f0;">${row.bactAwaited || 0}</td>
+                      <td style="text-align:center; font-weight:700;">${row.chemSent || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#16a34a;">${row.chemSuitable || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#dc2626;">${row.chemUnsuitable || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#d97706; border-right:1px solid #e2e8f0;">${row.chemAwaited || 0}</td>
+                      <td style="text-align:center; font-weight:700;">${row.tclSent || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#16a34a;">${row.tclSuitable || 0}</td>
+                      <td style="text-align:center; font-weight:700; color:#dc2626; border-right:1px solid #e2e8f0;">${row.tclUnsuitable || 0}</td>
+                      <td style="text-align:center; font-weight:800; color:#0369a1; background:#f8fafc;">${row.totalSent || 0}</td>
+                    </tr>
+                  `).join('')}
+                  <tr style="background:#f1f5f9; font-weight:800; border-top:2px solid #94a3b8;">
+                    <td colspan="2" style="text-align:right; border-right:1px solid #cbd5e1;">एकूण (PHC Total):</td>
+                    <td style="text-align:center; color:#0369a1;">${s.bacteriologicalCount || 0}</td>
+                    <td style="text-align:center; color:#16a34a;">${s.bacteriologicalSuitable || 0}</td>
+                    <td style="text-align:center; color:#dc2626;">${s.bacteriologicalUnsuitable || 0}</td>
+                    <td style="text-align:center; color:#d97706; border-right:1px solid #cbd5e1;">${s.bacteriologicalAwaited || 0}</td>
+                    <td style="text-align:center; color:#6d28d9;">${s.chemicalCount || 0}</td>
+                    <td style="text-align:center; color:#16a34a;">${s.chemicalSuitable || 0}</td>
+                    <td style="text-align:center; color:#dc2626;">${s.chemicalUnsuitable || 0}</td>
+                    <td style="text-align:center; color:#d97706; border-right:1px solid #cbd5e1;">${s.chemicalAwaited || 0}</td>
+                    <td style="text-align:center; color:#b45309;">${s.tclCount || 0}</td>
+                    <td style="text-align:center; color:#16a34a;">${s.tclSuitable || 0}</td>
+                    <td style="text-align:center; color:#dc2626; border-right:1px solid #cbd5e1;">${s.tclUnsuitable || 0}</td>
+                    <td style="text-align:center; color:#0f172a; font-size:13.5px;">${s.totalSent || 0}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- SECTION 3: BACTERIOLOGICAL ANALYSIS MODULE DATA TABLE -->
+          <div style="margin-bottom:22px; page-break-inside:avoid;">
+            <div style="background:#0369a1; color:#ffffff; padding:9px 14px; border-radius:8px 8px 0 0; font-size:13.5px; font-weight:800; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <span>🦠 ३. विभाग अ — पाण्याची जैविक तपासणी सविस्तर माहिती तक्ता (Bacteriological Water Analysis Data Table)</span>
+              <span style="background:#ffffff; color:#0369a1; padding:2px 10px; border-radius:12px; font-size:11.5px; font-weight:800;">
+                एकूण जैविक नमुने: ${bactList.length} | योग्य: ${s.bacteriologicalSuitable || 0} | दूषित: ${s.bacteriologicalUnsuitable || 0}
+              </span>
+            </div>
+            <div style="overflow-x:auto; border:1px solid #bae6fd; border-top:none; border-radius:0 0 8px 8px;">
+              <table class="table-modern" style="margin:0; font-size:12px;">
+                <thead>
+                  <tr style="background:#f0f9ff; color:#0369a1;">
+                    <th style="width:38px; text-align:center;">अ.क्र.</th>
+                    <th>नमुना आयडी (Sample ID)</th>
+                    <th>पाठवणी दिनांक</th>
+                    <th>उपकेंद्र</th>
+                    <th>गाव</th>
+                    <th>जलस्त्रोताचे नाव व सांकेतांक</th>
+                    <th>स्त्रोत प्रकार</th>
+                    <th style="text-align:center;">MPN निर्देशांक (/100ml)</th>
+                    <th style="text-align:center;">कॉलिफॉर्म / E. coli जीवाणू स्थिती</th>
+                    <th style="text-align:center;">शिल्लक क्लोरीन (RC ppm)</th>
+                    <th>अहवाल दिनांक व जा.क्र.</th>
+                    <th style="text-align:center;">तपासणी निकाल (Result)</th>
+                    <th>शेरा / उपाययोजना</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${bactList.length === 0 ? `
+                    <tr>
+                      <td colspan="13" style="text-align:center; padding:22px; color:#64748b; font-weight:700; background:#f8fafc;">
+                        निवडलेल्या महिन्यासाठी (${monthLabel}) कोणतीही पाण्याची जैविक तपासणी (Bacteriological Sample) नोंद आढळली नाही.
+                      </td>
+                    </tr>
+                  ` : bactList.map((item, idx) => {
+                    const p = item.analysisParams || {};
+                    const mpnDisplay = (p.mpnCount !== undefined && p.mpnCount !== '') ? p.mpnCount : '--';
+                    const ecoliDisplay = p.ecoliStatus || (item.result === 'पिण्यास योग्य' ? 'आढळले नाही (Absent)' : (item.result === 'पिण्यास अयोग्य' ? 'आढळले (Present)' : '--'));
+                    const rcDisplay = (p.residualChlorine !== undefined && p.residualChlorine !== '') ? `${p.residualChlorine} ppm` : '--';
+                    const isUnfit = item.result === 'पिण्यास अयोग्य';
+                    const isFit = item.result === 'पिण्यास योग्य';
+                    return `
+                      <tr style="${isUnfit ? 'background:#fff5f5;' : ''}">
+                        <td style="text-align:center; font-weight:700;">${idx + 1}</td>
+                        <td style="font-family:monospace; font-weight:800; color:#0369a1;">${item.sampleId || '--'}</td>
+                        <td style="font-weight:700;">${nwbdcpFormatDateForDisplay(item.dispatchDate)}</td>
+                        <td>${item.subcenter || '--'}</td>
+                        <td style="font-weight:700;">${item.village || '--'}</td>
+                        <td style="font-weight:700; color:#0f172a;">
+                          <span style="font-family:monospace; font-size:10.5px; background:#e0f2fe; color:#0369a1; padding:1px 5px; border-radius:4px; margin-right:4px;">${item.sourceCode || item.sourceId || ''}</span>
+                          ${item.sourceName || '--'}
+                        </td>
+                        <td>${item.sourceType || 'विहीर'}</td>
+                        <td style="text-align:center; font-weight:800; color:${parseFloat(p.mpnCount) > 10 ? '#dc2626' : '#0f172a'};">${mpnDisplay}</td>
+                        <td style="text-align:center; font-weight:700; color:${String(ecoliDisplay).includes('Present') || isUnfit ? '#dc2626' : '#15803d'};">${ecoliDisplay}</td>
+                        <td style="text-align:center; font-weight:700;">${rcDisplay}</td>
+                        <td style="font-size:11.5px;">
+                          ${item.reportReceivedDate ? nwbdcpFormatDateForDisplay(item.reportReceivedDate) : '--'}
+                          ${item.labRefNo ? `<br><span style="color:#64748b; font-size:10.5px;">जा.क्र.: ${item.labRefNo}</span>` : ''}
+                        </td>
+                        <td style="text-align:center;">
+                          <span class="mui-chip ${isFit ? 'mui-chip-success' : (isUnfit ? 'mui-chip-danger' : 'mui-chip-warning')}">${item.result || 'अहवाल अप्राप्त'}</span>
+                        </td>
+                        <td style="font-size:11.5px; color:#334155;">${item.remarks || '--'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+                ${bactList.length > 0 ? `
+                  <tfoot>
+                    <tr style="background:#e0f2fe; font-weight:800; color:#0369a1; border-top:2px solid #0284c7;">
+                      <td colspan="7" style="text-align:right;">🦠 जैविक तपासणी विभाग एकूण सारांश (Bacteriological Module Summary):</td>
+                      <td colspan="2" style="text-align:center;">कॉलिफॉर्म / दूषित नमुने: <span style="color:#dc2626;">${ecoliPosCount}</span></td>
+                      <td colspan="2" style="text-align:center;">पिण्यास योग्य: <span style="color:#15803d;">${s.bacteriologicalSuitable || 0}</span> | अयोग्य: <span style="color:#dc2626;">${s.bacteriologicalUnsuitable || 0}</span></td>
+                      <td colspan="2" style="text-align:center;">शुद्धता प्रमाण: ${s.bacteriologicalPotabilityPct || 0}%</td>
+                    </tr>
+                  </tfoot>
+                ` : ''}
+              </table>
+            </div>
+          </div>
+
+          <!-- SECTION 4: CHEMICAL ANALYSIS MODULE DATA TABLE -->
+          <div style="margin-bottom:22px; page-break-inside:avoid;">
+            <div style="background:#6d28d9; color:#ffffff; padding:9px 14px; border-radius:8px 8px 0 0; font-size:13.5px; font-weight:800; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+              <span>⚗️ ४. विभाग ब — पाण्याची रासायनिक तपासणी सविस्तर माहिती तक्ता (Chemical Water Analysis Data Table - BIS IS 10500:2012)</span>
+              <span style="background:#ffffff; color:#6d28d9; padding:2px 10px; border-radius:12px; font-size:11.5px; font-weight:800;">
+                एकूण रासायनिक नमुने: ${chemList.length} | योग्य: ${s.chemicalSuitable || 0} | अयोग्य: ${s.chemicalUnsuitable || 0}
+              </span>
+            </div>
+            <div style="overflow-x:auto; border:1px solid #ddd6fe; border-top:none; border-radius:0 0 8px 8px;">
+              <table class="table-modern" style="margin:0; font-size:11.5px;">
+                <thead>
+                  <tr style="background:#f5f3ff; color:#5b21b6;">
+                    <th style="width:36px; text-align:center;">अ.क्र.</th>
+                    <th>नमुना आयडी</th>
+                    <th>पाठवणी दिनांक</th>
+                    <th>उपकेंद्र व गाव</th>
+                    <th>जलस्त्रोताचे नाव व प्रकार</th>
+                    <th style="text-align:center;">pH<br><span style="font-size:9.5px; color:#64748b;">(6.5–8.5)</span></th>
+                    <th style="text-align:center;">TDS<br><span style="font-size:9.5px; color:#64748b;">(≤2000 mg/L)</span></th>
+                    <th style="text-align:center;">गढूळपणा Turbidity<br><span style="font-size:9.5px; color:#64748b;">(≤5 NTU)</span></th>
+                    <th style="text-align:center;">कठीणपणा Hardness<br><span style="font-size:9.5px; color:#64748b;">(≤600 mg/L)</span></th>
+                    <th style="text-align:center;">फ्लोराईड Fluoride<br><span style="font-size:9.5px; color:#64748b;">(≤1.5 mg/L)</span></th>
+                    <th style="text-align:center;">नायट्रेट Nitrate<br><span style="font-size:9.5px; color:#64748b;">(≤45 mg/L)</span></th>
+                    <th style="text-align:center;">क्लोराईड Chloride<br><span style="font-size:9.5px; color:#64748b;">(≤1000 mg/L)</span></th>
+                    <th style="text-align:center;">लोह Iron<br><span style="font-size:9.5px; color:#64748b;">(≤0.3 mg/L)</span></th>
+                    <th>अहवाल दिनांक व जा.क्र.</th>
+                    <th style="text-align:center;">तपासणी निकाल</th>
+                    <th>शेरा</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${chemList.length === 0 ? `
+                    <tr>
+                      <td colspan="16" style="text-align:center; padding:22px; color:#64748b; font-weight:700; background:#f8fafc;">
+                        निवडलेल्या महिन्यासाठी (${monthLabel}) कोणतीही पाण्याची रासायनिक तपासणी (Chemical Sample) नोंद आढळली नाही.
+                      </td>
+                    </tr>
+                  ` : chemList.map((item, idx) => {
+                    const p = item.analysisParams || {};
+                    const isUnfit = item.result === 'पिण्यास अयोग्य';
+                    const isFit = item.result === 'पिण्यास योग्य';
+                    return `
+                      <tr style="${isUnfit ? 'background:#fff5f5;' : ''}">
+                        <td style="text-align:center; font-weight:700;">${idx + 1}</td>
+                        <td style="font-family:monospace; font-weight:800; color:#6d28d9;">${item.sampleId || '--'}</td>
+                        <td style="font-weight:700;">${nwbdcpFormatDateForDisplay(item.dispatchDate)}</td>
+                        <td><b>${item.village || '--'}</b><br><span style="font-size:10.5px; color:#64748b;">उपकेंद्र: ${item.subcenter || '--'}</span></td>
+                        <td style="font-weight:700; color:#0f172a;">
+                          ${item.sourceName || '--'}
+                          <br><span style="font-size:10.5px; color:#475569;">(${item.sourceType || 'विहीर'})</span>
+                        </td>
+                        <td style="text-align:center;">${fmtChemVal(p.ph, 6.5, 8.5)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.tds, null, 2000)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.turbidity, null, 5)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.hardness, null, 600)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.fluoride, null, 1.5)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.nitrate, null, 45)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.chloride, null, 1000)}</td>
+                        <td style="text-align:center;">${fmtChemVal(p.iron, null, 0.3)}</td>
+                        <td style="font-size:11px;">
+                          ${item.reportReceivedDate ? nwbdcpFormatDateForDisplay(item.reportReceivedDate) : '--'}
+                          ${item.labRefNo ? `<br><span style="color:#64748b; font-size:10px;">जा.क्र.: ${item.labRefNo}</span>` : ''}
+                        </td>
+                        <td style="text-align:center;">
+                          <span class="mui-chip ${isFit ? 'mui-chip-success' : (isUnfit ? 'mui-chip-danger' : 'mui-chip-warning')}">${item.result || 'अहवाल अप्राप्त'}</span>
+                        </td>
+                        <td style="font-size:11px; color:#334155;">${item.remarks || '--'}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+                ${chemList.length > 0 ? `
+                  <tfoot>
+                    <tr style="background:#ede9fe; font-weight:800; color:#5b21b6; border-top:2px solid #7c3aed;">
+                      <td colspan="8" style="text-align:right;">⚗️ रासायनिक तपासणी विभाग एकूण सारांश (Chemical Module Summary):</td>
+                      <td colspan="4" style="text-align:center;">पिण्यास योग्य: <span style="color:#15803d;">${s.chemicalSuitable || 0}</span> | अयोग्य: <span style="color:#dc2626;">${s.chemicalUnsuitable || 0}</span> | प्रलंबित: <span style="color:#d97706;">${s.chemicalAwaited || 0}</span></td>
+                      <td colspan="4" style="text-align:center;">रासायनिक शुद्धता प्रमाण: ${s.chemicalPotabilityPct || 0}%</td>
+                    </tr>
+                  </tfoot>
+                ` : ''}
+              </table>
+            </div>
+          </div>
+
+          <!-- SECTION 5: BLEACHING POWDER (TCL) MODULE SUMMARY TABLE (IF PRESENT) -->
+          ${tclList.length > 0 ? `
+            <div style="margin-bottom:22px; page-break-inside:avoid;">
+              <div style="background:#b45309; color:#ffffff; padding:8px 14px; border-radius:8px 8px 0 0; font-size:13px; font-weight:800; display:flex; justify-content:space-between; align-items:center;">
+                <span>🧪 ५. विभाग क — ब्लिचिंग पावडर (TCL) नमुना क्लोरीन मात्रा तपासणी तक्ता (Bleaching Powder Analysis Table)</span>
+                <span style="background:#ffffff; color:#b45309; padding:2px 10px; border-radius:12px; font-size:11.5px; font-weight:800;">
+                  एकूण TCL नमुने: ${tclList.length} | मानक (≥33%): ${s.tclSuitable || 0} | अमानक (<33%): ${s.tclUnsuitable || 0}
+                </span>
+              </div>
+              <div style="overflow-x:auto; border:1px solid #fde68a; border-top:none; border-radius:0 0 8px 8px;">
+                <table class="table-modern" style="margin:0; font-size:12px;">
+                  <thead>
+                    <tr style="background:#fffbeb; color:#92400e;">
+                      <th style="width:40px; text-align:center;">अ.क्र.</th>
+                      <th>नमुना आयडी</th>
+                      <th>पाठवणी दिनांक</th>
+                      <th>उपकेंद्र</th>
+                      <th>गाव / ग्रामपंचायत</th>
+                      <th>TCL साठा ठिकाण</th>
+                      <th>बॅच क्र. व पॅकिंग</th>
+                      <th style="text-align:center;">उपलब्ध क्लोरीन % (IS मानक ≥33%)</th>
+                      <th>अहवाल दिनांक</th>
+                      <th style="text-align:center;">निकाल</th>
+                      <th>शेरा</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${tclList.map((item, idx) => {
+                      const p = item.analysisParams || {};
+                      const clPct = p.availableChlorinePct !== undefined && p.availableChlorinePct !== '' ? `${p.availableChlorinePct}%` : '--';
+                      const isFit = item.result === 'पिण्यास योग्य';
+                      const isUnfit = item.result === 'पिण्यास अयोग्य';
+                      return `
+                        <tr>
+                          <td style="text-align:center; font-weight:700;">${idx + 1}</td>
+                          <td style="font-family:monospace; font-weight:800; color:#b45309;">${item.sampleId || '--'}</td>
+                          <td style="font-weight:700;">${nwbdcpFormatDateForDisplay(item.dispatchDate)}</td>
+                          <td>${item.subcenter || '--'}</td>
+                          <td style="font-weight:700;">${item.village || '--'}</td>
+                          <td>${item.sourceName || '--'}</td>
+                          <td>${p.tclBatchNo || '--'} ${p.tclPackingType ? `(${p.tclPackingType})` : ''}</td>
+                          <td style="text-align:center; font-weight:800; color:${parseFloat(p.availableChlorinePct) < 33 ? '#dc2626' : '#15803d'};">${clPct}</td>
+                          <td>${item.reportReceivedDate ? nwbdcpFormatDateForDisplay(item.reportReceivedDate) : '--'}</td>
+                          <td style="text-align:center;">
+                            <span class="mui-chip ${isFit ? 'mui-chip-success' : (isUnfit ? 'mui-chip-danger' : 'mui-chip-warning')}">${item.result || 'अहवाल अप्राप्त'}</span>
+                          </td>
+                          <td style="font-size:11.5px;">${item.remarks || '--'}</td>
+                        </tr>
+                      `;
+                    }).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- OFFICIAL SIGNATURE & CERTIFICATION FOOTER -->
+          <div style="margin-top:28px; padding-top:18px; border-top:1.5px dashed #94a3b8; display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:20px; page-break-inside:avoid;">
+            <div style="font-size:12px; color:#334155; line-height:1.6;">
+              <b>प्रमाणित करण्यात येते की,</b> वरील मासिक पाणी गुणवत्ता अहवाल (${monthLabel}) प्राथमिक आरोग्य केंद्र भादा येथील<br>
+              जैविक (Bacteriological) व रासायनिक (Chemical) पाणी नमुना तपासणी नोंदवहीनुसार अचूक आहे.
+            </div>
+            <div style="display:flex; gap:48px; align-items:flex-end;">
+              <div style="text-align:center; font-size:12.5px;">
+                <br><br>
+                <b>आरोग्य निरीक्षक / आरोग्य सहायक</b><br>
+                <span style="color:#475569; font-size:11.5px;">प्राथमिक आरोग्य केंद्र भादा, ता. औसा</span>
+              </div>
+              <div style="text-align:center; font-size:12.5px;">
+                <br><br>
+                <b>वैद्यकीय अधिकारी</b><br>
+                <span style="color:#475569; font-size:11.5px;">प्राथमिक आरोग्य केंद्र भादा, ता. औसा, जि. लातूर</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      `;
     }
 
     function displayNwbdcpReportHtml(data) {
       const container = document.getElementById('nwbdcpReportDisplayArea');
       if (!container) return;
 
+      if (data.reportType === 'CONSOLIDATED_MONTHLY' || data.reportType === 'MONTHLY') {
+        container.innerHTML = renderNwbdcpConsolidatedMonthlyHtml(data);
+        return;
+      }
+
       const s = data.summary || {};
       const dateGroups = data.dateGroups || [];
+      const selectedMonthYear = data.selectedMonthYear || document.getElementById('nwbdcpReportMonthInput')?.value || 'ALL';
+      const monthLabel = nwbdcpFormatMonthYearLabel(selectedMonthYear);
 
-      let reportTitle = `पाणी नमुना नोंदवही (Water Sample Register)`;
-      if (data.reportType === 'MONTHLY') reportTitle = `मासिक पाणी नमुना अहवाल`;
+      let reportTitle = `पाणी व TCL नमुना नोंदवही (Water & TCL Sample Register)`;
+      if (data.reportType === 'BACTERIOLOGICAL_REG') reportTitle = `🦠 पाण्याची जैविक तपासणी अहवाल (Bacteriological Analysis of Water)`;
+      else if (data.reportType === 'CHEMICAL_REG') reportTitle = `⚗️ पाण्याची रासायनिक तपासणी अहवाल (Chemical Analysis of Water)`;
+      else if (data.reportType === 'TCL_REG') reportTitle = `🧪 ब्लिचिंग पावडर (TCL) नमुना क्लोरीन तपासणी अहवाल`;
+      else if (data.reportType === 'MONTHLY') reportTitle = `मासिक पाणी नमुना अहवाल`;
       else if (data.reportType === 'PROGRESSIVE') reportTitle = `प्रगतीपथावरील संचयी अहवाल (Cumulative Progressive Report)`;
       else if (data.reportType === 'DAILY') reportTitle = `दैनिक पाणी नमुना पाठवणी अहवाल`;
       else if (data.reportType === 'UNSUITABLE') reportTitle = `पिण्यास अयोग्य/दूषित नमुने व उपाययोजना अहवाल`;
@@ -23758,32 +25167,33 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
           <div style="font-size:13.5px; font-weight:800; color:#0369a1; text-transform:uppercase;">आयुष्यमान आरोग्य मंदिर लखनगाव</div>
           <h2 style="margin:2px 0; font-size:22px; font-weight:800; color:#0369a1;">प्राथमिक आरोग्य केंद्र भादा</h2>
           <div style="font-size:13px; font-weight:700; color:#334155;">तालुका औसा, जिल्हा लातूर (महाराष्ट्र शासन - सार्वजनिक आरोग्य विभाग)</div>
-          <h3 style="margin:8px 0 0 0; font-size:18px; font-weight:800; color:#0f172a; text-decoration:underline;">
+          <h3 style="margin:8px 0 4px 0; font-size:18px; font-weight:800; color:#0f172a; text-decoration:underline;">
             NWBDCP — ${reportTitle}
           </h3>
+          <div style="font-size:12.5px; font-weight:800; color:#0284c7;">📅 अहवाल महिना / कालावधी: ${monthLabel}</div>
         </div>
 
         <!-- Top Summary KPI Row -->
-        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:14px; margin-bottom:24px;">
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:12px; margin-bottom:24px;">
           <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; font-weight:800; color:#0284c7;">${s.totalSent}</div>
-            <div style="font-size:12px; font-weight:700; color:#0369a1;">एकूण नमुने पाठवले</div>
+            <div style="font-size:22px; font-weight:800; color:#0284c7;">${s.totalSent}</div>
+            <div style="font-size:12px; font-weight:700; color:#0369a1;">एकूण नमुने (जैविक:${s.bacteriologicalCount || 0} | रासायनिक:${s.chemicalCount || 0} | TCL:${s.tclCount || 0})</div>
           </div>
           <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; font-weight:800; color:#16a34a;">${s.suitable}</div>
-            <div style="font-size:12px; font-weight:700; color:#15803d;">पिण्यास योग्य (Safe)</div>
+            <div style="font-size:22px; font-weight:800; color:#16a34a;">${s.suitable}</div>
+            <div style="font-size:12px; font-weight:700; color:#15803d;">पिण्यास / वापरास योग्य (Safe)</div>
           </div>
           <div style="background:#fef2f2; border:1px solid #fecaca; border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; font-weight:800; color:#dc2626;">${s.unsuitable}</div>
-            <div style="font-size:12px; font-weight:700; color:#991b1b;">पिण्यास अयोग्य (Unfit)</div>
+            <div style="font-size:22px; font-weight:800; color:#dc2626;">${s.unsuitable}</div>
+            <div style="font-size:12px; font-weight:700; color:#991b1b;">पिण्यास / वापरास अयोग्य (Unfit)</div>
           </div>
           <div style="background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; font-weight:800; color:#d97706;">${s.awaited}</div>
+            <div style="font-size:22px; font-weight:800; color:#d97706;">${s.awaited}</div>
             <div style="font-size:12px; font-weight:700; color:#b45309;">अहवाल प्रलंबित</div>
           </div>
           <div style="background:#faf5ff; border:1px solid #ddd6fe; border-radius:10px; padding:12px; text-align:center;">
-            <div style="font-size:24px; font-weight:800; color:#7c3aed;">${s.fitnessPercentage}%</div>
-            <div style="font-size:12px; font-weight:700; color:#6d28d9;">पाणी शुद्धता प्रमाण</div>
+            <div style="font-size:22px; font-weight:800; color:#7c3aed;">${s.fitnessPercentage}%</div>
+            <div style="font-size:12px; font-weight:700; color:#6d28d9;">शुद्धता / मानक प्रमाण</div>
           </div>
         </div>
       `;
@@ -23791,13 +25201,12 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
       if (dateGroups.length === 0) {
         container.innerHTML = headerHtml + `
           <div style="text-align:center; padding:40px; color:#64748b; font-size:14.5px; background:#f8fafc; border-radius:12px; border:1px solid #e2e8f0;">
-            ⚠️ निवडलेल्या फिल्टर्सनुसार कोणताही पाणी नमुना डेटा सापडला नाही.
+            ⚠️ निवडलेल्या फिल्टर्सनुसार (${monthLabel}) कोणताही नमुना डेटा सापडला नाही.
           </div>
         `;
         return;
       }
 
-      // Render Register grouped by Dispatch Date in DESCENDING order
       let groupsHtml = dateGroups.map(dg => `
         <div style="background:#e0f2fe; border-left:5px solid #0284c7; padding:10px 16px; margin:22px 0 10px 0; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
           <div style="font-size:15px; font-weight:800; color:#0369a1;">
@@ -23813,15 +25222,14 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
             <thead>
               <tr style="background:#f8fafc;">
                 <th style="width:40px; text-align:center;">अ.क्र.</th>
+                <th>Sample ID</th>
+                <th>तपासणी प्रकार</th>
                 <th>पाठवणी दिनांक</th>
                 <th>उपकेंद्र</th>
                 <th>गाव</th>
-                <th>ग्रामपंचायत</th>
-                <th>पाणी स्त्रोत नाव</th>
+                <th>जलस्त्रोत / TCL साठा नाव</th>
                 <th>स्त्रोत प्रकार</th>
-                <th>मालकी</th>
-                <th>Sample ID</th>
-                <th>अहवाल स्थिती</th>
+                <th>तपासणी मानके</th>
                 <th>अहवाल प्राप्त दिनांक</th>
                 <th>निकाल</th>
                 <th>शेरा</th>
@@ -23831,18 +25239,17 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
               ${dg.samples.map((s, idx) => `
                 <tr>
                   <td style="text-align:center; font-weight:700;">${idx + 1}</td>
+                  <td style="font-family:monospace; font-weight:800; color:#0369a1;">${s.sampleId}</td>
+                  <td>${getNwbdcpAnalysisBadgeHtml(s.analysisType || 'BACTERIOLOGICAL', s.analysisParams)}</td>
                   <td><b>${s.dispatchDate}</b></td>
                   <td>${s.subcenter || '--'}</td>
                   <td><b>${s.village || '--'}</b></td>
-                  <td>${s.gramPanchayat || s.village || '--'}</td>
                   <td style="font-weight:700; color:#0369a1;">
                     <span style="font-family:monospace; font-size:11px; background:#e0f2fe; color:#0369a1; padding:2px 5px; border-radius:4px; margin-right:5px; border:1px solid #bae6fd;">${s.sourceCode || s.sourceId || ''}</span>
                     ${s.sourceName || '--'}
                   </td>
                   <td><span class="mui-chip mui-chip-info">${s.sourceType || 'विहीर'}</span></td>
-                  <td><span class="mui-chip mui-chip-primary">${s.ownership || 'शासकीय'}</span></td>
-                  <td style="font-family:monospace; font-weight:800; color:#0369a1;">${s.sampleId}</td>
-                  <td>${s.status || 'पाठविलेले'}</td>
+                  <td style="font-size:11.5px; color:#334155;">${s.remarks || '--'}</td>
                   <td>${s.reportReceivedDate || '--'}</td>
                   <td><span class="mui-chip ${s.result === 'पिण्यास योग्य' ? 'mui-chip-success' : (s.result === 'पिण्यास अयोग्य' ? 'mui-chip-danger' : 'mui-chip-warning')}">${s.result || 'अहवाल अप्राप्त'}</span></td>
                   <td style="font-size:12px; color:#475569;">${s.remarks || '--'}</td>
@@ -23870,6 +25277,12 @@ BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भ
 
       container.innerHTML = headerHtml + groupsHtml + totalsSummaryHtml;
     }
+
+    window.onNwbdcpReportMonthChange = onNwbdcpReportMonthChange;
+    window.clearNwbdcpReportMonthFilter = clearNwbdcpReportMonthFilter;
+    window.openNwbdcpConsolidatedMonthlyReport = openNwbdcpConsolidatedMonthlyReport;
+    window.printNwbdcpConsolidatedReport = printNwbdcpConsolidatedReport;
+    window.downloadNwbdcpConsolidatedMonthlyPdf = downloadNwbdcpConsolidatedMonthlyPdf;
 
     // Historical Import Functions with Full Excel & Devanagari Unicode Support
     function readNwbdcpImportFile(input) {

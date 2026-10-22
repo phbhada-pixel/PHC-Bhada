@@ -3046,7 +3046,7 @@ export function getOpdBsVillagewiseSummary(monthName) {
       if (mNum >= 1 && mNum <= 12) mIdx = mNum - 1;
     }
   }
-  if (mIdx === -1) mIdx = 8;
+  if (mIdx === -1) mIdx = 9;
   const monthObj = monthMaster[mIdx] || { name: monthName };
 
   const yrMatch = String(monthName || "").match(/202\d/);

@@ -597,8 +597,8 @@ export function generateMonthlyReportWebApp(selectedMonthDisplay) {
       D35 = Math.floor(parseInt(monthObj.mpwHomeVisits) / 2);
       D36 = parseInt(monthObj.mpwHomeVisits) - D35;
     } else {
-      D35 = Math.max(680, D23 * 22);
-      D36 = Math.max(720, D25 * 24);
+      D35 = 0;
+      D36 = 0;
     }
     const D37 = D35 + D36;
 
@@ -620,8 +620,8 @@ export function generateMonthlyReportWebApp(selectedMonthDisplay) {
       D41 = Math.floor(parseInt(monthObj.anmHomeVisits) / 2);
       D42 = parseInt(monthObj.anmHomeVisits) - D41;
     } else {
-      D41 = Math.max(490, Math.round(D27 * 15));
-      D42 = Math.max(530, Math.round(D27 * 16));
+      D41 = 0;
+      D42 = 0;
     }
     const D43 = D41 + D42;
 
@@ -1663,7 +1663,7 @@ export function generateMonthlyReportWebApp(selectedMonthDisplay) {
             <tr>
               <td>2</td><td class="text-left">आराखडे पुर्ण झालेल्या घरांची संख्या</td>
               <td>0</td><td>0</td><td>0</td>
-              <td>1250</td><td>1579</td><td>2829</td>
+              <td>0</td><td>0</td><td>0</td>
             </tr>
             <tr>
               <td>3</td><td class="text-left">गृहभेटी आरोग्य सेवक (MPW - आदिवासी व इतर कार्यक्षेत्र)</td>

@@ -423,6 +423,69 @@ export async function syncMonthMasterToSupabase(month) {
   }
 }
 
+export async function syncBatchMonthMasterToSupabase(months) {
+  if (!supabaseClient || !isSupabaseOnline() || !Array.isArray(months) || months.length === 0) {
+    return { success: false, offline: true };
+  }
+  try {
+    const nowIso = new Date().toISOString();
+    const payloads = months.filter(m => m && m.name).map(month => ({
+      name: month.name,
+      f1_start: month.f1Start ? new Date(month.f1Start).toISOString() : null,
+      f1_end: month.f1End ? new Date(month.f1End).toISOString() : null,
+      f2_start: month.f2Start ? new Date(month.f2Start).toISOString() : null,
+      f2_end: month.f2End ? new Date(month.f2End).toISOString() : null,
+      new_opd: Number(month.newOpd) || 0,
+      prog_new_opd: Number(month.progNewOpd) || 0,
+      mpw_fn1: Number(month.mpwFn1) || 0,
+      mpw_fn2: Number(month.mpwFn2) || 0,
+      mpw_home_visits: Number(month.mpwHomeVisits) || 0,
+      prog_mpw_fn1: Number(month.progMpwFn1) || 0,
+      prog_mpw_fn2: Number(month.progMpwFn2) || 0,
+      prog_mpw_home_visits: Number(month.progMpwHomeVisits) || 0,
+      anm_fn1: Number(month.anmFn1) || 0,
+      anm_fn2: Number(month.anmFn2) || 0,
+      anm_home_visits: Number(month.anmHomeVisits) || 0,
+      prog_anm_fn1: Number(month.progAnmFn1) || 0,
+      prog_anm_fn2: Number(month.progAnmFn2) || 0,
+      prog_anm_home_visits: Number(month.progAnmHomeVisits) || 0,
+      asha_home_visits: Number(month.ashaHomeVisits) || 0,
+      prog_asha_home_visits: Number(month.progAshaHomeVisits) || 0,
+      fever_cases: Number(month.feverCases) || 0,
+      prog_fever_cases: Number(month.progFeverCases) || 0,
+      blood_smears: Number(month.bloodSmears) || 0,
+      prog_blood_smears: Number(month.progBloodSmears) || 0,
+      treated_cases: Number(month.treatedCases) || 0,
+      prog_treated_cases: Number(month.progTreatedCases) || 0,
+      chloroquine_spent: Number(month.chloroquineSpent) || 0,
+      prog_chloroquine_spent: Number(month.progChloroquineSpent) || 0,
+      prior_opd_sum: Number(month.priorOpdSum) || 0,
+      prior_fever_sum: Number(month.priorFeverSum) || 0,
+      prior_smears_sum: Number(month.priorSmearsSum) || 0,
+      prior_treated_sum: Number(month.priorTreatedSum) || 0,
+      prior_cq_sum: Number(month.priorCqSum) || 0,
+      prior_mpw_sum: Number(month.priorMpwSum) || 0,
+      prior_anm_sum: Number(month.priorAnmSum) || 0,
+      prior_asha_sum: Number(month.priorAshaSum) || 0,
+      blood_smears_manual: month.bloodSmearsManual !== false,
+      prior_mpw_fn1_sum: Number(month.priorMpwFn1Sum) || 0,
+      prior_mpw_fn2_sum: Number(month.priorMpwFn2Sum) || 0,
+      prior_anm_fn1_sum: Number(month.priorAnmFn1Sum) || 0,
+      prior_anm_fn2_sum: Number(month.priorAnmFn2Sum) || 0,
+      updated_at: nowIso
+    }));
+    const { error } = await supabaseClient
+      .from('NVBDCP_MonthMaster')
+      .upsert(payloads, { onConflict: 'name' });
+    if (error) throw error;
+    markSupabaseOnline();
+    return { success: true, count: payloads.length };
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
+  }
+}
+
 // =========================================================================
 // 5. BLOOD SMEAR DATA ENTRY (NVBDCP_BsDataEntry)
 // Array representation in store: [id, dateObj, upkendra, employeeName, designation, bsCode, bundleNumber, pasun, paraynt, total]
@@ -602,7 +665,28 @@ export async function fetchTransferHistoryFromSupabase() {
   if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_TransferHistory', '*', 'id');
-    return data;
+    return data.map(t => {
+      const dt = t.transfer_date ? new Date(t.transfer_date) : new Date();
+      const dFormatted = !isNaN(dt.getTime())
+        ? `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}/${dt.getFullYear()}`
+        : '';
+      return {
+        id: t.id,
+        employeeId: t.employee_id || '',
+        employeeName: t.employee_name || '',
+        designation: t.old_bscode || 'आरोग्य कर्मचारी',
+        fromUpkendra: t.old_upkendra || '',
+        toUpkendra: t.new_upkendra || '',
+        previousVillages: Array.isArray(t.old_villages) ? t.old_villages : [],
+        newVillages: Array.isArray(t.new_villages) ? t.new_villages : [],
+        bsCode: t.new_bscode || t.old_bscode || '',
+        orderNo: t.order_no || '',
+        reason: t.reason || '',
+        timestamp: t.transfer_date || t.created_at,
+        dateFormatted: dFormatted,
+        transferredBy: 'वैद्यकीय अधिकारी, प्रा.आ.केंद्र भादा'
+      };
+    });
   } catch (err) {
     markSupabaseOffline(err.message);
     return null;
@@ -616,15 +700,15 @@ export async function syncTransferHistoryToSupabase(transfer) {
       id: transfer.id || `TR_${Date.now()}`,
       employee_id: transfer.employeeId || transfer.empId || '',
       employee_name: transfer.employeeName || '',
-      old_upkendra: transfer.oldUpkendra || '',
-      new_upkendra: transfer.newUpkendra || '',
-      old_villages: Array.isArray(transfer.oldVillages) ? transfer.oldVillages : [],
+      old_upkendra: transfer.fromUpkendra || transfer.oldUpkendra || '',
+      new_upkendra: transfer.toUpkendra || transfer.newUpkendra || '',
+      old_villages: Array.isArray(transfer.previousVillages) ? transfer.previousVillages : (Array.isArray(transfer.oldVillages) ? transfer.oldVillages : []),
       new_villages: Array.isArray(transfer.newVillages) ? transfer.newVillages : [],
-      old_bscode: transfer.oldBsCode || '',
-      new_bscode: transfer.newBsCode || '',
+      old_bscode: transfer.designation || transfer.oldBsCode || '',
+      new_bscode: transfer.bsCode || transfer.newBsCode || '',
       order_no: transfer.orderNo || '',
       reason: transfer.reason || '',
-      transfer_date: transfer.transferDate || new Date().toISOString()
+      transfer_date: transfer.timestamp || transfer.transferDate || new Date().toISOString()
     };
     const { error } = await supabaseClient
       .from('NVBDCP_TransferHistory')
@@ -645,32 +729,111 @@ export async function fetchDengueChikungunyaFromSupabase() {
   if (!supabaseClient || !isSupabaseOnline()) return null;
   try {
     const data = await fetchAllPaginated('NVBDCP_DengueChikungunya', '*', 'id');
-    return data;
+    return data.map(r => {
+      let extra = {};
+      if (r.date_reporting && typeof r.date_reporting === 'string' && r.date_reporting.trim().startsWith('{')) {
+        try {
+          extra = JSON.parse(r.date_reporting);
+        } catch (e) {
+          extra = {};
+        }
+      }
+      const sqlResult = r.lab_result && r.lab_result !== 'प्रलंबित' ? r.lab_result : (extra.testResult || extra.dengueResult || 'Pending');
+      return {
+        ...extra,
+        id: r.id,
+        patientName: r.patient_name || extra.patientName || '',
+        age: Number(r.age ?? extra.age) || 0,
+        sex: r.gender || extra.sex || 'FEMALE',
+        gender: r.gender || extra.gender || extra.sex || 'FEMALE',
+        village: r.village || extra.village || 'भादा',
+        subcenter: r.upkendra || extra.subcenter || '',
+        upkendra: r.upkendra || extra.upkendra || extra.subcenter || '',
+        dateCollection: r.date_collection || extra.dateCollection || '',
+        dateOnset: extra.dateOnset || r.date_collection || '',
+        dengueResult: extra.dengueResult || sqlResult,
+        chikungunyaResult: extra.chikungunyaResult || 'Pending',
+        testResult: sqlResult,
+        createdAt: r.created_at || extra.createdAt || new Date().toISOString()
+      };
+    });
   } catch (err) {
     markSupabaseOffline(err.message);
     return null;
   }
 }
 
-export async function syncDengueEntryToSupabase(entry) {
-  if (!supabaseClient || !isSupabaseOnline() || !entry) return { success: false, offline: true };
+export async function syncDengueEntryToSupabase(entries) {
+  if (!supabaseClient || !isSupabaseOnline() || !entries) return { success: false, offline: true };
+  const arr = Array.isArray(entries) ? entries : [entries];
+  if (arr.length === 0) return { success: true, count: 0 };
+
   try {
-    const payload = {
-      id: entry.id || `DNG_${Date.now()}`,
-      patient_name: entry.patientName || '',
-      age: Number(entry.age) || 0,
-      gender: entry.gender || '',
-      village: entry.village || '',
-      upkendra: entry.upkendra || '',
-      date_collection: entry.dateCollection || '',
-      date_reporting: entry.dateReporting || '',
-      disease_type: entry.diseaseType || 'डेंग्यू',
-      lab_result: entry.labResult || 'प्रलंबित',
-      created_at: entry.createdAt || new Date().toISOString()
-    };
+    const payloads = arr.map(entry => {
+      const metaCopy = { ...entry };
+      if (metaCopy.dengueReportFile && metaCopy.dengueReportFile.length > 100000) {
+        delete metaCopy.dengueReportFile;
+      }
+      if (metaCopy.chikungunyaReportFile && metaCopy.chikungunyaReportFile.length > 100000) {
+        delete metaCopy.chikungunyaReportFile;
+      }
+      return {
+        id: entry.id || `DNG_${Date.now()}`,
+        patient_name: entry.patientName || entry.patient_name || '',
+        age: Number(entry.age) || 0,
+        gender: entry.sex || entry.gender || 'FEMALE',
+        village: entry.village || '',
+        upkendra: entry.subcenter || entry.upkendra || '',
+        date_collection: entry.dateCollection || entry.date_collection || '',
+        date_reporting: JSON.stringify(metaCopy),
+        disease_type: entry.diseaseType || 'Dengue/Chikungunya',
+        lab_result: entry.testResult || entry.dengueResult || entry.labResult || 'Pending',
+        created_at: entry.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+    });
+
+    for (let i = 0; i < payloads.length; i += 500) {
+      const chunk = payloads.slice(i, i + 500);
+      const { error } = await supabaseClient
+        .from('NVBDCP_DengueChikungunya')
+        .upsert(chunk, { onConflict: 'id' });
+      if (error) throw error;
+    }
+
+    markSupabaseOnline();
+    return { success: true, count: payloads.length };
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
+  }
+}
+
+export async function deleteDengueEntryFromSupabase(idOrIds) {
+  if (!supabaseClient || !isSupabaseOnline() || !idOrIds) return { success: false, offline: true };
+  const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+  if (ids.length === 0) return { success: true };
+  try {
     const { error } = await supabaseClient
       .from('NVBDCP_DengueChikungunya')
-      .upsert(payload, { onConflict: 'id' });
+      .delete()
+      .in('id', ids);
+    if (error) throw error;
+    markSupabaseOnline();
+    return { success: true, count: ids.length };
+  } catch (err) {
+    markSupabaseOffline(err.message);
+    return { success: false, offline: true, error: err.message };
+  }
+}
+
+export async function clearDengueEntriesFromSupabase() {
+  if (!supabaseClient || !isSupabaseOnline()) return { success: false, offline: true };
+  try {
+    const { error } = await supabaseClient
+      .from('NVBDCP_DengueChikungunya')
+      .delete()
+      .neq('id', '__NEVER_MATCH__');
     if (error) throw error;
     markSupabaseOnline();
     return { success: true };
@@ -680,14 +843,15 @@ export async function syncDengueEntryToSupabase(entry) {
   }
 }
 
-export async function deleteDengueEntryFromSupabase(id) {
-  if (!supabaseClient || !isSupabaseOnline() || !id) return { success: false, offline: true };
+export async function clearAllNvbdcpTransactionsFromSupabase() {
+  if (!supabaseClient || !isSupabaseOnline()) return { success: false, offline: true };
   try {
-    const { error } = await supabaseClient
-      .from('NVBDCP_DengueChikungunya')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    await Promise.all([
+      supabaseClient.from('NVBDCP_BsDataEntry').delete().neq('id', '__NEVER_MATCH__'),
+      supabaseClient.from('NVBDCP_VillageDetails').delete().neq('id', '__NEVER_MATCH__'),
+      supabaseClient.from('NVBDCP_TransferHistory').delete().neq('id', '__NEVER_MATCH__'),
+      supabaseClient.from('NVBDCP_DengueChikungunya').delete().neq('id', '__NEVER_MATCH__')
+    ]);
     markSupabaseOnline();
     return { success: true };
   } catch (err) {
@@ -695,3 +859,4 @@ export async function deleteDengueEntryFromSupabase(id) {
     return { success: false, offline: true, error: err.message };
   }
 }
+

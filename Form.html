@@ -94,6 +94,15 @@
 
       // Local Client-Side In-Memory / LocalStorage Store for Standalone / GitHub Pages Mode
       const STORAGE_PREFIX = 'phc_bhada_nvbdcp_';
+      try {
+        const RESET_KEY = STORAGE_PREFIX + 'empty_reset_oct_2026_v1';
+        if (!localStorage.getItem(RESET_KEY)) {
+          ['bsDataEntry', 'dengueChikungunyaEntries', 'villageDetails', 'monthMaster', 'transferHistory', 'bsServiceTenureHistory', 'pendingSyncQueue'].forEach(k => {
+            localStorage.removeItem(STORAGE_PREFIX + k);
+          });
+          localStorage.setItem(RESET_KEY, '1');
+        }
+      } catch (e) {}
       function getLocalStore(key, defaultVal) {
         try {
           const item = localStorage.getItem(STORAGE_PREFIX + key);
@@ -644,8 +653,8 @@
     D35 = Math.floor(parseInt(monthObj.mpwHomeVisits) / 2);
     D36 = parseInt(monthObj.mpwHomeVisits) - D35;
   } else {
-    D35 = Math.max(680, D23 * 22);
-    D36 = Math.max(720, D25 * 24);
+    D35 = 0;
+    D36 = 0;
   }
   const D37 = D35 + D36;
 
@@ -666,8 +675,8 @@
     D41 = Math.floor(parseInt(monthObj.anmHomeVisits) / 2);
     D42 = parseInt(monthObj.anmHomeVisits) - D41;
   } else {
-    D41 = Math.max(490, Math.round(D27 * 15));
-    D42 = Math.max(530, Math.round(D27 * 16));
+    D41 = 0;
+    D42 = 0;
   }
   const D43 = D41 + D42;
 
@@ -1687,7 +1696,7 @@
           <tr>
             <td>2</td><td class="text-left">आराखडे पुर्ण झालेल्या घरांची संख्या</td>
             <td>0</td><td>0</td><td>0</td>
-            <td>1250</td><td>1579</td><td>2829</td>
+            <td>0</td><td>0</td><td>0</td>
           </tr>
           <tr>
             <td>3</td><td class="text-left">गृहभेटी आरोग्य सेवक</td>
@@ -2187,15 +2196,15 @@
               result: {
                 success: true,
                 data: {
-                  total: totalSmears || 897,
-                  active: fieldSmears || 626,
-                  passive: opdSmears || 271,
-                  activePercent: activePercent || 70,
-                  passivePercent: passivePercent || 30,
-                  totalSmears: totalSmears || 897,
-                  totalEntries: totalEntries || 76,
-                  fieldSmears: fieldSmears || 626,
-                  opdSmears: opdSmears || 271,
+                  total: totalSmears || 0,
+                  active: fieldSmears || 0,
+                  passive: opdSmears || 0,
+                  activePercent: activePercent || 0,
+                  passivePercent: passivePercent || 0,
+                  totalSmears: totalSmears || 0,
+                  totalEntries: totalEntries || 0,
+                  fieldSmears: fieldSmears || 0,
+                  opdSmears: opdSmears || 0,
                   totalVillages: 30,
                   totalEmployees: clientMasterData.length || 65
                 }
@@ -2205,9 +2214,9 @@
 
           case 'getMonthlyReportDashboardData': {
             const [selectedMonth] = args;
-            const targetMonthName = cleanMonthString(selectedMonth) || "सप्टेंबर २०२६";
+            const targetMonthName = cleanMonthString(selectedMonth) || "ऑक्टोबर २०२६";
             let mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === targetMonthName);
-            if (mIdx === -1) mIdx = 8;
+            if (mIdx === -1) mIdx = 9;
             const mObj = clientMonthMaster[mIdx] || {};
 
             let priorOpd = 0;
@@ -2233,12 +2242,9 @@
               priorAnmTot += (parseInt(p.anmHomeVisits) || ((parseInt(p.anmFn1) || 0) + (parseInt(p.anmFn2) || 0)));
             }
 
-            if (priorOpd === 0 && mIdx === 8) priorOpd = 11245;
-            if (priorSmears === 0 && mIdx === 8) priorSmears = 1702;
-
-            const newOpd = mObj.newOpd != null ? parseInt(mObj.newOpd) : 1735;
+            const newOpd = mObj.newOpd != null ? parseInt(mObj.newOpd) : 0;
             const progNewOpd = mObj.progNewOpd != null ? parseInt(mObj.progNewOpd) : (priorOpd + newOpd);
-            const bloodSmears = mObj.bloodSmears != null ? parseInt(mObj.bloodSmears) : 271;
+            const bloodSmears = mObj.bloodSmears != null ? parseInt(mObj.bloodSmears) : 0;
             const progBloodSmears = mObj.progBloodSmears != null ? parseInt(mObj.progBloodSmears) : (priorSmears + bloodSmears);
             const feverCases = bloodSmears;
             const progFeverCases = progBloodSmears;
@@ -2247,28 +2253,21 @@
             const chloroquineSpent = parseInt(mObj.chloroquineSpent) || 0;
             const progChloroquineSpent = parseInt(mObj.progChloroquineSpent) || (priorCq + chloroquineSpent);
 
-            const mpwFn1 = mObj.mpwFn1 != null ? parseInt(mObj.mpwFn1) : 5460;
-            const mpwFn2 = mObj.mpwFn2 != null ? parseInt(mObj.mpwFn2) : 5421;
+            const mpwFn1 = mObj.mpwFn1 != null ? parseInt(mObj.mpwFn1) : 0;
+            const mpwFn2 = mObj.mpwFn2 != null ? parseInt(mObj.mpwFn2) : 0;
             const mpwHomeVisits = mObj.mpwHomeVisits != null ? parseInt(mObj.mpwHomeVisits) : (mpwFn1 + mpwFn2);
             const progMpwFn1 = priorMpwFn1 + mpwFn1;
             const progMpwFn2 = priorMpwFn2 + mpwFn2;
             const progMpwHomeVisits = priorMpwTot + mpwHomeVisits;
 
-            const anmFn1 = mObj.anmFn1 != null ? parseInt(mObj.anmFn1) : 2461;
-            const anmFn2 = mObj.anmFn2 != null ? parseInt(mObj.anmFn2) : 2630;
+            const anmFn1 = mObj.anmFn1 != null ? parseInt(mObj.anmFn1) : 0;
+            const anmFn2 = mObj.anmFn2 != null ? parseInt(mObj.anmFn2) : 0;
             const anmHomeVisits = mObj.anmHomeVisits != null ? parseInt(mObj.anmHomeVisits) : (anmFn1 + anmFn2);
             const progAnmFn1 = priorAnmFn1 + anmFn1;
             const progAnmFn2 = priorAnmFn2 + anmFn2;
             const progAnmHomeVisits = priorAnmTot + anmHomeVisits;
 
-            const defaultOpdVillages = [
-              { name: "भादा", villageName: "भादा", count: 65, total: 65, smears: 65, monthlyTotal: 65, male: 33, monthlyMale: 33, female: 32, monthlyFemale: 32, priorTotal: 410, ytdTotal: 475, upkendra: "भादा" },
-              { name: "आलमला", villageName: "आलमला", count: 52, total: 52, smears: 52, monthlyTotal: 52, male: 27, monthlyMale: 27, female: 25, monthlyFemale: 25, priorTotal: 330, ytdTotal: 382, upkendra: "आलमला" },
-              { name: "खडकउमरा", villageName: "खडकउमरा", count: 44, total: 44, smears: 44, monthlyTotal: 44, male: 23, monthlyMale: 23, female: 21, monthlyFemale: 21, priorTotal: 280, ytdTotal: 324, upkendra: "खडकउमरा" },
-              { name: "माकणी", villageName: "माकणी", count: 40, total: 40, smears: 40, monthlyTotal: 40, male: 20, monthlyMale: 20, female: 20, monthlyFemale: 20, priorTotal: 250, ytdTotal: 290, upkendra: "माकणी" },
-              { name: "तावशीगड", villageName: "तावशीगड", count: 38, total: 38, smears: 38, monthlyTotal: 38, male: 19, monthlyMale: 19, female: 19, monthlyFemale: 19, priorTotal: 235, ytdTotal: 273, upkendra: "तावशीगड" },
-              { name: "वडजी", villageName: "वडजी", count: 32, total: 32, smears: 32, monthlyTotal: 32, male: 17, monthlyMale: 17, female: 15, monthlyFemale: 15, priorTotal: 197, ytdTotal: 229, upkendra: "वडजी" }
-            ];
+            const defaultOpdVillages = [];
 
             return {
               result: {
@@ -2320,27 +2319,20 @@
                     progFn1: progAnmFn1, progFn2: progAnmFn2, progressive: progAnmHomeVisits,
                     priorFn1: priorAnmFn1, priorFn2: priorAnmFn2, prior: priorAnmTot
                   },
-                  fieldSmears: 626,
-                  opdSmears: 271,
-                  totalSmears: 897,
-                  smearFeverCoverage: 100,
-                  treatmentCoverage: 100,
+                  fieldSmears: 0,
+                  opdSmears: 0,
+                  totalSmears: 0,
+                  smearFeverCoverage: 0,
+                  treatmentCoverage: 0,
                   opdVillagewise: {
-                    monthlyTotal: 271,
-                    ytdTotal: 1973,
-                    monthlyMale: 139,
-                    monthlyFemale: 132,
-                    priorTotal: 1702,
+                    monthlyTotal: 0,
+                    ytdTotal: 0,
+                    monthlyMale: 0,
+                    monthlyFemale: 0,
+                    priorTotal: 0,
                     villages: defaultOpdVillages
                   },
-                  subcenterBreakdown: [
-                    { sc: "भादा", target: 50, smears: 180, fever: 180, treated: 180, opd: 350, mpwVisits: 1820, anmVisits: 850, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "आलमला", target: 50, smears: 155, fever: 155, treated: 155, opd: 310, mpwVisits: 1790, anmVisits: 840, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "खडकउमरा", target: 50, smears: 140, fever: 140, treated: 140, opd: 280, mpwVisits: 1810, anmVisits: 860, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "माकणी", target: 50, smears: 148, fever: 148, treated: 148, opd: 295, mpwVisits: 1830, anmVisits: 850, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "तावशीगड", target: 50, smears: 138, fever: 138, treated: 138, opd: 260, mpwVisits: 1815, anmVisits: 845, cqSpent: 0, status: "उत्कृष्ट" },
-                    { sc: "वडजी", target: 50, smears: 136, fever: 136, treated: 136, opd: 240, mpwVisits: 1816, anmVisits: 846, cqSpent: 0, status: "उत्कृष्ट" }
-                  ],
+                  subcenterBreakdown: [],
                   tableData: {
                     phcName: 'भादा',
                     month: targetMonthName,
@@ -2365,53 +2357,46 @@
           case 'getSelectedMonthIndicators':
           case 'getMonthIndicators': {
             const [mName] = args;
-            const targetMonthName = cleanMonthString(mName) || "सप्टेंबर २०२६";
-            const mObj = clientMonthMaster.find(m => cleanMonthString(m.name) === targetMonthName) || clientMonthMaster[8] || {};
-            const defaultOpdVillages = [
-              { name: "भादा", villageName: "भादा", count: 65, total: 65, smears: 65, monthlyTotal: 65, male: 33, monthlyMale: 33, female: 32, monthlyFemale: 32, priorTotal: 410, ytdTotal: 475, upkendra: "भादा" },
-              { name: "आलमला", villageName: "आलमला", count: 52, total: 52, smears: 52, monthlyTotal: 52, male: 27, monthlyMale: 27, female: 25, monthlyFemale: 25, priorTotal: 330, ytdTotal: 382, upkendra: "आलमला" },
-              { name: "खडकउमरा", villageName: "खडकउमरा", count: 44, total: 44, smears: 44, monthlyTotal: 44, male: 23, monthlyMale: 23, female: 21, monthlyFemale: 21, priorTotal: 280, ytdTotal: 324, upkendra: "खडकउमरा" },
-              { name: "माकणी", villageName: "माकणी", count: 40, total: 40, smears: 40, monthlyTotal: 40, male: 20, monthlyMale: 20, female: 20, monthlyFemale: 20, priorTotal: 250, ytdTotal: 290, upkendra: "माकणी" },
-              { name: "तावशीगड", villageName: "तावशीगड", count: 38, total: 38, smears: 38, monthlyTotal: 38, male: 19, monthlyMale: 19, female: 19, monthlyFemale: 19, priorTotal: 235, ytdTotal: 273, upkendra: "तावशीगड" },
-              { name: "वडजी", villageName: "वडजी", count: 32, total: 32, smears: 32, monthlyTotal: 32, male: 17, monthlyMale: 17, female: 15, monthlyFemale: 15, priorTotal: 197, ytdTotal: 229, upkendra: "वडजी" }
-            ];
+            const targetMonthName = cleanMonthString(mName) || "ऑक्टोबर २०२६";
+            const mObj = clientMonthMaster.find(m => cleanMonthString(m.name) === targetMonthName) || clientMonthMaster[9] || {};
+            const defaultOpdVillages = [];
 
             return {
               result: {
                 success: true,
                 data: {
                   name: targetMonthName,
-                  newOpd: mObj.newOpd || 1735,
-                  progNewOpd: mObj.progNewOpd || 12980,
-                  feverCases: mObj.feverCases || 271,
-                  progFeverCases: mObj.progFeverCases || 1973,
-                  bloodSmears: mObj.bloodSmears || 271,
-                  progBloodSmears: mObj.progBloodSmears || 1973,
-                  treatedCases: mObj.treatedCases || 271,
-                  progTreatedCases: mObj.progTreatedCases || 1973,
+                  newOpd: mObj.newOpd || 0,
+                  progNewOpd: mObj.progNewOpd || 0,
+                  feverCases: mObj.feverCases || 0,
+                  progFeverCases: mObj.progFeverCases || 0,
+                  bloodSmears: mObj.bloodSmears || 0,
+                  progBloodSmears: mObj.progBloodSmears || 0,
+                  treatedCases: mObj.treatedCases || 0,
+                  progTreatedCases: mObj.progTreatedCases || 0,
                   chloroquineSpent: mObj.chloroquineSpent || 0,
                   progChloroquineSpent: mObj.progChloroquineSpent || 0,
-                  mpwFn1: mObj.mpwFn1 || 5460,
-                  mpwFn2: mObj.mpwFn2 || 5421,
-                  mpwHomeVisits: mObj.mpwHomeVisits || 10881,
-                  progMpwFn1: mObj.progMpwFn1 || 5460,
-                  progMpwFn2: mObj.progMpwFn2 || 5421,
-                  progMpwHomeVisits: mObj.progMpwHomeVisits || 10881,
-                  anmFn1: mObj.anmFn1 || 2461,
-                  anmFn2: mObj.anmFn2 || 2630,
-                  anmHomeVisits: mObj.anmHomeVisits || 5091,
-                  progAnmFn1: mObj.progAnmFn1 || 2461,
-                  progAnmFn2: mObj.progAnmFn2 || 2630,
-                  progAnmHomeVisits: mObj.progAnmHomeVisits || 5091,
-                  priorOpdSum: mObj.priorOpdSum || 11245,
-                  priorFeverSum: mObj.priorFeverSum || 1702,
-                  priorSmearsSum: mObj.priorSmearsSum || 1702,
-                  priorTreatedSum: mObj.priorTreatedSum || 1702,
+                  mpwFn1: mObj.mpwFn1 || 0,
+                  mpwFn2: mObj.mpwFn2 || 0,
+                  mpwHomeVisits: mObj.mpwHomeVisits || 0,
+                  progMpwFn1: mObj.progMpwFn1 || 0,
+                  progMpwFn2: mObj.progMpwFn2 || 0,
+                  progMpwHomeVisits: mObj.progMpwHomeVisits || 0,
+                  anmFn1: mObj.anmFn1 || 0,
+                  anmFn2: mObj.anmFn2 || 0,
+                  anmHomeVisits: mObj.anmHomeVisits || 0,
+                  progAnmFn1: mObj.progAnmFn1 || 0,
+                  progAnmFn2: mObj.progAnmFn2 || 0,
+                  progAnmHomeVisits: mObj.progAnmHomeVisits || 0,
+                  priorOpdSum: mObj.priorOpdSum || 0,
+                  priorFeverSum: mObj.priorFeverSum || 0,
+                  priorSmearsSum: mObj.priorSmearsSum || 0,
+                  priorTreatedSum: mObj.priorTreatedSum || 0,
                   priorCqSum: 0,
                   priorMpwFn1Sum: 0, priorMpwFn2Sum: 0, priorMpwSum: 0,
                   priorAnmFn1Sum: 0, priorAnmFn2Sum: 0, priorAnmSum: 0,
                   opdVillagewise: {
-                    monthlyTotal: 271, ytdTotal: 1973, monthlyMale: 139, monthlyFemale: 132, priorTotal: 1702,
+                    monthlyTotal: 0, ytdTotal: 0, monthlyMale: 0, monthlyFemale: 0, priorTotal: 0,
                     villages: defaultOpdVillages
                   }
                 }
@@ -2668,11 +2653,11 @@
 
           case 'getDefaulterListForMonth': {
             const [selectedMonth] = args;
-            const mName = cleanMonthString(selectedMonth) || "सप्टेंबर २०२६";
+            const mName = cleanMonthString(selectedMonth) || "ऑक्टोबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
 
-            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, 8, 1);
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, 9, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, 8, 30, 23, 59, 59);
 
             const monthBs = clientBsData.filter(r => {
@@ -2722,7 +2707,7 @@
             const [month, selectedEmpNames] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -2792,7 +2777,7 @@
             const [month] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -2856,7 +2841,7 @@
             const [month, upkendra, employee, staffType] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -2913,7 +2898,7 @@
             const [month, upkendra, employee, staffType] = args;
             const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
-            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[8]) || {};
+            const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
             const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(2026, (mIdx !== -1 ? mIdx : 8) + 1, 0, 23, 59, 59);
             const monthBs = clientBsData.filter(r => { const d = new Date(r[1]); return d >= startDate && d <= endDate; });
@@ -13565,48 +13550,22 @@
       bsData: {
         title: '🩸 BsDataEntry (कर्मचारीनिहाय रक्त नमुना नोंद)',
         desc: 'या शीटमध्ये कर्मचाऱ्याने घेतलेल्या रक्त नमुन्यांची नोंद असते (BS ID, तारीख, उपकेंद्र, कर्मचारी नाव, पद, BS Code, बंडल क्र., पासून, पर्यंत, एकूण).',
-        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,पदनाम,BS_Code,बंडल_क्रमांक,पासून,पर्यंत,एकूण_नमुने
-BS-1001,2026-09-02,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,BND-01,1,10,10
-BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,BND-02,1,15,15
-BS-1003,2026-09-04,लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,BND-03,1,12,12
-BS-1004,2026-09-05,मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,BND-04,1,14,14
-BS-1005,2026-09-06,मातोळा,श्रीमती म्हेत्रे एस.एम.,आरोग्य सेविका (ANM),54F1,BND-05,1,16,16
-BS-1006,2026-09-07,शिवली,श्री पाटील व्ही एम,आरोग्य सेवक (MPW),54S2,BND-06,1,18,18`
+        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,पदनाम,BS_Code,बंडल_क्रमांक,पासून,पर्यंत,एकूण_नमुने`
       },
       village: {
         title: '🏡 VillageDetails (गावनिहाय रक्त नमुना तपशील)',
         desc: 'या शीटमध्ये गावनिहाय घेतलेल्या रक्त नमुन्यांची (पुरुष, स्त्री, एकूण) माहिती असते. BS ID द्वारे ही नोंद मुख्य रक्त नमुन्याशी जोडली जाते.',
-        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,गाव_नाव,पुरुष,स्त्री,एकूण_नमुने
-BS-1001,2026-09-02,आलमला,श्रीमती पुनम रावसाहेब काळे,आलमला,4,6,10
-BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,भेटा,5,4,9
-BS-1002,2026-09-03,भेटा,श्री परमेश्वर काळे,आंदोरा,3,3,6
-BS-1003,2026-09-04,लखनगाव,श्रीमती जगताप ए टी,लखनगांव,6,6,12
-BS-1004,2026-09-05,मंगरूळ,श्री शिंदे एस एम,मंगरूळ,7,7,14
-BS-1005,2026-09-06,मातोळा,श्रीमती म्हेत्रे एस.एम.,मातोळा,8,8,16
-BS-1006,2026-09-07,शिवली,श्री पाटील व्ही एम,शिवली,9,9,18`
+        sample: `BS_ID,तारीख,उपकेंद्र,कर्मचारी_नाव,गाव_नाव,पुरुष,स्त्री,एकूण_नमुने`
       },
       month: {
         title: '📅 MonthMaster (मासिक पंधरवडा, OPD, गृहभेटी व निर्देशांक)',
         desc: 'या शीटमध्ये प्रत्येक महिन्याचे पंधरवडा १ व २, नवीन OPD, MPW गृहभेटी, ANM गृहभेटी, आशा गृहभेटी, तापाचे रुग्ण, रक्त नमुने, उपचारीत रुग्ण व क्लोरोक्वीन गोळ्यांचा खर्च समाविष्ट असतो.',
-        sample: `महिना,नवीन_OPD,प्र_नवीन_OPD,MPW_गृहभेटी,प्र_MPW_गृहभेटी,ANM_गृहभेटी,प्र_ANM_गृहभेटी,आशा_गृहभेटी,प्र_आशा_गृहभेटी,तापाचे_रुग्ण,प्र_तापाचे_रुग्ण,रक्त_नमुने,प्र_रक्त_नमुने,उपचारीत_रुग्ण,प्र_उपचारीत_रुग्ण,क्लोरोक्वीन_खर्च,प्र_क्लोरोक्वीन_खर्च,पंधरवडा_१,पंधरवडा_२
-जानेवारी २०२६,1450,1450,420,420,380,380,620,620,135,135,128,128,128,128,512,512,01/01/2026 ते 15/01/2026,16/01/2026 ते 31/01/2026
-फेब्रुवारी २०२६,1380,2830,410,830,370,750,590,1210,120,255,115,243,115,243,460,972,01/02/2026 ते 14/02/2026,15/02/2026 ते 28/02/2026
-मार्च २०२६,1520,4350,430,1260,390,1140,640,1850,142,397,136,379,136,379,544,1516,01/03/2026 ते 15/03/2026,16/03/2026 ते 31/03/2026
-एप्रिल २०२६,1490,5840,415,1675,385,1525,610,2460,138,535,130,509,130,509,520,2036,01/04/2026 ते 15/04/2026,16/04/2026 ते 30/04/2026
-मे २०२६,1600,7440,440,2115,400,1925,650,3110,155,690,148,657,148,657,592,2628,01/05/2026 ते 15/05/2026,16/05/2026 ते 31/05/2026
-जून २०२६,1750,9190,460,2575,420,2345,690,3800,180,870,172,829,172,829,688,3316,01/06/2026 ते 15/06/2026,16/06/2026 ते 30/06/2026
-जुलै २०२६,1920,11110,480,3055,440,2785,730,4530,210,1080,205,1034,205,1034,820,4136,01/07/2026 ते 15/07/2026,16/07/2026 ते 31/07/2026
-ऑगस्ट २०२६,2050,13160,510,3565,460,3245,780,5310,240,1320,235,1269,235,1269,940,5076,01/08/2026 ते 15/08/2026,16/08/2026 ते 31/08/2026
-सप्टेंबर २०२६,2180,15340,530,4095,480,3725,820,6130,265,1585,258,1527,258,1527,1032,6108,01/09/2026 ते 15/09/2026,16/09/2026 ते 30/09/2026`
+        sample: `महिना,नवीन_OPD,प्र_नवीन_OPD,MPW_गृहभेटी,प्र_MPW_गृहभेटी,ANM_गृहभेटी,प्र_ANM_गृहभेटी,आशा_गृहभेटी,प्र_आशा_गृहभेटी,तापाचे_रुग्ण,प्र_तापाचे_रुग्ण,रक्त_नमुने,प्र_रक्त_नमुने,उपचारीत_रुग्ण,प्र_उपचारीत_रुग्ण,क्लोरोक्वीन_खर्च,प्र_क्लोरोक्वीन_खर्च,पंधरवडा_१,पंधरवडा_२`
       },
       master: {
         title: '👥 MasterData (६५ कर्मचारी व कार्यक्षेत्र गावे)',
         desc: 'प्रा.आ. केंद्र आलमला अंतर्गत ६ उपकेंद्रांमधील ६५ कर्मचारी, त्यांची पदे, BS Code आणि कार्यक्षेत्र गावांची यादी.',
-        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी
-आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,आलमला
-भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,"भेटा, आंदोरा, वडजी, नाव्होली"
-लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,"लखनगांव, सत्तधरवाडी, उटी बु., सोनपट्टी तांडा"
-मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,"मंगरूळ, कासार जवळगा, बोरगाव, हाळदुर्ग, शिंदेवाडी"`
+        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी`
       }
     };
 
@@ -13823,38 +13782,22 @@ BS-1006,2026-09-07,शिवली,श्री पाटील व्ही ए
       bsData: {
         title: '🩸 BsDataEntry (कर्मचारी रक्त नमुने नोंद)',
         desc: 'स्तंभ: <b>BS ID, दिनांक, उपकेंद्र, कर्मचारी नाव, पद, BS Code, बंडल क्र., पासून, पर्यंत, एकूण</b><br>💡 <i>नियम: \'दिनांक\' स्तंभाचे मूल्य <b>dd-mm-yyyy</b> (उदा. 11-12-2025, 27-10-2025) स्वरूपात असणे आवश्यक आहे.</i>',
-        sample: `BS ID,दिनांक,उपकेंद्र,कर्मचारी नाव,पद,BS Code,बंडल क्र.,पासून,पर्यंत,एकूण
-BS_20251211_54F6V3_1,11-12-2025,आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,B_2025_1,1,10,10
-BS_20251027_54S3_2,27-10-2025,भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,B_2025_2,1,12,12
-BS_20250915_54F7_3,15-09-2025,लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,B_2025_3,1,8,8
-BS_20260105_54S4_4,05-01-2026,मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,B_2026_1,1,14,14
-BS_20260218_54S1_5,18-02-2026,भादा,श्री सुर्यवंशी एस. आर.,आरोग्य सेवक (MPW),54S1,B_2026_2,1,15,15`
+        sample: `BS ID,दिनांक,उपकेंद्र,कर्मचारी नाव,पद,BS Code,बंडल क्र.,पासून,पर्यंत,एकूण`
       },
       village: {
         title: '🏡 VillageDetails (गावनिहाय रक्त नमुने तपशील)',
         desc: 'स्तंभ: <b>BS ID, कर्मचारी नाव, दिनांक, गाव, एकूण नमुने, पुरुष, स्त्री, उपकेंद्र</b><br>💡 <i>नियम: \'दिनांक\' स्तंभाचे मूल्य <b>dd-mm-yyyy</b> (उदा. 11-12-2025, 27-10-2025) स्वरूपात असणे आवश्यक आहे.</i>',
-        sample: `BS ID,कर्मचारी नाव,दिनांक,गाव,एकूण नमुने,पुरुष,स्त्री,उपकेंद्र
-BS_VIL_1,श्रीमती पुनम रावसाहेब काळे,11-12-2025,आलमला,10,5,5,आलमला
-BS_VIL_2,श्री परमेश्वर काळे,27-10-2025,भेटा,12,6,6,भेटा
-BS_VIL_3,श्रीमती जगताप ए टी,15-09-2025,लखनगाव,8,4,4,लखनगाव
-BS_VIL_4,श्री शिंदे एस एम,05-01-2026,मंगरूळ,14,7,7,मंगरूळ
-BS_VIL_5,श्री सुर्यवंशी एस. आर.,18-02-2026,भादा,15,8,7,भादा`
+        sample: `BS ID,कर्मचारी नाव,दिनांक,गाव,एकूण नमुने,पुरुष,स्त्री,उपकेंद्र`
       },
       month: {
         title: '📅 MonthMaster (मासिक व पंधरवडा निर्देशांक)',
         desc: 'स्तंभ: <b>महिना, नवीन OPD, प्र. नवीन OPD, MPW गृहभेटी, ANM गृहभेटी, आशा गृहभेटी, तापाचे रुग्ण, रक्त नमुणे, उपचारीत रुग्ण, क्लोरोक्वीन खर्च, FN1, FN2</b>',
-        sample: `महिना,नवीन OPD,प्र. नवीन OPD,MPW गृहभेटी,प्र. MPW गृहभेटी,ANM गृहभेटी,प्र. ANM गृहभेटी,आशा गृहभेटी,प्र. आशा गृहभेटी,तापाचे रुग्ण,प्र. तापाचे रुग्ण,रक्त नमुणे,प्र. रक्त नमुणे,उपचारीत रुग्ण,प्र. उपचारीत रुग्ण,क्लोरोक्वीन खर्च,प्र. क्लोरोक्वीन खर्च,FN1,FN2
-सप्टेंबर २०२६,2450,22000,1200,11000,980,8900,1450,13200,142,1250,138,1210,0,2,0,4,01/09/2026 ते 15/09/2026,16/09/2026 ते 30/09/2026
-ऑक्टोबर २०२६,2380,24380,1150,12150,920,9820,1390,14590,135,1385,130,1340,1,3,0,4,01/10/2026 ते 15/10/2026,16/10/2026 ते 31/10/2026`
+        sample: `महिना,नवीन OPD,प्र. नवीन OPD,MPW गृहभेटी,प्र. MPW गृहभेटी,ANM गृहभेटी,प्र. ANM गृहभेटी,आशा गृहभेटी,प्र. आशा गृहभेटी,तापाचे रुग्ण,प्र. तापाचे रुग्ण,रक्त नमुणे,प्र. रक्त नमुणे,उपचारीत रुग्ण,प्र. उपचारीत रुग्ण,क्लोरोक्वीन खर्च,प्र. क्लोरोक्वीन खर्च,FN1,FN2`
       },
       master: {
         title: '👥 MasterData (६५ कर्मचारी व कार्यक्षेत्र गावे)',
         desc: 'स्तंभ: <b>उपकेंद्र, कर्मचारी नाव, पदनाम, Bs Code, गावांची यादी</b>',
-        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी
-आलमला,श्रीमती पुनम रावसाहेब काळे,आशा स्वयंसेविका,54F6V3,आलमला
-भेटा,श्री परमेश्वर काळे,आरोग्य सेवक (MPW),54S3,"भेटा, आंदोरा, वडजी, नाव्होली"
-लखनगाव,श्रीमती जगताप ए टी,आरोग्य सेविका (ANM),54F7,"लखनगांव, सत्तधरवाडी, उटी बु., सोनपट्टी तांडा"
-मंगरूळ,श्री शिंदे एस एम,आरोग्य सेवक (MPW),54S4,"मंगरूळ, कासार जवळगा, बोरगाव, हाळदुर्ग, शिंदेवाडी"`
+        sample: `उपकेंद्र,कर्मचारी नाव,पदनाम,Bs Code,गावांची यादी`
       }
     };
 

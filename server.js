@@ -108,6 +108,7 @@ import {
 } from './data/store.js';
 
 import {
+  refreshNwbdcpFromSupabase,
   getNwbdcpReferenceMasterData,
   getWaterSources,
   saveWaterSource,
@@ -124,6 +125,7 @@ import {
   getNwbdcpDashboardData,
   getOverdueSources,
   getCurrentMonthSamplePlan,
+  importWaterSourcesList,
   importHistoricalWaterSamples
 } from './services/nwbdcpStore.js';
 
@@ -228,6 +230,7 @@ import {
   deleteEmployeeFromSupabase,
   fetchMonthMasterFromSupabase,
   syncMonthMasterToSupabase,
+  syncBatchMonthMasterToSupabase,
   fetchBsDataFromSupabase,
   syncBsDataToSupabase,
   deleteBsEntryFromSupabase,
@@ -238,6 +241,8 @@ import {
   fetchDengueChikungunyaFromSupabase,
   syncDengueEntryToSupabase,
   deleteDengueEntryFromSupabase,
+  clearDengueEntriesFromSupabase,
+  clearAllNvbdcpTransactionsFromSupabase,
   isSupabaseOnline as isNvbdcpSupabaseOnline
 } from './services/nvbdcpSupabase.js';
 
@@ -245,14 +250,14 @@ let lastFsSyncTime = 0;
 const FS_SYNC_CACHE_MS = 1000; // 1-second debounce to avoid redundant concurrent network calls
 
 let lastSbSyncTime = 0;
-const SB_SYNC_CACHE_MS = 30000;
+const SB_SYNC_CACHE_MS = 2000; // 2-second debounce for live two-way Supabase reads
 
 export async function syncAllDataFromSupabase(force = false) {
   if (!isNvbdcpSupabaseOnline()) {
     return { success: false, reason: 'SUPABASE_OFFLINE' };
   }
   const now = Date.now();
-  if (!force && bsDataEntry.length > 0 && (now - lastSbSyncTime < SB_SYNC_CACHE_MS)) {
+  if (!force && (now - lastSbSyncTime < SB_SYNC_CACHE_MS)) {
     return { success: true, cached: true };
   }
   lastSbSyncTime = now;
@@ -293,22 +298,22 @@ export async function syncAllDataFromSupabase(force = false) {
       });
       loadedAny = true;
     }
-    if (Array.isArray(bsData) && bsData.length > 0) {
+    if (Array.isArray(bsData)) {
       bsDataEntry.length = 0;
       bsData.forEach(r => bsDataEntry.push(r));
       loadedAny = true;
     }
-    if (Array.isArray(vDetails) && vDetails.length > 0) {
+    if (Array.isArray(vDetails)) {
       villageDetails.length = 0;
       vDetails.forEach(r => villageDetails.push(r));
       loadedAny = true;
     }
-    if (Array.isArray(transfers) && transfers.length > 0) {
+    if (Array.isArray(transfers)) {
       transferHistory.length = 0;
       transfers.forEach(t => transferHistory.push(t));
       loadedAny = true;
     }
-    if (Array.isArray(dengue) && dengue.length > 0) {
+    if (Array.isArray(dengue)) {
       dengueChikungunyaEntries.length = 0;
       dengue.forEach(d => dengueChikungunyaEntries.push(d));
       loadedAny = true;
@@ -343,7 +348,7 @@ export async function syncAllDataFromFirestore(force = false) {
     }
 
     // 1. BS Data Entries (Blood Smear Slides)
-    if (Array.isArray(fsData.bsList) && fsData.bsList.length > 0) {
+    if (Array.isArray(fsData.bsList)) {
       bsDataEntry.length = 0;
       fsData.bsList.forEach(r => {
         bsDataEntry.push([
@@ -362,7 +367,7 @@ export async function syncAllDataFromFirestore(force = false) {
     }
 
     // 2. Village Details (Villagewise Breakdown)
-    if (Array.isArray(fsData.villageList) && fsData.villageList.length > 0) {
+    if (Array.isArray(fsData.villageList)) {
       villageDetails.length = 0;
       fsData.villageList.forEach(r => {
         villageDetails.push([
@@ -1123,6 +1128,7 @@ app.post('/api/rpc', async (req, res) => {
       'generateEmployeeVillageMonthlyReportWebApp', 'getEmployeeVillageMonthlyData', 'getVillageAnalyticsData', 'getFormWiseData',
       'getEmployeeVillageDistributionSummary', 'getSubcenterMaster',
       'getVillagesMaster', 'getEmployeeMaster', 'getMasterData',
+      'getTransferHistory', 'getBsCodeRegistry', 'getBsServiceTenureHistory',
       'getLatestBundleNumber', 'getLastParayntValue',
       'syncFromFirestore', 'refreshFirestoreData'
     ]);
@@ -1134,13 +1140,21 @@ app.post('/api/rpc', async (req, res) => {
     switch (method) {
       case 'syncFromFirestore':
       case 'refreshFirestoreData': {
-        const syncRes = await syncAllDataFromFirestore(true);
-        result = {
-          success: syncRes.success,
-          message: syncRes.success
-            ? 'सर्व डेटा Cloud Firestore डेटाबेसमधून थेट यशस्वीरित्या सिंक झाला! 🟢'
-            : 'Firestore सिंक त्रुटी: ' + syncRes.error
-        };
+        const sbRes = await syncAllDataFromSupabase(true);
+        if (sbRes && sbRes.success) {
+          result = {
+            success: true,
+            message: 'सर्व डेटा Supabase Primary Cloud डेटाबेसमधून थेट यशस्वीरित्या सिंक झाला! 🟢'
+          };
+        } else {
+          const syncRes = await syncAllDataFromFirestore(true);
+          result = {
+            success: syncRes.success,
+            message: syncRes.success
+              ? 'सर्व डेटा Cloud डेटाबेसमधून थेट यशस्वीरित्या सिंक झाला! 🟢'
+              : 'डेटाबेस सिंक त्रुटी: ' + syncRes.error
+          };
+        }
         break;
       }
       case 'getMasterData': {
@@ -1338,11 +1352,13 @@ app.post('/api/rpc', async (req, res) => {
         recalculateAllMonthProgressives();
         saveDbToDisk();
 
-        // Primary Supabase Write
-        syncBsDataToSupabase(newEntriesForSync).catch(err => console.warn('[Supabase] BS data sync warning:', err.message));
+        // Primary Supabase Write (Awaited for strict two-way consistency)
+        const sbBsRes = await syncBsDataToSupabase(newEntriesForSync);
         if (newVillageDetailsForSync.length > 0) {
-          syncVillageDetailsToSupabase(newVillageDetailsForSync).catch(err => console.warn('[Supabase] Village details sync warning:', err.message));
+          await syncVillageDetailsToSupabase(newVillageDetailsForSync);
         }
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
 
         // Direct Firestore Write (Compatibility / Fallback)
         const fsBsRes = await syncBatchBsDataToFirestore(newEntriesForSync.map(e => [
@@ -1357,15 +1373,15 @@ app.post('/api/rpc', async (req, res) => {
           }
         }
 
-        if (fsBsRes.success) {
+        if (sbBsRes.success || fsBsRes.success) {
           result = {
             success: true,
-            message: '✅ नोंद डेटाबेसमध्ये थेट यशस्वीरित्या सेव्ह झाली 🟢'
+            message: '✅ नोंद Supabase क्लाउड डेटाबेसमध्ये थेट यशस्वीरित्या सेव्ह झाली 🟢'
           };
         } else {
           result = {
             success: false,
-            message: 'डेटा जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (' + (fsBsRes.error || 'Database Error') + ').'
+            message: 'डेटा जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (' + (sbBsRes.error || fsBsRes.error || 'Database Error') + ').'
           };
         }
         break;
@@ -1428,6 +1444,9 @@ app.post('/api/rpc', async (req, res) => {
       case 'clearAllDummyData':
       case 'clearAllData': {
         const clearRes = clearAllTransactionData();
+        await clearAllNvbdcpTransactionsFromSupabase();
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
         result = {
           success: true,
           message: clearRes.message || 'सर्व तात्पुरता/नमुना डेटा यशस्वीरित्या काढून टाकण्यात आला.'
@@ -1446,8 +1465,11 @@ app.post('/api/rpc', async (req, res) => {
               villageDetails.splice(i, 1);
             }
           }
+          recalculateAllMonthProgressives();
           saveDbToDisk();
-          deleteBsEntryFromSupabase(entryId).catch(err => console.warn('[Supabase] delete error:', err.message));
+          await deleteBsEntryFromSupabase(entryId);
+          await syncBatchMonthMasterToSupabase(monthMaster);
+          lastSbSyncTime = Date.now();
           await deleteBsDataEntryFromFirestore(entryId);
           result = { success: true, message: `नोंद ${entryId} डेटाबेसमधून यशस्वीरित्या हटवली!` };
         } else {
@@ -1466,11 +1488,11 @@ app.post('/api/rpc', async (req, res) => {
             const s = m.f1Start ? new Date(m.f1Start) : null;
             const e = m.f2End ? new Date(m.f2End) : null;
             return s && e && today >= s && today <= e;
-          }) || monthMaster[8] || monthMaster[0];
+          }) || monthMaster[9] || monthMaster[0];
         }
 
-        const startDate = monthObj && monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 8, 1);
-        const endDate = monthObj && monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 8, 30, 23, 59, 59, 999);
+        const startDate = monthObj && monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 9, 1);
+        const endDate = monthObj && monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 9, 31, 23, 59, 59, 999);
 
         let total = 0;
         let active = 0;
@@ -1527,10 +1549,10 @@ app.post('/api/rpc', async (req, res) => {
         if (!monthObj) {
           const today = new Date();
           today.setHours(0, 0, 0, 0);
-          monthObj = monthMaster.find(m => m.f1Start && m.f2End && today >= new Date(m.f1Start) && today <= new Date(m.f2End)) || monthMaster[8] || monthMaster[0];
+          monthObj = monthMaster.find(m => m.f1Start && m.f2End && today >= new Date(m.f1Start) && today <= new Date(m.f2End)) || monthMaster[9] || monthMaster[0];
         }
         if (!monthObj) {
-          monthObj = { name: "सप्टेंबर २०२६", newOpd: 0, feverCases: 0, bloodSmears: 0, treatedCases: 0, chloroquineSpent: 0, f1Start: new Date(2026, 8, 1), f2End: new Date(2026, 8, 30) };
+          monthObj = { name: "ऑक्टोबर २०२६", newOpd: 0, feverCases: 0, bloodSmears: 0, treatedCases: 0, chloroquineSpent: 0, f1Start: new Date(2026, 9, 1), f2End: new Date(2026, 9, 31) };
         }
 
         const targetIdx = Math.max(0, monthMaster.indexOf(monthObj));
@@ -1607,8 +1629,8 @@ app.post('/api/rpc', async (req, res) => {
         // Calculate field vs opd smears in this month from entries
         let fieldSmears = 0;
         let opdSmears = 0;
-        const mStart = monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 8, 1);
-        const mEnd = monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 8, 30, 23, 59, 59, 999);
+        const mStart = monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 9, 1);
+        const mEnd = monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 9, 31, 23, 59, 59, 999);
         for (let i = 0; i < bsDataEntry.length; i++) {
           const row = bsDataEntry[i];
           const rowDate = new Date(row[1]);
@@ -1972,6 +1994,9 @@ app.post('/api/rpc', async (req, res) => {
 
       case 'clearAllTransactionData': {
         result = clearAllTransactionData();
+        await clearAllNvbdcpTransactionsFromSupabase();
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
         break;
       }
 
@@ -1986,13 +2011,14 @@ app.post('/api/rpc', async (req, res) => {
         result = saveDengueEntry(entryData);
         if (result.success) {
           const rec = result.record || entryData;
-          syncDengueEntryToSupabase(rec).catch(err => console.warn('[Supabase] Dengue entry sync warning:', err.message));
+          const sbRes = await syncDengueEntryToSupabase(rec);
+          lastSbSyncTime = Date.now();
           const fsRes = await syncDengueEntryToFirestore(rec);
-          if (fsRes.success) {
-            result.message = `रुग्ण ${rec.patientName} ची नोंद डेटाबेसमध्ये थेट यशस्वीरित्या जतन झाली 🟢`;
+          if (sbRes.success || fsRes.success) {
+            result.message = `रुग्ण ${rec.patientName} ची नोंद Supabase डेटाबेसमध्ये थेट यशस्वीरित्या जतन झाली 🟢`;
           } else {
             result.success = false;
-            result.message = `डेटा जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${fsRes.error || 'Connection Error'}).`;
+            result.message = `डेटा जतन करणे शक्य झाले नाही. कृपया तुमचे इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${sbRes.error || fsRes.error || 'Connection Error'}).`;
           }
         }
         break;
@@ -2003,13 +2029,14 @@ app.post('/api/rpc', async (req, res) => {
         result = updateDengueLabReport(reportData);
         if (result.success) {
           const rec = result.record;
-          syncDengueEntryToSupabase(rec).catch(err => console.warn('[Supabase] Dengue report sync warning:', err.message));
+          const sbRes = await syncDengueEntryToSupabase(rec);
+          lastSbSyncTime = Date.now();
           const fsRes = await syncDengueEntryToFirestore(rec);
-          if (fsRes.success) {
-            result.message = `रुग्ण ${rec.patientName} चा प्रयोगशाळा अहवाल डेटाबेसमध्ये थेट जतन झाला 🟢`;
+          if (sbRes.success || fsRes.success) {
+            result.message = `रुग्ण ${rec.patientName} चा प्रयोगशाळा अहवाल Supabase डेटाबेसमध्ये थेट जतन झाला 🟢`;
           } else {
             result.success = false;
-            result.message = `अहवाल अपडेट झाला नाही. इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${fsRes.error || 'Connection Error'}).`;
+            result.message = `अहवाल अपडेट झाला नाही. इंटरनेट कनेक्शन तपासून पुन्हा प्रयत्न करा (${sbRes.error || fsRes.error || 'Connection Error'}).`;
           }
         }
         break;
@@ -2018,6 +2045,15 @@ app.post('/api/rpc', async (req, res) => {
       case 'saveDengueBatchLabReport': {
         const [batchData] = args;
         result = saveDengueBatchLabReport(batchData);
+        if (result.success && batchData && Array.isArray(batchData.patientResults)) {
+          const updatedIds = new Set(batchData.patientResults.map(p => p.id));
+          const updatedRecords = dengueChikungunyaEntries.filter(e => updatedIds.has(e.id));
+          if (updatedRecords.length > 0) {
+            await syncDengueEntryToSupabase(updatedRecords);
+            lastSbSyncTime = Date.now();
+            await syncBatchDengueEntriesToFirestore(updatedRecords);
+          }
+        }
         break;
       }
 
@@ -2026,34 +2062,41 @@ app.post('/api/rpc', async (req, res) => {
         result = importDengueOldDataCsv(csvText, replace);
         if (result.success && Array.isArray(result.entries) && result.entries.length > 0) {
           if (replace) {
+            await clearDengueEntriesFromSupabase();
             await clearAllDengueEntriesFromFirestore();
           }
+          await syncDengueEntryToSupabase(result.entries);
+          lastSbSyncTime = Date.now();
           await syncBatchDengueEntriesToFirestore(result.entries);
           saveDbToDisk();
-          result.message = `एकूण ${result.entries.length} डेंगी व चिकनगुनिया जुन्या रुग्णांच्या नोंदी Firestore व सिस्टीममध्ये यशस्वीरित्या आयात व जतन झाल्या! 💾`;
+          result.message = `एकूण ${result.entries.length} डेंगी व चिकनगुनिया जुन्या रुग्णांच्या नोंदी Supabase व सिस्टीममध्ये यशस्वीरित्या आयात व जतन झाल्या! 💾`;
         }
         break;
       }
 
       case 'clearDengueEntries': {
         result = clearDengueEntries();
+        await clearDengueEntriesFromSupabase();
+        lastSbSyncTime = Date.now();
         await clearAllDengueEntriesFromFirestore();
         saveDbToDisk();
         result = {
           success: true,
-          message: 'सर्व डेंगी व चिकनगुनिया चाचणी नोंदी Firestore मधून सुरक्षित हटवण्यात आल्या.'
+          message: 'सर्व डेंगी व चिकनगुनिया चाचणी नोंदी Supabase व प्रणालीमधून सुरक्षित हटवण्यात आल्या.'
         };
         break;
       }
 
       case 'deleteDengueEntry': {
         const [id] = args;
+        await deleteDengueEntryFromSupabase(id);
+        lastSbSyncTime = Date.now();
         const fsDelRes = await deleteDengueEntryFromFirestore(id);
         const memRes = deleteDengueEntry(id);
         saveDbToDisk();
         result = {
           success: true,
-          message: memRes.message || 'नोंद Firestore व प्रणालीमधून यशस्वीरित्या हटवली.'
+          message: memRes.message || 'नोंद Supabase व प्रणालीमधून यशस्वीरित्या हटवली.'
         };
         break;
       }
@@ -2061,6 +2104,8 @@ app.post('/api/rpc', async (req, res) => {
       case 'deleteBatchDengueEntries': {
         const [idsArray] = args;
         const ids = Array.isArray(idsArray) ? idsArray : (idsArray ? [idsArray] : []);
+        await deleteDengueEntryFromSupabase(ids);
+        lastSbSyncTime = Date.now();
         const fsDelRes = await deleteBatchDengueEntriesFromFirestore(ids);
         const memRes = deleteBatchDengueEntries(ids);
         saveDbToDisk();
@@ -2068,7 +2113,7 @@ app.post('/api/rpc', async (req, res) => {
         result = {
           success: true,
           count: finalCount,
-          message: `निवडलेल्या एकूण ${finalCount} डेंगी/चिकनगुनिया नोंदी Firestore व प्रणालीमधून कायमस्वरूपी हटवण्यात आल्या 🗑️`
+          message: `निवडलेल्या एकूण ${finalCount} डेंगी/चिकनगुनिया नोंदी Supabase व प्रणालीमधून कायमस्वरूपी हटवण्यात आल्या 🗑️`
         };
         break;
       }
@@ -2137,7 +2182,7 @@ app.post('/api/rpc', async (req, res) => {
         const [monthName] = args;
         const clean = s => String(s || '').trim();
         let mIdx = monthMaster.findIndex(m => clean(m.name) === clean(monthName));
-        if (mIdx === -1) mIdx = 8; // Default September 2026
+        if (mIdx === -1) mIdx = 9; // Default October 2026
         const monthObj = monthMaster[mIdx];
         const priorMonths = monthMaster.slice(0, mIdx);
 
@@ -2292,12 +2337,14 @@ app.post('/api/rpc', async (req, res) => {
         recalculateAllMonthProgressives();
         saveDbToDisk();
 
-        // Direct Firestore Sync: Sync all 12 months with recalculated progressives to Firestore
+        // Direct Supabase Primary Sync + Firestore Compatibility Sync
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
         await syncBatchMonthMasterToFirestore(monthMaster);
 
         result = {
           success: true,
-          message: `माहे ${monthObj.name} चे मासिक अहवाल निर्देशांक Firestore क्लाउड डेटाबेसमध्ये यशस्वीरित्या जतन झाले!`,
+          message: `माहे ${monthObj.name} चे मासिक अहवाल निर्देशांक Supabase क्लाउड डेटाबेसमध्ये यशस्वीरित्या जतन झाले!`,
           data: {
             name: monthObj.name,
             newOpd: monthObj.newOpd,
@@ -2418,6 +2465,9 @@ app.post('/api/rpc', async (req, res) => {
 
         recalculateAllMonthProgressives();
         saveDbToDisk();
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
+        await syncBatchMonthMasterToFirestore(monthMaster);
 
         result = {
           success: true,
@@ -2431,6 +2481,11 @@ app.post('/api/rpc', async (req, res) => {
       case 'transferAllDataToFirestore':
       case 'syncDataToFirestore':
       case 'transferAllToFirestore': {
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        if (bsDataEntry.length > 0) await syncBsDataToSupabase(bsDataEntry);
+        if (villageDetails.length > 0) await syncVillageDetailsToSupabase(villageDetails);
+        if (dengueChikungunyaEntries.length > 0) await syncDengueEntryToSupabase(dengueChikungunyaEntries);
+        lastSbSyncTime = Date.now();
         const transferRes = await transferAllDataToFirestore({
           bsDataEntry,
           subcenterMaster,
@@ -2453,7 +2508,8 @@ app.post('/api/rpc', async (req, res) => {
         const [scData] = args;
         result = saveSubcenter(scData);
         if (result.success && result.subcenter) {
-          syncSubcenterToSupabase(result.subcenter).catch(err => console.warn('[Supabase] Subcenter sync warning:', err.message));
+          await syncSubcenterToSupabase(result.subcenter);
+          lastSbSyncTime = Date.now();
           syncSubcenterMasterToFirestore(result.subcenter).catch(err => console.error(err));
         }
         break;
@@ -2461,9 +2517,11 @@ app.post('/api/rpc', async (req, res) => {
 
       case 'deleteSubcenter': {
         const [scId] = args;
+        const targetSc = subcenterMaster.find(s => s.id === scId || s.name === scId);
         result = deleteSubcenter(scId);
         if (result.success) {
-          deleteSubcenterFromSupabase(scId).catch(err => console.warn('[Supabase] Subcenter delete warning:', err.message));
+          await deleteSubcenterFromSupabase(targetSc ? targetSc.id : scId);
+          lastSbSyncTime = Date.now();
         }
         break;
       }
@@ -2477,7 +2535,8 @@ app.post('/api/rpc', async (req, res) => {
         const [vilData] = args;
         result = saveVillage(vilData);
         if (result.success && result.village) {
-          syncVillageToSupabase(result.village).catch(err => console.warn('[Supabase] Village sync warning:', err.message));
+          await syncVillageToSupabase(result.village);
+          lastSbSyncTime = Date.now();
           await syncVillagesMasterToFirestore(result.village);
           saveDbToDisk();
         }
@@ -2486,9 +2545,11 @@ app.post('/api/rpc', async (req, res) => {
 
       case 'deleteVillage': {
         const [vilId] = args;
+        const targetVil = villagesMaster.find(v => v.id === vilId || v.villageName === vilId);
         result = deleteVillage(vilId);
         if (result.success) {
-          deleteVillageFromSupabase(vilId).catch(err => console.warn('[Supabase] Village delete warning:', err.message));
+          await deleteVillageFromSupabase(targetVil ? targetVil.id : vilId);
+          lastSbSyncTime = Date.now();
         }
         break;
       }
@@ -2502,7 +2563,8 @@ app.post('/api/rpc', async (req, res) => {
         const [empData] = args;
         result = saveEmployee(empData);
         if (result.success && result.employee) {
-          syncEmployeeToSupabase(result.employee).catch(err => console.warn('[Supabase] Employee sync warning:', err.message));
+          await syncEmployeeToSupabase(result.employee);
+          lastSbSyncTime = Date.now();
           syncEmployeeMasterToFirestore(result.employee).catch(err => console.error(err));
         }
         break;
@@ -2510,9 +2572,11 @@ app.post('/api/rpc', async (req, res) => {
 
       case 'deleteEmployee': {
         const [empId] = args;
+        const targetEmp = employeeMaster.find(e => e.id === empId || e.employeeName === empId);
         result = deleteEmployee(empId);
         if (result.success) {
-          deleteEmployeeFromSupabase(empId).catch(err => console.warn('[Supabase] Employee delete warning:', err.message));
+          await deleteEmployeeFromSupabase(targetEmp ? targetEmp.id : empId);
+          lastSbSyncTime = Date.now();
         }
         break;
       }
@@ -2521,9 +2585,20 @@ app.post('/api/rpc', async (req, res) => {
         const [empId, targetUpkendra, newVillages, newBsCode, reason, orderNo] = args;
         result = transferEmployee(empId, targetUpkendra, newVillages, newBsCode, reason, orderNo);
         if (result.success) {
-          if (result.transfer) {
-            syncTransferHistoryToSupabase(result.transfer).catch(err => console.warn('[Supabase] Transfer sync warning:', err.message));
+          const trLog = result.transferLog || result.transfer;
+          if (trLog) {
+            await syncTransferHistoryToSupabase(trLog);
           }
+          if (result.employee) {
+            await syncEmployeeToSupabase(result.employee);
+          }
+          for (const sc of subcenterMaster) {
+            await syncSubcenterToSupabase(sc);
+          }
+          for (const v of villagesMaster) {
+            await syncVillageToSupabase(v);
+          }
+          lastSbSyncTime = Date.now();
           // Sync all master changes to Cloud Firestore synchronously to prevent page refresh rollback!
           await syncBatchEmployeesToFirestore(employeeMaster);
           await syncBatchSubcentersToFirestore(subcenterMaster);
@@ -2537,6 +2612,13 @@ app.post('/api/rpc', async (req, res) => {
         const [empId, villageList] = args;
         result = updateEmployeeVillages(empId, villageList);
         if (result.success) {
+          if (result.employee) {
+            await syncEmployeeToSupabase(result.employee);
+          }
+          for (const v of villagesMaster) {
+            await syncVillageToSupabase(v);
+          }
+          lastSbSyncTime = Date.now();
           // Sync changes to Cloud Firestore synchronously to prevent page refresh rollback!
           await syncBatchEmployeesToFirestore(employeeMaster);
           await syncBatchVillagesToFirestore(villagesMaster);
@@ -2553,6 +2635,10 @@ app.post('/api/rpc', async (req, res) => {
         const [empId, endDate, endReason, orderNo, remarks] = args;
         result = endEmployeeService(empId, endDate, endReason, orderNo, remarks);
         if (result.success) {
+          if (result.employee) {
+            await syncEmployeeToSupabase(result.employee);
+          }
+          lastSbSyncTime = Date.now();
           if (result.tenureLog) {
             syncBsTenureHistoryToFirestore(result.tenureLog).catch(e => console.warn('[Firestore] Tenure sync warning:', e.message));
           }
@@ -2565,6 +2651,10 @@ app.post('/api/rpc', async (req, res) => {
         const [empId, bsCode, chargeType, attachDate, orderNo, remarks, autoEndPrevious, previousEndReason] = args;
         result = attachEmployeeToBsCode(empId, bsCode, chargeType, attachDate, orderNo, remarks, !!autoEndPrevious, previousEndReason);
         if (result.success) {
+          for (const emp of employeeMaster) {
+            await syncEmployeeToSupabase(emp);
+          }
+          lastSbSyncTime = Date.now();
           if (result.tenureLog) {
             syncBsTenureHistoryToFirestore(result.tenureLog).catch(e => console.warn('[Firestore] Tenure sync warning:', e.message));
           }
@@ -2588,6 +2678,9 @@ app.post('/api/rpc', async (req, res) => {
         const [csvText] = args;
         result = importMasterDataFromCsv(csvText);
         saveDbToDisk();
+        for (const emp of employeeMaster) await syncEmployeeToSupabase(emp);
+        for (const v of villagesMaster) await syncVillageToSupabase(v);
+        lastSbSyncTime = Date.now();
         break;
       }
 
@@ -2595,7 +2688,11 @@ app.post('/api/rpc', async (req, res) => {
       case 'uploadBsDataCsv': {
         const [csvText, replace] = args;
         result = importBsDataEntryCsv(csvText, !!replace);
+        recalculateAllMonthProgressives();
         saveDbToDisk();
+        await syncBsDataToSupabase(bsDataEntry);
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
         break;
       }
 
@@ -2604,6 +2701,8 @@ app.post('/api/rpc', async (req, res) => {
         const [csvText, replace] = args;
         result = importVillageDetailsCsv(csvText, !!replace);
         saveDbToDisk();
+        await syncVillageDetailsToSupabase(villageDetails);
+        lastSbSyncTime = Date.now();
         break;
       }
 
@@ -2611,13 +2710,19 @@ app.post('/api/rpc', async (req, res) => {
       case 'uploadMonthMasterCsv': {
         const [csvText] = args;
         result = importMonthMasterCsv(csvText);
+        recalculateAllMonthProgressives();
         saveDbToDisk();
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
         break;
       }
 
       case 'seedInitialData':
       case 'resetToDefaultData': {
         const clearRes = clearAllTransactionData();
+        await clearAllNvbdcpTransactionsFromSupabase();
+        await syncBatchMonthMasterToSupabase(monthMaster);
+        lastSbSyncTime = Date.now();
         result = {
           success: true,
           message: "सर्व तात्पुरता/नमुना डेटा यशस्वीरित्या काढून टाकण्यात आला. प्रणाली रिअल-टाईम नोंदींसाठी सज्ज आहे."
@@ -2665,8 +2770,9 @@ app.post('/api/nwbdcp/auth/logout', (req, res) => {
 });
 
 // Dashboard & Planning Endpoints
-app.get('/api/nwbdcp/dashboard', (req, res) => {
+app.get('/api/nwbdcp/dashboard', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const data = getNwbdcpDashboardData();
     res.json(data);
   } catch (err) {
@@ -2674,8 +2780,9 @@ app.get('/api/nwbdcp/dashboard', (req, res) => {
   }
 });
 
-app.get('/api/nwbdcp/overdue-sources', (req, res) => {
+app.get('/api/nwbdcp/overdue-sources', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const months = parseInt(req.query.months) || 3;
     const sources = getOverdueSources(months);
     res.json({ success: true, sources });
@@ -2684,8 +2791,9 @@ app.get('/api/nwbdcp/overdue-sources', (req, res) => {
   }
 });
 
-app.get('/api/nwbdcp/current-month-plan', (req, res) => {
+app.get('/api/nwbdcp/current-month-plan', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const plan = getCurrentMonthSamplePlan();
     res.json({ success: true, ...plan });
   } catch (err) {
@@ -2694,8 +2802,9 @@ app.get('/api/nwbdcp/current-month-plan', (req, res) => {
 });
 
 // 1. Read-Only NVBDCP Master Data Reference
-app.get('/api/nwbdcp/master-data', (req, res) => {
+app.get('/api/nwbdcp/master-data', async (req, res) => {
   try {
+    await syncAllDataFromSupabase();
     const data = getNwbdcpReferenceMasterData();
     res.json({ success: true, ...data });
   } catch (err) {
@@ -2704,8 +2813,9 @@ app.get('/api/nwbdcp/master-data', (req, res) => {
 });
 
 // 2. Water Sources Register Endpoints
-app.get('/api/nwbdcp/water-sources', (req, res) => {
+app.get('/api/nwbdcp/water-sources', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const sources = getWaterSources(req.query);
     res.json({ success: true, sources });
   } catch (err) {
@@ -2743,6 +2853,17 @@ app.delete('/api/nwbdcp/water-source/:id', nwbdcpRequireAuth(ROLES.ADMIN), (req,
   }
 });
 
+// 2b. Water Source List Bulk Upload Endpoint
+app.post('/api/nwbdcp/import-water-sources', nwbdcpRequireAuth(ROLES.STAFF), async (req, res) => {
+  try {
+    const user = req.nwbdcpAuth.user;
+    const result = await importWaterSourcesList(req.body.sources || [], user);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 3. Sample Dispatch Endpoints
 app.post('/api/nwbdcp/sample-dispatch', nwbdcpRequireAuth(ROLES.STAFF), (req, res) => {
   try {
@@ -2754,8 +2875,9 @@ app.post('/api/nwbdcp/sample-dispatch', nwbdcpRequireAuth(ROLES.STAFF), (req, re
   }
 });
 
-app.get('/api/nwbdcp/dispatched-samples', (req, res) => {
+app.get('/api/nwbdcp/dispatched-samples', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const samples = getDispatchedSamples(req.query);
     res.json({ success: true, samples });
   } catch (err) {
@@ -3018,8 +3140,9 @@ app.post('/api/nwbdcp/update-retest-result', nwbdcpRequireAuth(ROLES.STAFF), asy
   }
 });
 
-app.get('/api/nwbdcp/retests', (req, res) => {
+app.get('/api/nwbdcp/retests', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const retests = getRetestsList(req.query);
     res.json({ success: true, retests });
   } catch (err) {
@@ -3028,8 +3151,9 @@ app.get('/api/nwbdcp/retests', (req, res) => {
 });
 
 // 6. Reports Endpoint
-app.get('/api/nwbdcp/reports', (req, res) => {
+app.get('/api/nwbdcp/reports', async (req, res) => {
   try {
+    await refreshNwbdcpFromSupabase();
     const reportData = generateNwbdcpReports(req.query.type || "SUMMARY", req.query);
     res.json({ success: true, ...reportData });
   } catch (err) {
@@ -3038,7 +3162,7 @@ app.get('/api/nwbdcp/reports', (req, res) => {
 });
 
 // 7. Historical Data Import Endpoint
-app.post('/api/nwbdcp/import-historical-samples', nwbdcpRequireAuth(ROLES.ADMIN), (req, res) => {
+app.post('/api/nwbdcp/import-historical-samples', nwbdcpRequireAuth(ROLES.STAFF), (req, res) => {
   try {
     const user = req.nwbdcpAuth.user;
     const result = importHistoricalWaterSamples(req.body.samples || [], user);
@@ -3062,14 +3186,81 @@ app.get('/api/export/nwbdcp-water-sources.xlsx', (req, res) => {
   }
 });
 
+// 8b. Download Official NWBDCP Water Source List Upload Template (.xlsx / .csv)
+app.get(['/api/export/nwbdcp-source-template.xlsx', '/api/export/nwbdcp-source-template.csv'], (req, res) => {
+  try {
+    const headers = [
+      "उपकेंद्र (Subcenter)",
+      "गाव (Village)",
+      "जलस्त्रोताचे नाव (Source Name)",
+      "स्त्रोत प्रकार (Source Type)",
+      "मालकी (Ownership)",
+      "स्थिती (Status)",
+      "पत्ता/ठिकाण (Location)",
+      "अक्षांश (Latitude)",
+      "रेखांश (Longitude)"
+    ];
+    const demoRows = [
+      ["भादा", "भादा", "ग्रामपंचायत मुख्य विहीर क्र. १", "सार्वजनिक विहीर", "सार्वजनिक", "सुरू", "हनुमान मंदिराजवळ", "", ""],
+      ["भादा", "भादा", "जिल्हा परिषद शाळा हातपंप", "हातपंप", "सार्वजनिक", "सुरू", "जि.प. शाळा आवार", "", ""]
+    ];
+    return sendExportData(req, res, `NWBDCP_Water_Source_List_Upload_Template`, headers, demoRows, 'Water_Source_Template');
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 9. Export NWBDCP Sample Dispatch & Results (.xlsx / .csv)
 app.get('/api/export/nwbdcp-samples.xlsx', (req, res) => {
   try {
     const samples = getDispatchedSamples(req.query);
-    const headers = ["नमुना आयडी (Sample ID)", "पाणी संकलन दिनांक (Collection Date)", "पाठवणी दिनांक (Dispatch Date)", "उपकेंद्र (Subcenter)", "गाव (Village)", "जलस्त्रोताचे नाव (Source Name)", "स्त्रोत प्रकार (Source Type)", "मालकी (Ownership)", "प्रयोगशाळा (Lab Name)", "नमुना निकाल (Result)", "अहवाल दिनांक (Report Date)", "प्रयोगशाळा जा.क्र. (Lab Ref No)", "शेरा (Remarks)"];
-    const rows = samples.map(s => [
-      s.sampleId || '', s.collectionDate || '', s.dispatchDate || '', s.subcenter || '', s.village || '', s.sourceName || '', s.sourceType || '', s.ownership || '', s.labName || '', s.result || '', s.reportReceivedDate || '', s.labRefNo || '', s.remarks || ''
-    ]);
+    const headers = [
+      "नमुना आयडी (Sample ID)",
+      "तपासणी प्रकार (Analysis Type)",
+      "पाणी/TCL संकलन दिनांक (Collection Date)",
+      "पाठवणी दिनांक (Dispatch Date)",
+      "उपकेंद्र (Subcenter)",
+      "गाव (Village)",
+      "जलस्त्रोत / TCL साठा नाव (Source Name)",
+      "स्त्रोत प्रकार (Source Type)",
+      "मालकी (Ownership)",
+      "प्रयोगशाळा (Lab Name)",
+      "नमुना निकाल (Result)",
+      "तपासणी मानके / तपशील (Analytical Params)",
+      "अहवाल दिनांक (Report Date)",
+      "प्रयोगशाळा जा.क्र. (Lab Ref No)",
+      "शेरा (Remarks)"
+    ];
+    const rows = samples.map(s => {
+      const aType = s.analysisType === 'CHEMICAL' ? 'रासायनिक तपासणी (Chemical)' : (s.analysisType === 'BLEACHING_POWDER' ? 'ब्लिचिंग पावडर (TCL)' : 'जैविक तपासणी (Bacteriological)');
+      const p = s.analysisParams || {};
+      let paramSummary = '';
+      if (s.analysisType === 'CHEMICAL') {
+        paramSummary = [
+          p.ph ? `pH:${p.ph}` : '',
+          p.tds ? `TDS:${p.tds}` : '',
+          p.turbidity ? `Turbidity:${p.turbidity}` : '',
+          p.hardness ? `Hardness:${p.hardness}` : '',
+          p.fluoride ? `Fluoride:${p.fluoride}` : '',
+          p.nitrate ? `Nitrate:${p.nitrate}` : ''
+        ].filter(Boolean).join(', ');
+      } else if (s.analysisType === 'BLEACHING_POWDER') {
+        paramSummary = [
+          p.availableChlorinePct !== undefined && p.availableChlorinePct !== '' ? `उपलब्ध क्लोरीन: ${p.availableChlorinePct}%` : '',
+          p.tclBatchNo ? `बॅच: ${p.tclBatchNo}` : '',
+          p.tclPackingType ? `पॅकिंग: ${p.tclPackingType}` : ''
+        ].filter(Boolean).join(', ');
+      } else {
+        paramSummary = [
+          p.mpnCount !== undefined && p.mpnCount !== '' ? `MPN:${p.mpnCount}/100ml` : '',
+          p.ecoliStatus ? `E.coli:${p.ecoliStatus}` : '',
+          p.residualChlorine ? `RC:${p.residualChlorine}ppm` : ''
+        ].filter(Boolean).join(', ');
+      }
+      return [
+        s.sampleId || '', aType, s.collectionDate || '', s.dispatchDate || '', s.subcenter || '', s.village || '', s.sourceName || '', s.sourceType || '', s.ownership || '', s.labName || '', s.result || '', paramSummary, s.reportReceivedDate || '', s.labRefNo || '', s.remarks || ''
+      ];
+    });
     return sendExportData(req, res, `phc_bhada_nwbdcp_samples_${new Date().toISOString().slice(0, 10)}`, headers, rows, 'Sample_Dispatch');
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3086,6 +3277,7 @@ app.get(['/api/export/nwbdcp-template.xlsx', '/api/export/nwbdcp-template.csv'],
       "जलस्त्रोताचे नाव (Source Name)",
       "स्त्रोत प्रकार (Source Type)",
       "मालकी (Ownership)",
+      "तपासणी प्रकार (Analysis Type)",
       "पाठवणी दिनांक (Dispatch Date)",
       "नमुना आयडी (Sample ID)",
       "तपासणी निकाल (Result)",
