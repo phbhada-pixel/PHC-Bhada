@@ -139,6 +139,139 @@
 
     window.google = window.google || {};
     window.google.script = window.google.script || {};
+    // Local Client-Side In-Memory / LocalStorage Store for Standalone / GitHub Pages Mode
+    const STORAGE_PREFIX = 'phc_bhada_nvbdcp_';
+    try {
+      const RESET_KEY = STORAGE_PREFIX + 'empty_reset_oct_2026_v1';
+      if (!localStorage.getItem(RESET_KEY)) {
+        ['bsDataEntry', 'dengueChikungunyaEntries', 'villageDetails', 'monthMaster', 'transferHistory', 'bsServiceTenureHistory', 'pendingSyncQueue'].forEach(k => {
+          localStorage.removeItem(STORAGE_PREFIX + k);
+        });
+        localStorage.setItem(RESET_KEY, '1');
+      }
+    } catch (e) {}
+    function getLocalStore(key, defaultVal) {
+      try {
+        const item = localStorage.getItem(STORAGE_PREFIX + key);
+        return item ? JSON.parse(item) : defaultVal;
+      } catch (e) {
+        return defaultVal;
+      }
+    }
+    function setLocalStore(key, val) {
+      try {
+        localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
+      } catch (e) {}
+    }
+
+    // Initial authoritative client-side state from DEFAULT_DB_SNAPSHOT if available or localStorage
+    const defaultSnap = (typeof window !== 'undefined' && window.DEFAULT_DB_SNAPSHOT) ? window.DEFAULT_DB_SNAPSHOT : {};
+
+    let clientBsData = getLocalStore('bsDataEntry', null);
+    if (!clientBsData || !Array.isArray(clientBsData) || clientBsData.length === 0) {
+      clientBsData = (defaultSnap.bsDataEntry && Array.isArray(defaultSnap.bsDataEntry)) ? defaultSnap.bsDataEntry : [];
+      if (clientBsData.length > 0) setLocalStore('bsDataEntry', clientBsData);
+    }
+
+    let clientDengueEntries = getLocalStore('dengueChikungunyaEntries', null);
+    // Auto-purge any dummy test entries so preview app starts completely clean
+    if (Array.isArray(clientDengueEntries)) {
+      clientDengueEntries = clientDengueEntries.filter(e => 
+        e && e.patientName && 
+        !['रमेश विठ्ठल पाटील', 'सुरेश नामदेव कदम', 'कविता गजानन मोरे'].includes(e.patientName) &&
+        !String(e.id || '').startsWith('DENGUE_20260926_3463') &&
+        !String(e.id || '').startsWith('DENGUE_20260812_')
+      );
+      setLocalStore('dengueChikungunyaEntries', clientDengueEntries);
+    }
+    if (!clientDengueEntries || !Array.isArray(clientDengueEntries)) {
+      clientDengueEntries = (defaultSnap.dengueChikungunyaEntries && Array.isArray(defaultSnap.dengueChikungunyaEntries)) ? defaultSnap.dengueChikungunyaEntries : [];
+      setLocalStore('dengueChikungunyaEntries', clientDengueEntries);
+    }
+    let clientVillageDetails = getLocalStore('villageDetails', null);
+    if (!clientVillageDetails || !Array.isArray(clientVillageDetails) || clientVillageDetails.length === 0) {
+      clientVillageDetails = (defaultSnap.villageDetails && Array.isArray(defaultSnap.villageDetails)) ? defaultSnap.villageDetails : [];
+      if (clientVillageDetails.length > 0) setLocalStore('villageDetails', clientVillageDetails);
+    }
+
+    let clientMonthMaster = getLocalStore('monthMaster', null);
+    if (!clientMonthMaster || !Array.isArray(clientMonthMaster) || clientMonthMaster.length === 0) {
+      clientMonthMaster = (defaultSnap.monthMaster && Array.isArray(defaultSnap.monthMaster)) ? defaultSnap.monthMaster : [];
+      if (clientMonthMaster.length > 0) setLocalStore('monthMaster', clientMonthMaster);
+    }
+
+    const defaultVillagesMaster = [
+      {"id":"VIL_01","villageName":"आलमला","name":"आलमला","subcenter":"आलमला","upkendra":"आलमला","population":3706,"houses":741,"households":741,"annualSmearTarget":371,"target":371,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_02","villageName":"उंबडगा बू","name":"उंबडगा बू","subcenter":"आलमला","upkendra":"आलमला","population":1009,"houses":202,"households":202,"annualSmearTarget":101,"target":101,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_03","villageName":"उंबडगा खू","name":"उंबडगा खू","subcenter":"आलमला","upkendra":"आलमला","population":997,"houses":199,"households":199,"annualSmearTarget":100,"target":100,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_04","villageName":"आलमला तांडा","name":"आलमला तांडा","subcenter":"आलमला","upkendra":"आलमला","population":207,"houses":41,"households":41,"annualSmearTarget":21,"target":21,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_05","villageName":"समदर्गा","name":"समदर्गा","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":1219,"houses":244,"households":244,"annualSmearTarget":122,"target":122,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_06","villageName":"कोरंगळा","name":"कोरंगळा","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":1812,"houses":362,"households":362,"annualSmearTarget":181,"target":181,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_07","villageName":"येल्लोरी","name":"येल्लोरी","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":1402,"houses":280,"households":280,"annualSmearTarget":140,"target":140,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_08","villageName":"येल्लोरी वाडी","name":"येल्लोरी वाडी","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":664,"houses":133,"households":133,"annualSmearTarget":66,"target":66,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_09","villageName":"औसा तांडा","name":"औसा तांडा","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":65,"houses":13,"households":13,"annualSmearTarget":7,"target":7,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_10","villageName":"काळमाथा","name":"काळमाथा","subcenter":"बोरगाव","upkendra":"बोरगाव","population":1811,"houses":362,"households":362,"annualSmearTarget":181,"target":181,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_11","villageName":"बोरगांव","name":"बोरगांव","subcenter":"बोरगाव","upkendra":"बोरगाव","population":227,"houses":45,"households":45,"annualSmearTarget":23,"target":23,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_12","villageName":"कवठा","name":"कवठा","subcenter":"बोरगाव","upkendra":"बोरगाव","population":969,"houses":194,"households":194,"annualSmearTarget":97,"target":97,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_13","villageName":"कवठा तांडा","name":"कवठा तांडा","subcenter":"बोरगाव","upkendra":"बोरगाव","population":1225,"houses":245,"households":245,"annualSmearTarget":123,"target":123,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_14","villageName":"हाळदुर्ग","name":"हाळदुर्ग","subcenter":"भादा","upkendra":"भादा","population":370,"houses":74,"households":74,"annualSmearTarget":37,"target":37,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_15","villageName":"भादा","name":"भादा","subcenter":"भादा","upkendra":"भादा","population":5420,"houses":1120,"households":1120,"annualSmearTarget":542,"target":542,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_16","villageName":"शिंदेवाडी","name":"शिंदेवाडी","subcenter":"भादा","upkendra":"भादा","population":315,"houses":63,"households":63,"annualSmearTarget":32,"target":32,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_17","villageName":"ब-हाणपूर","name":"ब-हाणपूर","subcenter":"भादा","upkendra":"भादा","population":835,"houses":167,"households":167,"annualSmearTarget":84,"target":84,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_18","villageName":"आंदोरा","name":"आंदोरा","subcenter":"भेटा","upkendra":"भेटा","population":2150,"houses":430,"households":430,"annualSmearTarget":215,"target":215,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_19","villageName":"भेटा","name":"भेटा","subcenter":"भेटा","upkendra":"भेटा","population":3395,"houses":679,"households":679,"annualSmearTarget":340,"target":340,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_20","villageName":"नाव्होली","name":"नाव्होली","subcenter":"भेटा","upkendra":"भेटा","population":130,"houses":26,"households":26,"annualSmearTarget":13,"target":13,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_21","villageName":"वडजी","name":"वडजी","subcenter":"भेटा","upkendra":"भेटा","population":1150,"houses":230,"households":230,"annualSmearTarget":115,"target":115,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_22","villageName":"सत्तधरवाडी","name":"सत्तधरवाडी","subcenter":"लखनगाव","upkendra":"लखनगाव","population":1755,"houses":351,"households":351,"annualSmearTarget":176,"target":176,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_23","villageName":"कुलकर्णी तांडा","name":"कुलकर्णी तांडा","subcenter":"लखनगाव","upkendra":"लखनगाव","population":340,"houses":68,"households":68,"annualSmearTarget":34,"target":34,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_24","villageName":"उटी बु.","name":"उटी बु.","subcenter":"लखनगाव","upkendra":"लखनगाव","population":1720,"houses":344,"households":344,"annualSmearTarget":172,"target":172,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_25","villageName":"सोनपट्टी तांडा","name":"सोनपट्टी तांडा","subcenter":"लखनगाव","upkendra":"लखनगाव","population":412,"houses":82,"households":82,"annualSmearTarget":41,"target":41,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_26","villageName":"लखनगांव","name":"लखनगांव","subcenter":"लखनगाव","upkendra":"लखनगाव","population":1688,"houses":338,"households":338,"annualSmearTarget":169,"target":169,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_27","villageName":"शिवली","name":"शिवली","subcenter":"शिवली","upkendra":"शिवली","population":3800,"houses":760,"households":760,"annualSmearTarget":380,"target":380,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_28","villageName":"वरवडा","name":"वरवडा","subcenter":"शिवली","upkendra":"शिवली","population":1497,"houses":299,"households":299,"annualSmearTarget":150,"target":150,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_29","villageName":"जायफळ","name":"जायफळ","subcenter":"शिवली","upkendra":"शिवली","population":1283,"houses":257,"households":257,"annualSmearTarget":128,"target":128,"ashaName":"","ashaWorker":""},
+      {"id":"VIL_30","villageName":"Phc भादा","name":"Phc भादा","subcenter":"प्रा.आ.केंद्र","upkendra":"प्रा.आ.केंद्र","population":0,"houses":250,"households":250,"annualSmearTarget":0,"target":0,"ashaName":"","ashaWorker":""}
+    ];
+
+    let clientMasterData = (defaultSnap.masterData && Array.isArray(defaultSnap.masterData)) ? defaultSnap.masterData : (typeof defaultMasterData !== 'undefined' ? defaultMasterData : []);
+    let clientSubcenters = getLocalStore('subcenterMaster', (defaultSnap.subcenterMaster && Array.isArray(defaultSnap.subcenterMaster)) ? defaultSnap.subcenterMaster : []);
+    let rawClientVillages = getLocalStore('villagesMaster', null);
+    if (!rawClientVillages || !Array.isArray(rawClientVillages) || rawClientVillages.length === 0) {
+      rawClientVillages = (defaultSnap.villagesMaster && Array.isArray(defaultSnap.villagesMaster) && defaultSnap.villagesMaster.length > 0)
+        ? defaultSnap.villagesMaster
+        : defaultVillagesMaster;
+    }
+    // Ensure all client villages have house numbers calculated if missing or 0
+    let clientVillages = rawClientVillages.map(v => {
+      const pop = parseInt(v.population) || 0;
+      let h = parseInt(v.houses != null ? v.houses : v.households);
+      if (isNaN(h) || h <= 0) {
+        const matchDefault = defaultVillagesMaster.find(dv => dv.villageName === (v.villageName || v.name) || dv.id === v.id);
+        h = (matchDefault && matchDefault.houses) ? matchDefault.houses : (pop > 0 ? Math.round(pop / 5) : 0);
+      }
+      return {
+        ...v,
+        population: pop,
+        houses: h,
+        households: h,
+        target: parseInt(v.annualSmearTarget != null ? v.annualSmearTarget : v.target) || Math.round(pop * 0.1),
+        annualSmearTarget: parseInt(v.annualSmearTarget != null ? v.annualSmearTarget : v.target) || Math.round(pop * 0.1)
+      };
+    });
+    setLocalStore('villagesMaster', clientVillages);
+
+    let clientEmployees = getLocalStore('employeeMaster', (defaultSnap.employeeMaster && Array.isArray(defaultSnap.employeeMaster)) ? defaultSnap.employeeMaster : []);
+    let clientTransfers = getLocalStore('transferHistory', (defaultSnap.transferHistory && Array.isArray(defaultSnap.transferHistory)) ? defaultSnap.transferHistory : []);
+
+    let clientGoogleSheetConfig = getLocalStore('googleSheetConfig', (defaultSnap.googleSheetConfig || {
+      spreadsheetId: "1QW9vQ943bT131102008741_b9e7cQ86z7pLzP9gX3e0r",
+      webhookUrl: "https://script.google.com/macros/s/AKfycbzx9eLKm6P2gQu2ub-vR_NdJaWAf3CKfweoThJd4polcFq2s03YIcZQqcdlhA-oqmxL/exec",
+      githubRepoUrl: "https://github.com/phcbhada/nvbdcp-malaria-management-system",
+      autoSync: true,
+      lastSyncTime: null,
+      syncStatus: "स्थानिक प्रणाली सज्ज (Offline Ready)"
+    }));
+
     (function() {
       const isStaticHosting = (typeof window !== 'undefined' && window.location && (
         window.location.hostname.endsWith('github.io') ||
@@ -147,139 +280,6 @@
       ));
 
       let serverUnavailable = isStaticHosting;
-
-      // Local Client-Side In-Memory / LocalStorage Store for Standalone / GitHub Pages Mode
-      const STORAGE_PREFIX = 'phc_bhada_nvbdcp_';
-      try {
-        const RESET_KEY = STORAGE_PREFIX + 'empty_reset_oct_2026_v1';
-        if (!localStorage.getItem(RESET_KEY)) {
-          ['bsDataEntry', 'dengueChikungunyaEntries', 'villageDetails', 'monthMaster', 'transferHistory', 'bsServiceTenureHistory', 'pendingSyncQueue'].forEach(k => {
-            localStorage.removeItem(STORAGE_PREFIX + k);
-          });
-          localStorage.setItem(RESET_KEY, '1');
-        }
-      } catch (e) {}
-      function getLocalStore(key, defaultVal) {
-        try {
-          const item = localStorage.getItem(STORAGE_PREFIX + key);
-          return item ? JSON.parse(item) : defaultVal;
-        } catch (e) {
-          return defaultVal;
-        }
-      }
-      function setLocalStore(key, val) {
-        try {
-          localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(val));
-        } catch (e) {}
-      }
-
-      // Initial authoritative client-side state from DEFAULT_DB_SNAPSHOT if available or localStorage
-      const defaultSnap = (typeof window !== 'undefined' && window.DEFAULT_DB_SNAPSHOT) ? window.DEFAULT_DB_SNAPSHOT : {};
-
-      let clientBsData = getLocalStore('bsDataEntry', null);
-      if (!clientBsData || !Array.isArray(clientBsData) || clientBsData.length === 0) {
-        clientBsData = (defaultSnap.bsDataEntry && Array.isArray(defaultSnap.bsDataEntry)) ? defaultSnap.bsDataEntry : [];
-        if (clientBsData.length > 0) setLocalStore('bsDataEntry', clientBsData);
-      }
-
-      let clientDengueEntries = getLocalStore('dengueChikungunyaEntries', null);
-      // Auto-purge any dummy test entries so preview app starts completely clean
-      if (Array.isArray(clientDengueEntries)) {
-        clientDengueEntries = clientDengueEntries.filter(e => 
-          e && e.patientName && 
-          !['रमेश विठ्ठल पाटील', 'सुरेश नामदेव कदम', 'कविता गजानन मोरे'].includes(e.patientName) &&
-          !String(e.id || '').startsWith('DENGUE_20260926_3463') &&
-          !String(e.id || '').startsWith('DENGUE_20260812_')
-        );
-        setLocalStore('dengueChikungunyaEntries', clientDengueEntries);
-      }
-      if (!clientDengueEntries || !Array.isArray(clientDengueEntries)) {
-        clientDengueEntries = (defaultSnap.dengueChikungunyaEntries && Array.isArray(defaultSnap.dengueChikungunyaEntries)) ? defaultSnap.dengueChikungunyaEntries : [];
-        setLocalStore('dengueChikungunyaEntries', clientDengueEntries);
-      }
-      let clientVillageDetails = getLocalStore('villageDetails', null);
-      if (!clientVillageDetails || !Array.isArray(clientVillageDetails) || clientVillageDetails.length === 0) {
-        clientVillageDetails = (defaultSnap.villageDetails && Array.isArray(defaultSnap.villageDetails)) ? defaultSnap.villageDetails : [];
-        if (clientVillageDetails.length > 0) setLocalStore('villageDetails', clientVillageDetails);
-      }
-
-      let clientMonthMaster = getLocalStore('monthMaster', null);
-      if (!clientMonthMaster || !Array.isArray(clientMonthMaster) || clientMonthMaster.length === 0) {
-        clientMonthMaster = (defaultSnap.monthMaster && Array.isArray(defaultSnap.monthMaster)) ? defaultSnap.monthMaster : [];
-        if (clientMonthMaster.length > 0) setLocalStore('monthMaster', clientMonthMaster);
-      }
-
-      const defaultVillagesMaster = [
-        {"id":"VIL_01","villageName":"आलमला","name":"आलमला","subcenter":"आलमला","upkendra":"आलमला","population":3706,"houses":741,"households":741,"annualSmearTarget":371,"target":371,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_02","villageName":"उंबडगा बू","name":"उंबडगा बू","subcenter":"आलमला","upkendra":"आलमला","population":1009,"houses":202,"households":202,"annualSmearTarget":101,"target":101,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_03","villageName":"उंबडगा खू","name":"उंबडगा खू","subcenter":"आलमला","upkendra":"आलमला","population":997,"houses":199,"households":199,"annualSmearTarget":100,"target":100,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_04","villageName":"आलमला तांडा","name":"आलमला तांडा","subcenter":"आलमला","upkendra":"आलमला","population":207,"houses":41,"households":41,"annualSmearTarget":21,"target":21,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_05","villageName":"समदर्गा","name":"समदर्गा","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":1219,"houses":244,"households":244,"annualSmearTarget":122,"target":122,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_06","villageName":"कोरंगळा","name":"कोरंगळा","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":1812,"houses":362,"households":362,"annualSmearTarget":181,"target":181,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_07","villageName":"येल्लोरी","name":"येल्लोरी","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":1402,"houses":280,"households":280,"annualSmearTarget":140,"target":140,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_08","villageName":"येल्लोरी वाडी","name":"येल्लोरी वाडी","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":664,"houses":133,"households":133,"annualSmearTarget":66,"target":66,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_09","villageName":"औसा तांडा","name":"औसा तांडा","subcenter":"कोरंगळा","upkendra":"कोरंगळा","population":65,"houses":13,"households":13,"annualSmearTarget":7,"target":7,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_10","villageName":"काळमाथा","name":"काळमाथा","subcenter":"बोरगाव","upkendra":"बोरगाव","population":1811,"houses":362,"households":362,"annualSmearTarget":181,"target":181,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_11","villageName":"बोरगांव","name":"बोरगांव","subcenter":"बोरगाव","upkendra":"बोरगाव","population":227,"houses":45,"households":45,"annualSmearTarget":23,"target":23,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_12","villageName":"कवठा","name":"कवठा","subcenter":"बोरगाव","upkendra":"बोरगाव","population":969,"houses":194,"households":194,"annualSmearTarget":97,"target":97,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_13","villageName":"कवठा तांडा","name":"कवठा तांडा","subcenter":"बोरगाव","upkendra":"बोरगाव","population":1225,"houses":245,"households":245,"annualSmearTarget":123,"target":123,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_14","villageName":"हाळदुर्ग","name":"हाळदुर्ग","subcenter":"भादा","upkendra":"भादा","population":370,"houses":74,"households":74,"annualSmearTarget":37,"target":37,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_15","villageName":"भादा","name":"भादा","subcenter":"भादा","upkendra":"भादा","population":5420,"houses":1120,"households":1120,"annualSmearTarget":542,"target":542,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_16","villageName":"शिंदेवाडी","name":"शिंदेवाडी","subcenter":"भादा","upkendra":"भादा","population":315,"houses":63,"households":63,"annualSmearTarget":32,"target":32,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_17","villageName":"ब-हाणपूर","name":"ब-हाणपूर","subcenter":"भादा","upkendra":"भादा","population":835,"houses":167,"households":167,"annualSmearTarget":84,"target":84,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_18","villageName":"आंदोरा","name":"आंदोरा","subcenter":"भेटा","upkendra":"भेटा","population":2150,"houses":430,"households":430,"annualSmearTarget":215,"target":215,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_19","villageName":"भेटा","name":"भेटा","subcenter":"भेटा","upkendra":"भेटा","population":3395,"houses":679,"households":679,"annualSmearTarget":340,"target":340,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_20","villageName":"नाव्होली","name":"नाव्होली","subcenter":"भेटा","upkendra":"भेटा","population":130,"houses":26,"households":26,"annualSmearTarget":13,"target":13,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_21","villageName":"वडजी","name":"वडजी","subcenter":"भेटा","upkendra":"भेटा","population":1150,"houses":230,"households":230,"annualSmearTarget":115,"target":115,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_22","villageName":"सत्तधरवाडी","name":"सत्तधरवाडी","subcenter":"लखनगाव","upkendra":"लखनगाव","population":1755,"houses":351,"households":351,"annualSmearTarget":176,"target":176,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_23","villageName":"कुलकर्णी तांडा","name":"कुलकर्णी तांडा","subcenter":"लखनगाव","upkendra":"लखनगाव","population":340,"houses":68,"households":68,"annualSmearTarget":34,"target":34,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_24","villageName":"उटी बु.","name":"उटी बु.","subcenter":"लखनगाव","upkendra":"लखनगाव","population":1720,"houses":344,"households":344,"annualSmearTarget":172,"target":172,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_25","villageName":"सोनपट्टी तांडा","name":"सोनपट्टी तांडा","subcenter":"लखनगाव","upkendra":"लखनगाव","population":412,"houses":82,"households":82,"annualSmearTarget":41,"target":41,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_26","villageName":"लखनगांव","name":"लखनगांव","subcenter":"लखनगाव","upkendra":"लखनगाव","population":1688,"houses":338,"households":338,"annualSmearTarget":169,"target":169,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_27","villageName":"शिवली","name":"शिवली","subcenter":"शिवली","upkendra":"शिवली","population":3800,"houses":760,"households":760,"annualSmearTarget":380,"target":380,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_28","villageName":"वरवडा","name":"वरवडा","subcenter":"शिवली","upkendra":"शिवली","population":1497,"houses":299,"households":299,"annualSmearTarget":150,"target":150,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_29","villageName":"जायफळ","name":"जायफळ","subcenter":"शिवली","upkendra":"शिवली","population":1283,"houses":257,"households":257,"annualSmearTarget":128,"target":128,"ashaName":"","ashaWorker":""},
-        {"id":"VIL_30","villageName":"Phc भादा","name":"Phc भादा","subcenter":"प्रा.आ.केंद्र","upkendra":"प्रा.आ.केंद्र","population":0,"houses":250,"households":250,"annualSmearTarget":0,"target":0,"ashaName":"","ashaWorker":""}
-      ];
-
-      let clientMasterData = (defaultSnap.masterData && Array.isArray(defaultSnap.masterData)) ? defaultSnap.masterData : (typeof defaultMasterData !== 'undefined' ? defaultMasterData : []);
-      let clientSubcenters = getLocalStore('subcenterMaster', (defaultSnap.subcenterMaster && Array.isArray(defaultSnap.subcenterMaster)) ? defaultSnap.subcenterMaster : []);
-      let rawClientVillages = getLocalStore('villagesMaster', null);
-      if (!rawClientVillages || !Array.isArray(rawClientVillages) || rawClientVillages.length === 0) {
-        rawClientVillages = (defaultSnap.villagesMaster && Array.isArray(defaultSnap.villagesMaster) && defaultSnap.villagesMaster.length > 0)
-          ? defaultSnap.villagesMaster
-          : defaultVillagesMaster;
-      }
-      // Ensure all client villages have house numbers calculated if missing or 0
-      let clientVillages = rawClientVillages.map(v => {
-        const pop = parseInt(v.population) || 0;
-        let h = parseInt(v.houses != null ? v.houses : v.households);
-        if (isNaN(h) || h <= 0) {
-          const matchDefault = defaultVillagesMaster.find(dv => dv.villageName === (v.villageName || v.name) || dv.id === v.id);
-          h = (matchDefault && matchDefault.houses) ? matchDefault.houses : (pop > 0 ? Math.round(pop / 5) : 0);
-        }
-        return {
-          ...v,
-          population: pop,
-          houses: h,
-          households: h,
-          target: parseInt(v.annualSmearTarget != null ? v.annualSmearTarget : v.target) || Math.round(pop * 0.1),
-          annualSmearTarget: parseInt(v.annualSmearTarget != null ? v.annualSmearTarget : v.target) || Math.round(pop * 0.1)
-        };
-      });
-      setLocalStore('villagesMaster', clientVillages);
-
-      let clientEmployees = getLocalStore('employeeMaster', (defaultSnap.employeeMaster && Array.isArray(defaultSnap.employeeMaster)) ? defaultSnap.employeeMaster : []);
-      let clientTransfers = getLocalStore('transferHistory', (defaultSnap.transferHistory && Array.isArray(defaultSnap.transferHistory)) ? defaultSnap.transferHistory : []);
-
-      let clientGoogleSheetConfig = getLocalStore('googleSheetConfig', (defaultSnap.googleSheetConfig || {
-        spreadsheetId: "1QW9vQ943bT131102008741_b9e7cQ86z7pLzP9gX3e0r",
-        webhookUrl: "https://script.google.com/macros/s/AKfycbzx9eLKm6P2gQu2ub-vR_NdJaWAf3CKfweoThJd4polcFq2s03YIcZQqcdlhA-oqmxL/exec",
-        githubRepoUrl: "https://github.com/phcbhada/nvbdcp-malaria-management-system",
-        autoSync: true,
-        lastSyncTime: null,
-        syncStatus: "स्थानिक प्रणाली सज्ज (Offline Ready)"
-      }));
 
       function formatBsEntryLocal(r) {
         if (!r) return {};
@@ -2551,6 +2551,97 @@
             };
           }
 
+          case 'getLatestBundleNumber': {
+            const [commonDate] = args;
+            const inputDate = commonDate ? new Date(commonDate) : new Date();
+            const inputDateStr = !isNaN(inputDate.getTime())
+              ? `${inputDate.getFullYear()}-${String(inputDate.getMonth() + 1).padStart(2, '0')}-${String(inputDate.getDate()).padStart(2, '0')}`
+              : '';
+            let latest = 0;
+            for (let i = clientBsData.length - 1; i >= 0; i--) {
+              const row = clientBsData[i];
+              if (!Array.isArray(row)) continue;
+              const rowDate = new Date(row[1]);
+              if (isNaN(rowDate.getTime())) continue;
+              const rowDateStr = `${rowDate.getFullYear()}-${String(rowDate.getMonth() + 1).padStart(2, '0')}-${String(rowDate.getDate()).padStart(2, '0')}`;
+              if (rowDateStr === inputDateStr) {
+                const match = String(row[6] || '').match(/(\d+)$/);
+                if (match) latest = Math.max(latest, parseInt(match[1], 10) || 0);
+              }
+            }
+            return { result: latest };
+          }
+
+          case 'getLastParayntValue': {
+            const [upkendra, employeeName, commonDate, providedBsCode] = args;
+            const normalizeStr = (s) => String(s || '')
+              .replace(/^(श्री\.|श्रीमती\.|सौ\.|डॉ\.|श्री|श्रीमती|सौ|डॉ)\s*/i, '')
+              .replace(/[^a-zA-Z0-9\u0900-\u097F]/g, '')
+              .toLowerCase()
+              .trim();
+
+            const inputEmpNorm = normalizeStr(employeeName);
+            const inputBsCode = providedBsCode ? String(providedBsCode).trim().toUpperCase() : '';
+            const cleanUpkendraInput = normalizeStr(upkendra);
+
+            const empPool = (Array.isArray(clientEmployees) && clientEmployees.length > 0) ? clientEmployees : (clientMasterData || []);
+            const empRec = empPool.find(e =>
+              (inputBsCode && e.bsCode && String(e.bsCode).trim().toUpperCase() === inputBsCode) ||
+              (e.employeeName && String(e.employeeName).trim() === String(employeeName || '').trim()) ||
+              (e.employeeName && normalizeStr(e.employeeName) === inputEmpNorm)
+            );
+
+            const targetBsCode = empRec && empRec.bsCode ? String(empRec.bsCode).trim().toUpperCase() : inputBsCode;
+            const targetEmpName = empRec ? empRec.employeeName : String(employeeName || '').trim();
+
+            let inputYear = null;
+            if (commonDate) {
+              const d = new Date(commonDate);
+              if (!isNaN(d.getTime())) inputYear = d.getFullYear();
+            }
+            if (!inputYear) inputYear = new Date().getFullYear();
+
+            let maxParayntForYear = 0;
+            let maxParayntOverall = 0;
+
+            for (let i = 0; i < clientBsData.length; i++) {
+              const row = clientBsData[i];
+              if (!Array.isArray(row)) continue;
+
+              const rowUpkendraNorm = normalizeStr(row[2]);
+              if (cleanUpkendraInput && rowUpkendraNorm !== cleanUpkendraInput) continue;
+
+              const rowEmpName = String(row[3] || '').trim();
+              const rowBsCode = String(row[5] || '').trim().toUpperCase();
+              const parayntVal = parseInt(row[8], 10) || 0;
+
+              const matchesEmp = (
+                (targetBsCode && rowBsCode && rowBsCode === targetBsCode) ||
+                (rowEmpName && targetEmpName && (rowEmpName === targetEmpName || normalizeStr(rowEmpName) === inputEmpNorm))
+              );
+
+              if (!matchesEmp) continue;
+
+              if (parayntVal > maxParayntOverall) {
+                maxParayntOverall = parayntVal;
+              }
+
+              let rowYear = null;
+              if (row[1]) {
+                const rd = new Date(row[1]);
+                if (!isNaN(rd.getTime())) rowYear = rd.getFullYear();
+              }
+
+              if (rowYear === inputYear && parayntVal > maxParayntForYear) {
+                maxParayntForYear = parayntVal;
+              }
+            }
+
+            const lastVal = maxParayntForYear > 0 ? maxParayntForYear : maxParayntOverall;
+            return { result: lastVal };
+          }
+
+          case 'saveBsData':
           case 'processForm':
           case 'processDataEntry': {
             const [entries] = args;
@@ -2560,19 +2651,22 @@
 
             entries.forEach(entry => {
               const uniqueId = 'BS_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-              const dateObj = entry.date ? new Date(entry.date) : new Date();
-              const total = parseInt(entry.total) || 0;
+              const rawDate = entry.bsSendDate || entry.date;
+              const dateObj = rawDate ? new Date(rawDate) : new Date();
+              const pasunVal = parseInt(entry.pasun, 10) || 0;
+              const parayntVal = parseInt(entry.paraynt, 10) || 0;
+              const total = parseInt(entry.total, 10) || (parayntVal >= pasunVal && pasunVal > 0 ? (parayntVal - pasunVal + 1) : 0);
 
               clientBsData.unshift([
                 uniqueId,
-                dateObj.toISOString(),
+                !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString(),
                 entry.upkendra || '',
                 entry.employeeName || '',
                 entry.designation || '',
                 entry.bsCode || '',
                 entry.bundleNumber || '',
-                parseInt(entry.pasun) || 0,
-                parseInt(entry.paraynt) || 0,
+                pasunVal,
+                parayntVal,
                 total
               ]);
 
@@ -2582,11 +2676,11 @@
                   clientVillageDetails.unshift([
                     uniqueId,
                     entry.employeeName || '',
-                    dateObj.toISOString(),
+                    !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString(),
                     vr.villageName || '',
-                    parseInt(vr.sampleCount) || 0,
-                    parseInt(vr.maleCount) || 0,
-                    parseInt(vr.femaleCount) || 0,
+                    parseInt(vr.sampleCount, 10) || 0,
+                    parseInt(vr.maleCount, 10) || 0,
+                    parseInt(vr.femaleCount, 10) || 0,
                     entry.upkendra || ''
                   ]);
                 });
@@ -3467,6 +3561,42 @@
             return { result: { success: true, message: 'गाव हटवण्यात आले.' } };
           }
 
+          case 'deleteBsEntry': {
+            const [entryId] = args;
+            clientBsData = clientBsData.filter(r => Array.isArray(r) && r[0] !== entryId);
+            clientVillageDetails = clientVillageDetails.filter(r => Array.isArray(r) && r[0] !== entryId);
+            setLocalStore('bsDataEntry', clientBsData);
+            setLocalStore('villageDetails', clientVillageDetails);
+            return { result: { success: true, message: `नोंद ${entryId} यशस्वीरित्या हटवली!` } };
+          }
+
+          case 'clearAllDummyData':
+          case 'clearAllData': {
+            clientBsData = [];
+            clientVillageDetails = [];
+            clientDengueEntries = [];
+            setLocalStore('bsDataEntry', []);
+            setLocalStore('villageDetails', []);
+            setLocalStore('dengueChikungunyaEntries', []);
+            return { result: { success: true, message: 'सर्व तात्पुरता/नमुना डेटा यशस्वीरित्या काढून टाकण्यात आला.' } };
+          }
+
+          case 'getEmployeeMaster': {
+            return { result: (Array.isArray(clientEmployees) && clientEmployees.length > 0) ? clientEmployees : clientMasterData };
+          }
+
+          case 'getTransferHistory': {
+            return { result: Array.isArray(clientTransfers) ? clientTransfers : [] };
+          }
+
+          case 'getBsCodeRegistry': {
+            return { result: [] };
+          }
+
+          case 'getBsServiceTenureHistory': {
+            return { result: [] };
+          }
+
           case 'getDrivePhotos': {
             return { result: { success: true, folders: [], files: [] } };
           }
@@ -3586,21 +3716,27 @@
             if (prop in target) return target[prop];
             return function(...args) {
               executeRpcWithRetry(prop, args, 2)
-                .then(data => {
-                  if (data && data.error) {
-                    if (failureCb) failureCb(new Error(data.error));
-                    else console.error('RPC Error:', data.error);
-                  } else if (successCb) {
-                    successCb(data ? (data.result !== undefined ? data.result : data) : null);
+                .then(
+                  data => {
+                    if (data && data.error) {
+                      if (failureCb) failureCb(new Error(data.error));
+                      else console.error('RPC Error:', data.error);
+                    } else if (successCb) {
+                      try {
+                        successCb(data ? (data.result !== undefined ? data.result : data) : null);
+                      } catch (cbErr) {
+                        console.error(`Error in success handler for ${prop}:`, cbErr);
+                      }
+                    }
+                  },
+                  err => {
+                    if (failureCb) {
+                      failureCb(err);
+                    } else {
+                      console.warn(`RPC Call Notice (${prop}):`, err.message || err);
+                    }
                   }
-                })
-                .catch(err => {
-                  if (failureCb) {
-                    failureCb(err);
-                  } else {
-                    console.warn(`RPC Call Notice (${prop}):`, err.message || err);
-                  }
-                });
+                );
             };
           }
         });
@@ -14555,10 +14691,84 @@
     function generateNotices(btn) { const month = document.getElementById('noticeMonthSelect').value; if (!month) { alert("महिना निवडा."); return; } const cbs = document.querySelectorAll('.defaulter-cb:checked'); if (cbs.length === 0) { alert("किमान एक कर्मचारी निवडा."); return; } const selectedEmpNames = Array.from(cbs).map(cb => cb.value); btn.disabled = true; btn.textContent = "प्रोसेसिंग सुरू आहे... ⏳"; const statusDiv = document.getElementById('noticeStatus'); statusDiv.style.display = 'block'; statusDiv.innerHTML = "कृपया प्रतीक्षा करा..."; statusDiv.style.color = "#e53e3e"; google.script.run.withSuccessHandler(res => showDownload(res, statusDiv, btn, "निवडलेल्यांची नोटीस (PDF)")).generateEmployeeNoticesWebApp(month, selectedEmpNames); }
     function generateLowPerformanceReport(btn) { const month = document.getElementById('lowPerfMonthSelect').value; if (!month) { alert("महिना निवडा."); return; } btn.disabled = true; btn.textContent = "प्रोसेसिंग सुरू आहे... ⏳"; const statusDiv = document.getElementById('lowPerfStatus'); statusDiv.style.display = 'block'; statusDiv.innerHTML = "कृपया प्रतीक्षा करा..."; statusDiv.style.color = "#805ad5"; google.script.run.withSuccessHandler(res => showDownload(res, statusDiv, btn, "अहवाल (PDF) तयार करा")).generateLowPerformanceReportWebApp(month); }
 
-    function handleDateChange() { document.getElementById('entriesContainer').innerHTML = ''; google.script.run.withSuccessHandler(num => { bundleStart = num; addEntry(); }).getLatestBundleNumber(document.getElementById('commonDate').value); }
-    function addEntry() { const cont = document.getElementById('entriesContainer'); const clone = document.importNode(document.getElementById('entryTemplate').content, true); const id = cont.children.length + 1; const sec = clone.querySelector('.entry-section'); sec.setAttribute('data-id', id); clone.querySelector('.count').textContent = id; clone.querySelector('.bundle-input').value = "बंडल क्र-" + String(bundleStart + id).padStart(2, '0'); const upS = clone.querySelector('.upkendra-select'); [...new Set(masterData.map(d => d.upkendra))].forEach(u => upS.add(new Option(u, u))); cont.appendChild(clone); }
+    function toSafeNonNegInt(val) {
+      if (typeof val === 'number' && !isNaN(val)) return Math.max(0, Math.floor(val));
+      if (val && typeof val === 'object') {
+        const candidate = val.value !== undefined ? val.value : (val.result !== undefined ? val.result : (val.last !== undefined ? val.last : val.num));
+        if (typeof candidate === 'number' && !isNaN(candidate)) return Math.max(0, Math.floor(candidate));
+        if (typeof candidate === 'string') {
+          const m = candidate.match(/(\d+)$/);
+          return m ? parseInt(m[1], 10) : (parseInt(candidate, 10) || 0);
+        }
+        return 0;
+      }
+      if (typeof val === 'string') {
+        const m = val.match(/(\d+)$/);
+        return m ? parseInt(m[1], 10) : (parseInt(val, 10) || 0);
+      }
+      return 0;
+    }
+
+    function handleDateChange() {
+      document.getElementById('entriesContainer').innerHTML = '';
+      google.script.run
+        .withSuccessHandler(num => {
+          bundleStart = toSafeNonNegInt(num);
+          addEntry();
+        })
+        .withFailureHandler(() => {
+          bundleStart = 0;
+          addEntry();
+        })
+        .getLatestBundleNumber(document.getElementById('commonDate').value);
+    }
+    function addEntry() {
+      const cont = document.getElementById('entriesContainer');
+      const clone = document.importNode(document.getElementById('entryTemplate').content, true);
+      const id = cont.children.length + 1;
+      const sec = clone.querySelector('.entry-section');
+      sec.setAttribute('data-id', id);
+      clone.querySelector('.count').textContent = id;
+      const safeStart = toSafeNonNegInt(bundleStart);
+      clone.querySelector('.bundle-input').value = "बंडल क्र-" + String(safeStart + id).padStart(2, '0');
+      const upS = clone.querySelector('.upkendra-select');
+      [...new Set(masterData.map(d => d.upkendra))].forEach(u => upS.add(new Option(u, u)));
+      cont.appendChild(clone);
+    }
     function filterEmps(el) { const empS = el.closest('.entry-section').querySelector('.emp-select'); empS.innerHTML = '<option value="">-- निवडा --</option>'; masterData.filter(d => d.upkendra === el.value).forEach(d => empS.add(new Option(d.employeeName, d.employeeName))); }
-    function loadPrev(el) { const sec = el.closest('.entry-section'); const date = document.getElementById('commonDate').value; const dl = sec.querySelector('.v-datalist'); dl.id = "dl_" + sec.getAttribute('data-id'); const emp = masterData.find(d => d.employeeName === el.value && d.upkendra === sec.querySelector('.upkendra-select').value); if(emp && emp.villageList) { dl.innerHTML = ''; emp.villageList.forEach(v => { const o = document.createElement('option'); o.value = v; dl.appendChild(o); }); } sec.querySelector('.last-info').textContent = "शोधत आहे..."; google.script.run.withSuccessHandler(last => { sec.querySelector('.last-info').innerHTML = "मागील शेवटचा क्रमांक: <b>" + last + "</b>"; sec.querySelector('.pasun-input').value = last + 1; sec.querySelector('.paraynt-input').value = last + 1; updateTot(sec.querySelector('.pasun-input')); if(sec.querySelector('.v-container').children.length === 0) addV(sec.querySelector('button[onclick*="addV"]')); }).getLastParayntValue(sec.querySelector('.upkendra-select').value, el.value, date, emp ? emp.bsCode : ''); }
+    function loadPrev(el) {
+      const sec = el.closest('.entry-section');
+      const date = document.getElementById('commonDate').value;
+      const dl = sec.querySelector('.v-datalist');
+      dl.id = "dl_" + sec.getAttribute('data-id');
+      const emp = masterData.find(d => d.employeeName === el.value && d.upkendra === sec.querySelector('.upkendra-select').value);
+      if (emp && emp.villageList) {
+        dl.innerHTML = '';
+        emp.villageList.forEach(v => {
+          const o = document.createElement('option');
+          o.value = v;
+          dl.appendChild(o);
+        });
+      }
+      sec.querySelector('.last-info').textContent = "शोधत आहे...";
+      google.script.run
+        .withSuccessHandler(last => {
+          const safeLast = toSafeNonNegInt(last);
+          sec.querySelector('.last-info').innerHTML = "मागील शेवटचा क्रमांक: <b>" + safeLast + "</b>";
+          sec.querySelector('.pasun-input').value = safeLast + 1;
+          sec.querySelector('.paraynt-input').value = safeLast + 1;
+          updateTot(sec.querySelector('.pasun-input'));
+          if (sec.querySelector('.v-container').children.length === 0) addV(sec.querySelector('button[onclick*="addV"]'));
+        })
+        .withFailureHandler(() => {
+          sec.querySelector('.last-info').innerHTML = "मागील शेवटचा क्रमांक: <b>0</b>";
+          sec.querySelector('.pasun-input').value = 1;
+          sec.querySelector('.paraynt-input').value = 1;
+          updateTot(sec.querySelector('.pasun-input'));
+          if (sec.querySelector('.v-container').children.length === 0) addV(sec.querySelector('button[onclick*="addV"]'));
+        })
+        .getLastParayntValue(sec.querySelector('.upkendra-select').value, el.value, date, emp ? emp.bsCode : '');
+    }
     function addV(btn) { const sec = btn.closest('.entry-section'); const clone = document.importNode(document.getElementById('vTemplate').content, true); clone.querySelector('.v-name').setAttribute('list', sec.querySelector('.v-datalist').id); sec.querySelector('.v-container').appendChild(clone); }
     function vLogic(el) { const p = el.closest('.village-entry'); const t = parseInt(p.querySelector('.v-tot').value) || 0; const m = parseInt(p.querySelector('.v-male').value) || 0; p.querySelector('.v-fem').value = (t >= m) ? (t - m) : 0; updateTot(el); }
     function vRemove(btn) { const sec = btn.closest('.entry-section'); btn.parentElement.parentElement.remove(); updateTot(sec.querySelector('.pasun-input')); }
