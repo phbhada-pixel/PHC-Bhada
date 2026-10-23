@@ -5625,6 +5625,142 @@
       overflow-y: auto;
     }
 
+    /* ===================================================================== */
+    /* SIMPLE & MOBILE-FRIENDLY UI OVERRIDES                                 */
+    /* ===================================================================== */
+    #uploadCompGuideBox,
+    #uploadDatasetGuide,
+    .table-scroll-hint {
+      display: none !important;
+    }
+
+    .program-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+    }
+
+    .prog-card {
+      padding: 16px !important;
+      border-radius: 12px !important;
+    }
+
+    .prog-card-header {
+      margin-bottom: 10px !important;
+      padding-bottom: 8px !important;
+    }
+
+    .prog-card-footer {
+      padding-top: 10px !important;
+    }
+
+    @media (max-width: 768px) {
+      .program-portal-container {
+        padding: 12px !important;
+      }
+
+      .program-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+      }
+
+      /* Prevent horizontal overflow from inline min-width / width on inputs & selects */
+      input[type="text"],
+      input[type="number"],
+      input[type="date"],
+      input[type="month"],
+      input[type="tel"],
+      select,
+      textarea,
+      .mui-form-control,
+      .filter-select,
+      .filter-search,
+      .form-control {
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
+        font-size: 14px !important;
+      }
+
+      #nwbdcpLabDispatchDateSelect,
+      #nwbdcpLabSearchInput,
+      #nwbdcpRetestSearchInput,
+      #nwbdcpDispatchSourceSearch,
+      #uploadCompSearchInput,
+      #ghModalRepoInput {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      /* Ensure grid-column: span 2 doesn't break mobile single-column layouts */
+      div[style*="grid-column:span 2"],
+      div[style*="grid-column: span 2"] {
+        grid-column: 1 / -1 !important;
+      }
+
+      /* Keep subtab bars clean and horizontally scrollable in a single row */
+      .table-subtabs,
+      #programNWBDCP .scrollbar-thin,
+      #programNCD div[style*="overflow-x:auto"] {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px !important;
+        padding-bottom: 6px !important;
+      }
+
+      .subtab-btn {
+        flex: 0 0 auto !important;
+        white-space: nowrap !important;
+        padding: 8px 12px !important;
+        font-size: 13px !important;
+      }
+
+      /* Touch-friendly buttons & compact headers on mobile */
+      .mui-btn,
+      .sheet-btn,
+      .prog-action-btn,
+      .submit-btn,
+      .add-btn,
+      .report-btn {
+        min-height: 42px;
+        justify-content: center;
+      }
+
+      #dataEntryTypeNavigator {
+        padding: 8px 10px !important;
+      }
+
+      #dataEntryTypeNavigator > div:first-child {
+        display: none !important;
+      }
+
+      #dataEntryTypeNavigator > div:last-child {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px !important;
+      }
+
+      #dataEntryTypeNavigator button {
+        padding: 8px 6px !important;
+        font-size: 11.5px !important;
+        justify-content: center !important;
+        text-align: center !important;
+      }
+
+      .entry-section {
+        padding: 12px !important;
+      }
+
+      .village-entry > div:last-child {
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 8px !important;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -5637,23 +5773,22 @@
     <div class="program-portal-container">
       
       <!-- Top Branding Bar -->
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:18px 0 14px 0; border-bottom:1.5px solid #e2e8f0; margin-bottom:24px;">
-        <div style="display:flex; align-items:center; gap:14px;">
-          <div style="width:48px; height:48px; background:linear-gradient(135deg, #004d40, #00796b); border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:26px; box-shadow:0 4px 10px rgba(0,77,64,0.25);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; padding:14px 0 12px 0; border-bottom:1.5px solid #e2e8f0; margin-bottom:16px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="width:42px; height:42px; background:linear-gradient(135deg, #004d40, #00796b); border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:22px;">
             🏥
           </div>
           <div>
-            <h1 style="margin:0; font-size:20px; font-weight:800; color:#0f172a; line-height:1.25;">
+            <h1 style="margin:0; font-size:18px; font-weight:800; color:#0f172a; line-height:1.25;">
               प्राथमिक आरोग्य केंद्र, भादा
             </h1>
-            <p style="margin:2px 0 0 0; font-size:13px; font-weight:600; color:#64748b;">
-              तालुका: औसा, जिल्हा: धाराशीव (महाराष्ट्र शासन - आरोग्य सेवा)
+            <p style="margin:2px 0 0 0; font-size:12px; font-weight:600; color:#64748b;">
+              ता. औसा, जि. धाराशीव
             </p>
           </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="mui-chip mui-chip-primary">🏛️ ६ उपकेंद्रे | ३७ गावे</span>
-          <span class="mui-chip mui-chip-info">👥 ६५ आरोग्य कर्मचारी</span>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <span class="mui-chip mui-chip-primary" style="font-size:11.5px;">🏛️ ६ उपकेंद्रे | ३७ गावे</span>
           <button type="button" onclick="openGithubModal(event)" style="background:#24292e; color:#fff; border:none; border-radius:16px; padding:5px 12px; font-size:12px; font-weight:700; display:inline-flex; align-items:center; gap:5px; cursor:pointer;" title="GitHub रिपॉझिटरी">
             <svg height="14" width="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
             GitHub
@@ -5661,219 +5796,113 @@
         </div>
       </div>
 
-      <!-- Hero Banner -->
-      <div class="program-hero-header">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:16px;">
-          <div style="max-width:780px;">
-            
-            <h2 style="margin:0 0 10px 0; font-size:26px; font-weight:800; line-height:1.3;">
-              आरोग्य कार्यक्रम
-            </h2>
-            
-          </div>
-          
-          </div>
-        </div>
-      </div>
-
-      <!-- 4 Program Selection Cards Grid -->
+      <!-- Program Selection Cards Grid -->
       <div class="program-grid">
 
-        <!-- 1. NVBDCP PROGRAM CARD (ACTIVE PROJECT) -->
+        <!-- 1. NVBDCP PROGRAM CARD -->
         <div class="prog-card prog-theme-nvbdcp" onclick="selectProgram('nvbdcp')" role="button" tabindex="0" aria-label="NVBDCP राष्ट्रीय कीटकजन्य रोग नियंत्रण कार्यक्रम उघडा">
           <div class="prog-card-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div class="prog-card-icon">
-                🦟
-              </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="prog-card-icon">🦟</div>
               <div>
-                <div style="font-size:12px; font-weight:800; color:#00796b; letter-spacing:0.05em; text-transform:uppercase;">कार्यक्रम १</div>
-                <h3 style="margin:0; font-size:22px; font-weight:800; color:#0f172a; line-height:1.2;">NVBDCP</h3>
+                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f172a; line-height:1.2;">NVBDCP</h3>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:2px;">राष्ट्रीय कीटकजन्य रोग नियंत्रण</div>
               </div>
             </div>
-            <span class="prog-tag" style="background:#dcfce7; color:#166534; border-color:#86efac; display:inline-flex; align-items:center; gap:4px;">
-              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#16a34a;"></span>
-              कार्यरत प्रकल्प (Active)
-            </span>
+            <span class="prog-tag" style="background:#dcfce7; color:#166534; border-color:#86efac;">सक्रिय</span>
           </div>
           <div class="prog-card-body">
-            <div style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px;">
-              राष्ट्रीय कीटकजन्य रोग नियंत्रण कार्यक्रम
-            </div>
-            <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:12px;">
-              National Vector Borne Disease Control Programme
-            </div>
-            
-            <div class="prog-tag-list">
-              <span class="prog-tag">🩸 रक्त नमुने (Blood Smears)</span>
-              <span class="prog-tag">🦟 डेंगी व चिकनगुनिया</span>
-              <span class="prog-tag">🚶‍♂️ गृहभेटी ट्रॅकिंग</span>
-              <span class="prog-tag">📑 मासिक अहवाल डॅशबोर्ड</span>
-              <span class="prog-tag">🏛️ ३७ गावे मास्टर डेटा</span>
-            </div>
             <div class="prog-card-footer">
               <button type="button" class="prog-action-btn" onclick="event.stopPropagation(); selectProgram('nvbdcp');">
-                <span>प्रकल्प उघडा</span>
+                <span>उघडा</span>
                 <span style="font-size:16px;">➔</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 2. NWBDCP PROGRAM CARD (TO BE DEVELOPED) -->
+        <!-- 2. NWBDCP PROGRAM CARD -->
         <div class="prog-card prog-theme-nwbdcp" onclick="selectProgram('nwbdcp')" role="button" tabindex="0" aria-label="NWBDCP राष्ट्रीय जलजन्य रोग नियंत्रण कार्यक्रम पहा">
           <div class="prog-card-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div class="prog-card-icon">
-                💧
-              </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="prog-card-icon">💧</div>
               <div>
-                <div style="font-size:12px; font-weight:800; color:#0284c7; letter-spacing:0.05em; text-transform:uppercase;">कार्यक्रम २</div>
-                <h3 style="margin:0; font-size:22px; font-weight:800; color:#0f172a; line-height:1.2;">NWBDCP</h3>
+                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f172a; line-height:1.2;">NWBDCP</h3>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:2px;">पाणी गुणवत्ता व जलजन्य रोग नियंत्रण</div>
               </div>
             </div>
-            <span class="prog-tag" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc; display:inline-flex; align-items:center; gap:4px;">
-              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#0284c7;"></span>
-              विकास क्षेत्र (To Be Developed)
-            </span>
+            <span class="prog-tag" style="background:#e0f2fe; color:#0369a1; border-color:#7dd3fc;">सक्रिय</span>
           </div>
           <div class="prog-card-body">
-            <div style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px;">
-              राष्ट्रीय जलजन्य रोग नियंत्रण कार्यक्रम
-            </div>
-            <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:12px;">
-              National Water Borne Disease Control Programme
-            </div>
-            
-            <div class="prog-tag-list">
-              <span class="prog-tag">🚰 जलस्त्रोत व OT चाचणी</span>
-              <span class="prog-tag">🧪 टीसीएल क्लोरीनेशन</span>
-              <span class="prog-tag">🤢 अतिसार/गॅस्ट्रो ट्रॅकिंग</span>
-              <span class="prog-tag">🚨 साथीचे रोग अलर्ट</span>
-            </div>
             <div class="prog-card-footer">
               <button type="button" class="prog-action-btn" onclick="event.stopPropagation(); selectProgram('nwbdcp');">
-                <span>मॉड्यूल उघडा</span>
+                <span>उघडा</span>
                 <span style="font-size:16px;">➔</span>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- 3. NTEP PROGRAM CARD (TO BE DEVELOPED) -->
-        <div class="prog-card prog-theme-ntep" onclick="selectProgram('ntep')" role="button" tabindex="0" aria-label="NTEP राष्ट्रीय क्षयरोग निर्मूलन कार्यक्रम पहा">
-          <div class="prog-card-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div class="prog-card-icon">
-                🫁
-              </div>
-              <div>
-                <div style="font-size:12px; font-weight:800; color:#4f46e5; letter-spacing:0.05em; text-transform:uppercase;">कार्यक्रम ३</div>
-                <h3 style="margin:0; font-size:22px; font-weight:800; color:#0f172a; line-height:1.2;">NTEP</h3>
-              </div>
-            </div>
-            <span class="prog-tag" style="background:#ede9fe; color:#5b21b6; border-color:#c4b5fd; display:inline-flex; align-items:center; gap:4px;">
-              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#7c3aed;"></span>
-              विकास क्षेत्र (To Be Developed)
-            </span>
-          </div>
-          <div class="prog-card-body">
-            <div style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px;">
-              राष्ट्रीय क्षयरोग निर्मूलन कार्यक्रम
-            </div>
-            <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:12px;">
-              National Tuberculosis Elimination Program
-            </div>
-            
-            <div class="prog-tag-list">
-              <span class="prog-tag">🫁 क्षयरोग रुग्ण नोंदणी</span>
-              <span class="prog-tag">🔬 थुंकी व CBNAAT तपासणी</span>
-              <span class="prog-tag">💊 DOTS उपचार ट्रॅकिंग</span>
-              <span class="prog-tag">💰 निक्षय पोषण योजना DBT</span>
-            </div>
-            <div class="prog-card-footer">
-              <button type="button" class="prog-action-btn" onclick="event.stopPropagation(); selectProgram('ntep');">
-                <span>मॉड्यूल उघडा</span>
-                <span style="font-size:16px;">➔</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 4. NLEP PROGRAM CARD (TO BE DEVELOPED) -->
-        <div class="prog-card prog-theme-nlep" onclick="selectProgram('nlep')" role="button" tabindex="0" aria-label="NLEP राष्ट्रीय कुष्ठरोग निर्मूलन कार्यक्रम पहा">
-          <div class="prog-card-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div class="prog-card-icon">
-                🩺
-              </div>
-              <div>
-                <div style="font-size:12px; font-weight:800; color:#e11d48; letter-spacing:0.05em; text-transform:uppercase;">कार्यक्रम ४</div>
-                <h3 style="margin:0; font-size:22px; font-weight:800; color:#0f172a; line-height:1.2;">NLEP</h3>
-              </div>
-            </div>
-            <span class="prog-tag" style="background:#ffe4e6; color:#9f1239; border-color:#fda4af; display:inline-flex; align-items:center; gap:4px;">
-              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#e11d48;"></span>
-              विकास क्षेत्र (To Be Developed)
-            </span>
-          </div>
-          <div class="prog-card-body">
-            <div style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px;">
-              राष्ट्रीय कुष्ठरोग निर्मूलन कार्यक्रम
-            </div>
-            <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:12px;">
-              National Leprosy Eradication Programme
-            </div>
-            
-            <div class="prog-tag-list">
-              <span class="prog-tag">🔍 कुष्ठरोग शोध मोहीम (LCDC)</span>
-              <span class="prog-tag">💊 MDT औषधोपचार (PB/MB)</span>
-              <span class="prog-tag">👥 संपर्क तपासणी</span>
-              <span class="prog-tag">🦽 विकृती प्रतिबंध (DPMR)</span>
-            </div>
-            <div class="prog-card-footer">
-              <button type="button" class="prog-action-btn" onclick="event.stopPropagation(); selectProgram('nlep');">
-                <span>मॉड्यूल उघडा</span>
-                <span style="font-size:16px;">➔</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- 5. NCD PROGRAM CARD (NON-COMMUNICABLE DISEASES) -->
+        <!-- 3. NCD PROGRAM CARD -->
         <div class="prog-card prog-theme-ncd" onclick="selectProgram('ncd')" role="button" tabindex="0" aria-label="NCD असंसर्गजन्य रोग नियंत्रण कार्यक्रम उघडा" style="border-top: 4px solid #0d9488;">
           <div class="prog-card-header">
-            <div style="display:flex; align-items:center; gap:12px;">
-              <div class="prog-card-icon" style="background:#ccfbf1; color:#0f766e;">
-                🩺
-              </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="prog-card-icon" style="background:#ccfbf1; color:#0f766e;">🩺</div>
               <div>
-                <div style="font-size:12px; font-weight:800; color:#0f766e; letter-spacing:0.05em; text-transform:uppercase;">कार्यक्रम ५</div>
-                <h3 style="margin:0; font-size:22px; font-weight:800; color:#0f172a; line-height:1.2;">NCD</h3>
+                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f172a; line-height:1.2;">NCD</h3>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:2px;">असंसर्गजन्य रोग नियंत्रण</div>
               </div>
             </div>
-            <span class="prog-tag" style="background:#ccfbf1; color:#115e59; border-color:#99f6e4; display:inline-flex; align-items:center; gap:4px;">
-              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#0d9488;"></span>
-              कार्यरत प्रकल्प (Active NCD)
-            </span>
+            <span class="prog-tag" style="background:#ccfbf1; color:#115e59; border-color:#99f6e4;">सक्रिय</span>
           </div>
           <div class="prog-card-body">
-            <div style="font-size:14px; font-weight:700; color:#1e293b; margin-bottom:4px;">
-              राष्ट्रीय असंसर्गजन्य रोग नियंत्रण कार्यक्रम
-            </div>
-            <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:12px;">
-              National Non-Communicable Diseases Control Programme
-            </div>
-            
-            <div class="prog-tag-list">
-              <span class="prog-tag">📋 CBAC रिस्क स्कोर</span>
-              <span class="prog-tag">🩺 HTN व DM स्क्रिनिंग</span>
-              <span class="prog-tag">💊 उपचार व फॉलो-अप</span>
-              <span class="prog-tag">📊 उपकेंद्र/गावनिहाय अहवाल</span>
-            </div>
             <div class="prog-card-footer">
-              <button type="button" class="prog-action-btn" style="background:#0d9488;" onclick="event.stopPropagation(); selectProgram('ncd');">
-                <span>मॉड्यूल उघडा</span>
+              <button type="button" class="prog-action-btn" style="background:#0d9488; color:#fff;" onclick="event.stopPropagation(); selectProgram('ncd');">
+                <span>उघडा</span>
+                <span style="font-size:16px;">➔</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. NTEP PROGRAM CARD -->
+        <div class="prog-card prog-theme-ntep" onclick="selectProgram('ntep')" role="button" tabindex="0" aria-label="NTEP राष्ट्रीय क्षयरोग निर्मूलन कार्यक्रम पहा">
+          <div class="prog-card-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="prog-card-icon">🫁</div>
+              <div>
+                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f172a; line-height:1.2;">NTEP</h3>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:2px;">राष्ट्रीय क्षयरोग निर्मूलन</div>
+              </div>
+            </div>
+            <span class="prog-tag" style="background:#ede9fe; color:#5b21b6; border-color:#c4b5fd;">नियोजित</span>
+          </div>
+          <div class="prog-card-body">
+            <div class="prog-card-footer">
+              <button type="button" class="prog-action-btn" onclick="event.stopPropagation(); selectProgram('ntep');">
+                <span>उघडा</span>
+                <span style="font-size:16px;">➔</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 5. NLEP PROGRAM CARD -->
+        <div class="prog-card prog-theme-nlep" onclick="selectProgram('nlep')" role="button" tabindex="0" aria-label="NLEP राष्ट्रीय कुष्ठरोग निर्मूलन कार्यक्रम पहा">
+          <div class="prog-card-header">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div class="prog-card-icon">🩹</div>
+              <div>
+                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f172a; line-height:1.2;">NLEP</h3>
+                <div style="font-size:13px; font-weight:700; color:#1e293b; margin-top:2px;">राष्ट्रीय कुष्ठरोग निर्मूलन</div>
+              </div>
+            </div>
+            <span class="prog-tag" style="background:#ffe4e6; color:#9f1239; border-color:#fda4af;">नियोजित</span>
+          </div>
+          <div class="prog-card-body">
+            <div class="prog-card-footer">
+              <button type="button" class="prog-action-btn" onclick="event.stopPropagation(); selectProgram('nlep');">
+                <span>उघडा</span>
                 <span style="font-size:16px;">➔</span>
               </button>
             </div>
@@ -5882,11 +5911,8 @@
 
       </div>
 
-      <div style="text-align:center; padding:12px; font-size:12px; color:#64748b; font-weight:600;">&copy; २०२६ प्राथमिक आरोग्य केंद्र, भादा | सर्व हक्क सुरक्षित.</div>
-        </div>
-        <div style="font-size:12px; color:#64748b; font-weight:600;">
-          &copy; २०२६ प्राथमिक आरोग्य केंद्र, भादा | सर्व हक्क सुरक्षित.
-        </div>
+      <div style="text-align:center; padding:16px 8px 8px 8px; font-size:12px; color:#64748b; font-weight:600;">
+        &copy; २०२६ प्राथमिक आरोग्य केंद्र, भादा
       </div>
 
     </div>
@@ -5987,26 +6013,21 @@
       <div id="nwbdcpPaneSources" class="nwbdcp-subpane" style="display:block;">
         
         <!-- Header Banner & Action -->
-        <div style="background:#ffffff; border:1px solid #bae6fd; border-radius:14px; padding:20px 24px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-          <div>
-            <div style="display:flex; align-items:center; gap:8px;">
-              <span style="font-size:24px;">🚰</span>
-              <h3 style="margin:0; font-size:18px; font-weight:800; color:#0369a1;">
-                जलस्त्रोत नोंदवही (NWBDCP Water Source Register)
-              </h3>
-            </div>
-            <div style="font-size:12.5px; color:#475569; margin-top:4px; font-weight:600;">
-              गावानिहाय सार्वजनिक व खाजगी पाणी स्त्रोतांची नोंदणी व Excel/CSV यादी अपलोड सुविधा
-            </div>
+        <div style="background:#ffffff; border:1px solid #bae6fd; border-radius:12px; padding:14px 18px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:22px;">🚰</span>
+            <h3 style="margin:0; font-size:17px; font-weight:800; color:#0369a1;">
+              जलस्त्रोत नोंदवही
+            </h3>
           </div>
-          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#f0f9ff; color:#0369a1; border:1.5px solid #0284c7; font-size:12.5px; font-weight:800; padding:9px 14px; text-decoration:none; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
-              <span>📥 यादी टेम्पलेट (.xlsx)</span>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#f0f9ff; color:#0369a1; border:1.5px solid #0284c7; font-size:12px; font-weight:800; padding:8px 12px; text-decoration:none; border-radius:8px; display:inline-flex; align-items:center; gap:6px;">
+              <span>📥 टेम्पलेट (.xlsx)</span>
             </a>
-            <button type="button" id="nwbdcpBtnUploadSourceList" onclick="openNwbdcpUploadSourcesModal()" class="mui-btn mui-btn-contained-secondary" style="background:#0f766e; color:#ffffff; font-size:13px; font-weight:800; padding:10px 16px; border:none; border-radius:8px;">
-              <span>📤 जलस्त्रोत यादी अपलोड करा (Upload Source List)</span>
+            <button type="button" id="nwbdcpBtnUploadSourceList" onclick="openNwbdcpUploadSourcesModal()" class="mui-btn mui-btn-contained-secondary" style="background:#0f766e; color:#ffffff; font-size:12.5px; font-weight:800; padding:8px 14px; border:none; border-radius:8px;">
+              <span>📤 यादी अपलोड करा</span>
             </button>
-            <button type="button" id="nwbdcpBtnAddSource" onclick="openNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-size:13.5px; padding:10px 18px;">
+            <button type="button" id="nwbdcpBtnAddSource" onclick="openNwbdcpAddSourceModal()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7; font-size:13px; padding:8px 14px;">
               <span>➕ नवीन जलस्त्रोत</span>
             </button>
           </div>
@@ -6101,54 +6122,37 @@
       <!-- ========================================================================= -->
       <div id="nwbdcpPaneDispatch" class="nwbdcp-subpane" style="display:none;">
         
-        <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:22px 26px; margin-bottom:24px; box-shadow:0 4px 14px rgba(2,132,199,0.08);">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:26px;">🧪</span>
-              <div>
-                <h3 style="margin:0; font-size:20px; font-weight:800; color:#0369a1;" id="nwbdcpDispatchMainTitle">
-                  पाणी व ब्लिचिंग पावडर (TCL) नमुना पाठवणी
-                </h3>
-                <div style="font-size:12.5px; color:#475569; font-weight:600;">
-                  १) पाण्याची जैविक तपासणी (Bacteriological) • २) पाण्याची रासायनिक तपासणी (Chemical) • ३) ब्लिचिंग पावडर (TCL) नमुना तपासणी
-                </div>
-              </div>
+        <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:16px 18px; margin-bottom:20px; box-shadow:0 4px 14px rgba(2,132,199,0.08);">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:22px;">🧪</span>
+              <h3 style="margin:0; font-size:18px; font-weight:800; color:#0369a1;" id="nwbdcpDispatchMainTitle">
+                पाणी व TCL नमुना पाठवणी
+              </h3>
             </div>
           </div>
 
           <!-- Sample Analysis Type Selector Cards -->
-          <div style="margin-bottom:18px;">
-            <label style="font-weight:800; font-size:13px; color:#0f172a; margin-bottom:8px; display:block;">
-              १. नमुना तपासणीचा प्रकार निवडा (Select Sample Checking / Analysis Type):
-            </label>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:12px;">
-              <div id="nwbdcpAnalysisCard_BACTERIOLOGICAL" onclick="setNwbdcpDispatchAnalysisType('BACTERIOLOGICAL')" style="cursor:pointer; border:2.5px solid #0284c7; background:#f0f9ff; border-radius:12px; padding:14px 16px; transition:all 0.2s;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                  <span style="font-weight:800; font-size:14.5px; color:#0369a1;">🦠 १. पाण्याची जैविक तपासणी</span>
-                  <span class="mui-chip mui-chip-primary" style="font-size:11px; font-weight:800;">Bacteriological</span>
-                </div>
-                <div style="font-size:12px; color:#334155; font-weight:600;">
-                  MPN Count (/100ml), Coliform / E. coli जंतू संसर्ग व Residual Chlorine तपासणी
+          <div style="margin-bottom:14px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:10px;">
+              <div id="nwbdcpAnalysisCard_BACTERIOLOGICAL" onclick="setNwbdcpDispatchAnalysisType('BACTERIOLOGICAL')" style="cursor:pointer; border:2.5px solid #0284c7; background:#f0f9ff; border-radius:10px; padding:12px 14px; transition:all 0.2s;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-weight:800; font-size:14px; color:#0369a1;">🦠 जैविक तपासणी</span>
+                  <span class="mui-chip mui-chip-primary" style="font-size:10.5px; font-weight:800;">Bacteriological</span>
                 </div>
               </div>
 
-              <div id="nwbdcpAnalysisCard_CHEMICAL" onclick="setNwbdcpDispatchAnalysisType('CHEMICAL')" style="cursor:pointer; border:2px solid #cbd5e1; background:#ffffff; border-radius:12px; padding:14px 16px; transition:all 0.2s;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                  <span style="font-weight:800; font-size:14.5px; color:#6d28d9;">⚗️ २. पाण्याची रासायनिक तपासणी</span>
-                  <span class="mui-chip mui-chip-info" style="font-size:11px; font-weight:800;">Chemical Analysis</span>
-                </div>
-                <div style="font-size:12px; color:#334155; font-weight:600;">
-                  pH, TDS, Turbidity, Hardness, Fluoride, Nitrate, Chloride, Iron रासायनिक मानके
+              <div id="nwbdcpAnalysisCard_CHEMICAL" onclick="setNwbdcpDispatchAnalysisType('CHEMICAL')" style="cursor:pointer; border:2px solid #cbd5e1; background:#ffffff; border-radius:10px; padding:12px 14px; transition:all 0.2s;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-weight:800; font-size:14px; color:#6d28d9;">⚗️ रासायनिक तपासणी</span>
+                  <span class="mui-chip mui-chip-info" style="font-size:10.5px; font-weight:800;">Chemical</span>
                 </div>
               </div>
 
-              <div id="nwbdcpAnalysisCard_BLEACHING_POWDER" onclick="setNwbdcpDispatchAnalysisType('BLEACHING_POWDER')" style="cursor:pointer; border:2px solid #cbd5e1; background:#ffffff; border-radius:12px; padding:14px 16px; transition:all 0.2s;">
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
-                  <span style="font-weight:800; font-size:14.5px; color:#b45309;">🧪 ३. ब्लिचिंग पावडर (TCL) तपासणी</span>
-                  <span class="mui-chip mui-chip-warning" style="font-size:11px; font-weight:800;">TCL Chlorine %</span>
-                </div>
-                <div style="font-size:12px; color:#334155; font-weight:600;">
-                  ग्रामपंचायत / उपकेंद्र टीसीएल साठ्यातील उपलब्ध क्लोरीन प्रमाण (Available Chlorine ≥ 25%) तपासणी
+              <div id="nwbdcpAnalysisCard_BLEACHING_POWDER" onclick="setNwbdcpDispatchAnalysisType('BLEACHING_POWDER')" style="cursor:pointer; border:2px solid #cbd5e1; background:#ffffff; border-radius:10px; padding:12px 14px; transition:all 0.2s;">
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <span style="font-weight:800; font-size:14px; color:#b45309;">🧪 ब्लिचिंग पावडर (TCL)</span>
+                  <span class="mui-chip mui-chip-warning" style="font-size:10.5px; font-weight:800;">TCL %</span>
                 </div>
               </div>
             </div>
@@ -6271,13 +6275,10 @@
           <div id="nwbdcpTclDispatchPanel" style="display:none; border:2px solid #d97706; border-radius:12px; padding:18px; background:#fffbeb;">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
               <div>
-                <h4 style="margin:0; font-size:16px; font-weight:800; color:#b45309; display:flex; align-items:center; gap:8px;">
-                  <span>🧪 ब्लिचिंग पावडर (TCL) नमुना तपासणी व पाठवणी यादी</span>
+                <h4 style="margin:0; font-size:15.5px; font-weight:800; color:#b45309; display:flex; align-items:center; gap:8px;">
+                  <span>🧪 ब्लिचिंग पावडर (TCL) नमुने</span>
                   <span id="nwbdcpTclSelectedCounter" class="mui-chip mui-chip-warning" style="font-weight:800;">एकूण TCL नमुने: 0</span>
                 </h4>
-                <div style="font-size:12px; color:#92400e; margin-top:2px; font-weight:600;">
-                  ग्रामपंचायत / उपकेंद्र पातळीवरील TCL साठ्यातील उपलब्ध क्लोरीन (Available Chlorine ≥ 25%) तपासणीसाठी नमुने जोडा
-                </div>
               </div>
               <div style="display:flex; gap:8px; flex-wrap:wrap;">
                 <button type="button" onclick="populateTclSamplesFromSelectedVillages()" class="mui-btn" style="background:#d97706; color:#ffffff; font-weight:800; font-size:12.5px; padding:8px 14px; border:none; border-radius:8px; cursor:pointer;">
@@ -6777,12 +6778,9 @@
         <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:20px 24px; margin-bottom:20px; box-shadow:0 4px 12px rgba(2,132,199,0.06);">
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
             <div>
-              <h3 style="margin:0; font-size:18.5px; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:8px;">
-                <span>📑 पाणी गुणवत्ता व एकत्रित मासिक सारांश अहवाल (Water Quality Summary Reports)</span>
+              <h3 style="margin:0; font-size:17.5px; font-weight:800; color:#0369a1; display:flex; align-items:center; gap:8px;">
+                <span>📑 पाणी गुणवत्ता अहवाल</span>
               </h3>
-              <div style="font-size:12.5px; color:#475569; font-weight:600; margin-top:4px;">
-                निवडलेल्या महिन्याचा रासायनिक (Chemical) व जैविक (Bacteriological) तपासणी तक्त्यांसह एकत्रित PDF अहवाल तयार करा
-              </div>
             </div>
             <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
               <button type="button" onclick="openNwbdcpConsolidatedMonthlyReport()" class="mui-btn" style="background:#eff6ff; color:#1d4ed8; border:1.5px solid #3b82f6; font-weight:800; font-size:12.5px; padding:9px 14px; border-radius:8px;">
@@ -6902,113 +6900,61 @@
       <div id="nwbdcpPaneImport" class="nwbdcp-subpane" style="display:none;">
         
         <!-- SECTION A: NWBDCP WATER SOURCE LIST BULK UPLOAD FACILITY -->
-        <div style="background:#ffffff; border:2px solid #0f766e; border-radius:14px; padding:22px 26px; box-shadow:0 4px 12px rgba(15,118,110,0.08); margin-bottom:24px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:14px;">
-            <div style="display:flex; align-items:center; gap:10px;">
-              <span style="font-size:26px;">🚰</span>
-              <div>
-                <h3 style="margin:0; font-size:19px; font-weight:800; color:#0f766e;">
-                  १. जलस्त्रोत यादी अपलोड सुविधा (NWBDCP Water Source List Bulk Upload)
-                </h3>
-                <div style="font-size:12.5px; color:#475569; font-weight:600;">
-                  Excel (.xlsx/.xls) किंवा CSV फाईलद्वारे सर्व गावांमधील पाणी स्त्रोतांची यादी थेट Supabase डेटाबेसमध्ये अपलोड करा
-                </div>
-              </div>
+        <div style="background:#ffffff; border:1.5px solid #0f766e; border-radius:12px; padding:16px 18px; margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:22px;">🚰</span>
+              <h3 style="margin:0; font-size:17px; font-weight:800; color:#0f766e;">
+                १. जलस्त्रोत यादी अपलोड
+              </h3>
             </div>
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#0f766e; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 14px; border-radius:8px; font-weight:800;">
-                📊 जलस्त्रोत Excel टेम्पलेट (.xlsx)
+              <a href="/api/export/nwbdcp-source-template.xlsx" target="_blank" download class="mui-btn" style="background:#0f766e; color:#fff; text-decoration:none; font-size:12px; padding:7px 12px; border-radius:8px; font-weight:800;">
+                📊 Excel टेम्पलेट (.xlsx)
               </a>
-              <a href="/api/export/nwbdcp-source-template.csv" target="_blank" download class="mui-btn" style="background:#115e59; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 14px; border-radius:8px; font-weight:800;">
-                📄 जलस्त्रोत CSV टेम्पलेट (.csv)
+              <a href="/api/export/nwbdcp-source-template.csv" target="_blank" download class="mui-btn" style="background:#115e59; color:#fff; text-decoration:none; font-size:12px; padding:7px 12px; border-radius:8px; font-weight:800;">
+                📄 CSV टेम्पलेट (.csv)
               </a>
             </div>
           </div>
 
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
-            <div style="border:1.5px dashed #0f766e; background:#f0fdfa; border-radius:12px; padding:18px;">
-              <label style="font-weight:800; font-size:13px; color:#0f766e; margin-bottom:8px; display:block;">
-                जलस्त्रोत यादी Excel / CSV फाईल निवडा किंवा खाली पेस्ट करा:
-              </label>
-              <textarea id="nwbdcpSourceUploadTextarea" rows="6" placeholder="उपकेंद्र, गाव, जलस्त्रोताचे नाव, स्त्रोत प्रकार, मालकी, स्थिती, पत्ता/ठिकाण&#10;भादा, भादा, ग्रामपंचायत मुख्य विहीर क्र. १, सार्वजनिक विहीर, सार्वजनिक, सुरू, हनुमान मंदिराजवळ" class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:12px;"></textarea>
-              <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-                <input type="file" id="nwbdcpSourceUploadFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpSourceUploadFile(this, 'nwbdcpSourceUploadTextarea')" style="font-size:12px;">
-                <button type="button" onclick="submitNwbdcpSourceListUpload('nwbdcpSourceUploadTextarea')" class="mui-btn mui-btn-contained-primary" style="background:#0f766e; font-weight:800;">
-                  📤 जलस्त्रोत यादी अपलोड व सेव्ह करा
-                </button>
-              </div>
-            </div>
-
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:18px;">
-              <h4 style="margin:0 0 8px 0; font-size:14px; font-weight:800; color:#1e293b;">
-                📋 जलस्त्रोत यादी कॉलम रचना (Source List Columns):
-              </h4>
-              <ul style="margin:0; padding-left:18px; font-size:12.5px; color:#475569; line-height:1.7;">
-                <li><b>उपकेंद्र (Subcenter):</b> भादा, आलमला, कोरंगळा, बोरगाव बु., नागूर, शिंदाळा (गाव दिल्यास आपोआप ओळखले जाते)</li>
-                <li><b>गाव (Village):</b> गावाचे नाव (अनिवार्य)</li>
-                <li><b>जलस्त्रोताचे नाव (Source Name):</b> उदा. ग्रामपंचायत विहीर क्र. १, जि.प. शाळा हातपंप (अनिवार्य)</li>
-                <li><b>स्त्रोत प्रकार (Source Type):</b> विहीर / हातपंप / विद्युत पंप / नळ योजना / RO Plant / आड</li>
-                <li><b>मालकी (Ownership):</b> सार्वजनिक (शासकीय) किंवा खाजगी</li>
-                <li><b>पत्ता/ठिकाण (Location):</b> मंदिर परिसर, वॉर्ड क्र. १ इ.</li>
-              </ul>
+          <div style="border:1.5px dashed #0f766e; background:#f0fdfa; border-radius:10px; padding:14px;">
+            <textarea id="nwbdcpSourceUploadTextarea" rows="4" placeholder="उपकेंद्र, गाव, जलस्त्रोताचे नाव, स्त्रोत प्रकार, मालकी, स्थिती, ठिकाण" class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:10px;"></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <input type="file" id="nwbdcpSourceUploadFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpSourceUploadFile(this, 'nwbdcpSourceUploadTextarea')" style="font-size:12px;">
+              <button type="button" onclick="submitNwbdcpSourceListUpload('nwbdcpSourceUploadTextarea')" class="mui-btn mui-btn-contained-primary" style="background:#0f766e; font-weight:800;">
+                📤 यादी अपलोड व सेव्ह करा
+              </button>
             </div>
           </div>
         </div>
 
         <!-- SECTION B: HISTORICAL SAMPLE & RESULT IMPORT -->
-        <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:14px; padding:22px 26px; box-shadow:0 4px 12px rgba(2,132,199,0.08); margin-bottom:20px;">
-          <div style="display:flex; align-items:center; gap:10px; margin-bottom:6px;">
-            <span style="font-size:26px;">📥</span>
-            <h3 style="margin:0; font-size:19px; font-weight:800; color:#0369a1;">
-              २. जुने पाणी व TCL नमुने डेटा आयात (Historical Sample Import)
-            </h3>
+        <div style="background:#ffffff; border:1.5px solid #0284c7; border-radius:12px; padding:16px 18px; margin-bottom:18px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:22px;">📥</span>
+              <h3 style="margin:0; font-size:17px; font-weight:800; color:#0369a1;">
+                २. पाणी व TCL नमुने डेटा आयात
+              </h3>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+              <a href="/api/export/nwbdcp-template.xlsx" target="_blank" download class="mui-btn mui-btn-contained-primary" style="background:#0284c7; color:#fff; text-decoration:none; font-size:12px; padding:7px 12px; border-radius:8px; font-weight:800;">
+                📊 Excel टेम्पलेट (.xlsx)
+              </a>
+              <a href="/api/export/nwbdcp-template.csv" target="_blank" download class="mui-btn mui-btn-contained-secondary" style="background:#0369a1; color:#fff; text-decoration:none; font-size:12px; padding:7px 12px; border-radius:8px; font-weight:800;">
+                📄 CSV टेम्पलेट (.csv)
+              </a>
+            </div>
           </div>
 
-          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:20px;">
-            <!-- File / Text Upload Area -->
-            <div style="border:1.5px dashed #0284c7; background:#f0f9ff; border-radius:12px; padding:20px;">
-              <label style="font-weight:800; font-size:13.5px; color:#0369a1; margin-bottom:8px; display:block;">
-                CSV / Excel फाईल किंवा मजकूर:
-              </label>
-              <textarea id="nwbdcpImportTextarea" rows="7" placeholder="उपकेंद्र, गाव, स्त्रोताचे नाव, पाठवणी दिनांक, नमुना निकाल..." class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:12px;"></textarea>
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <input type="file" id="nwbdcpImportFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpImportFile(this)" style="font-size:12px;">
-                <button type="button" onclick="previewNwbdcpHistoricalImport()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7;">
-                  डेटा आयात करा
-                </button>
-              </div>
-            </div>
-
-            <!-- Import Guidelines & Download Template -->
-            <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:20px; display:flex; flex-direction:column; justify-content:space-between;">
-              <div>
-                <h4 style="margin:0 0 10px 0; font-size:14px; font-weight:800; color:#1e293b;">
-                  आवश्यक कॉलम:
-                </h4>
-                <ul style="margin:0; padding-left:18px; font-size:12.5px; color:#475569; line-height:1.7;">
-                  <li><b>उपकेंद्र / गाव:</b> भादा, आलमला, कोरंगळा...</li>
-                  <li><b>स्त्रोत आयडी:</b> WS-BHD-TAP-001 (पर्यायी)</li>
-                  <li><b>जलस्त्रोताचे नाव:</b> ग्रामपंचायत नळ योजना, जि.प. हातपंप...</li>
-                  <li><b>स्त्रोत प्रकार / मालकी:</b> नळ योजना/विहीर, शासकीय/खाजगी</li>
-                  <li><b>पाठवणी दिनांक:</b> YYYY-MM-DD (उदा. 2026-10-15)</li>
-                  <li><b>तपासणी निकाल:</b> पिण्यास योग्य / पिण्यास अयोग्य / अहवाल अप्राप्त</li>
-                </ul>
-              </div>
-
-              <!-- Download Excel / CSV Unicode Template Buttons -->
-              <div style="margin-top:16px; border-top:1px solid #cbd5e1; padding-top:14px;">
-                <div style="font-weight:800; font-size:12px; color:#0369a1; margin-bottom:8px;">
-                  नमुना आयात टेम्पलेट डाउनलोड:
-                </div>
-                <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                  <a href="/api/export/nwbdcp-template.xlsx" target="_blank" download class="mui-btn mui-btn-contained-primary" style="background:#0284c7; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 12px; border-radius:8px; font-weight:800; display:inline-flex; align-items:center; gap:6px;">
-                    📊 Excel टॅम्पलेट (.xlsx)
-                  </a>
-                  <a href="/api/export/nwbdcp-template.csv" target="_blank" download class="mui-btn mui-btn-contained-secondary" style="background:#0369a1; color:#fff; text-decoration:none; font-size:12.5px; padding:8px 12px; border-radius:8px; font-weight:800; display:inline-flex; align-items:center; gap:6px;">
-                    📄 Unicode CSV (.csv)
-                  </a>
-                </div>
-              </div>
+          <div style="border:1.5px dashed #0284c7; background:#f0f9ff; border-radius:10px; padding:14px;">
+            <textarea id="nwbdcpImportTextarea" rows="4" placeholder="उपकेंद्र, गाव, स्त्रोताचे नाव, पाठवणी दिनांक, नमुना निकाल..." class="mui-form-control" style="font-family:monospace; font-size:12px; margin-bottom:10px;"></textarea>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+              <input type="file" id="nwbdcpImportFileInput" accept=".csv, .xlsx, .xls" onchange="readNwbdcpImportFile(this)" style="font-size:12px;">
+              <button type="button" onclick="previewNwbdcpHistoricalImport()" class="mui-btn mui-btn-contained-primary" style="background:#0284c7;">
+                📥 डेटा आयात करा
+              </button>
             </div>
           </div>
         </div>
@@ -7051,20 +6997,12 @@
     <div class="program-portal-container" style="padding-top:24px;">
       
       <!-- Status Notice -->
-      <div style="background:#ffffff; border-left:5px solid #4f46e5; border-radius:12px; padding:20px 24px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:24px;">
-        <div style="display:flex; align-items:flex-start; gap:14px;">
-          <div style="font-size:28px;">🫁</div>
-          <div>
-            <h3 style="margin:0 0 6px 0; font-size:18px; font-weight:800; color:#3730a3;">
-              NTEP राष्ट्रीय क्षयरोग निर्मूलन कार्यक्रम (TB Elimination Portal)
-            </h3>
-            <p style="margin:0 0 8px 0; font-size:13.5px; color:#334155; line-height:1.6;">
-              भादा प्राथमिक आरोग्य केंद्र क्षेत्रातील <b>क्षयरोग रुग्ण शोध</b>, <b>थुंकी नमुने प्रयोगशाळा नोंदणी (DMC Sputum Examination)</b>, <b>CBNAAT / Truenat मॉलेक्युलर चाचणी</b>, <b>DOTS थेट देखरेखीखाली उपचार</b>, आणि <b>निक्षय पोषण योजना (DBT ₹500/महिना)</b> व्यवस्थापनासाठी स्वतंत्र मॉड्यूल.
-            </p>
-            <div style="font-size:12.5px; color:#64748b;">
-              ✨ हे स्वतंत्र मॉड्यूल असल्याने यामधील निक्षय आयडी व रुग्णांच्या नोंदी स्वतंत्र डेटाबेसमध्ये सुरक्षित राहतील.
-            </div>
-          </div>
+      <div style="background:#ffffff; border-left:5px solid #4f46e5; border-radius:12px; padding:16px 20px; box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:20px;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div style="font-size:26px;">🫁</div>
+          <h3 style="margin:0; font-size:17px; font-weight:800; color:#3730a3;">
+            NTEP - राष्ट्रीय क्षयरोग निर्मूलन कार्यक्रम
+          </h3>
         </div>
       </div>
 
@@ -7378,16 +7316,12 @@
       <div id="ncdTabReplaceDataset" style="display:none;">
         <div id="ncdReplaceActiveInfo"></div>
 
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:20px; margin-bottom:20px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
-          <div style="font-size:16px; font-weight:800; color:#0f766e; margin-bottom:6px;">🔄 NCD डेटासेट रिप्लेसमेंट मॉड्यूल (Complete Dataset Replacement Workflow)</div>
-          <div style="font-size:12.5px; font-weight:600; color:#64748b; margin-bottom:16px;">
-            नवीन डेटासेट अपलोड करा. ३ फाईल्स (CBAC, Screening, Treatment) निवडा. प्रणाली फाईल्स व्हॅलिडेट करून कन्फर्मेशननंतर मागील NCD डेटासेट पूर्णपणे बदलून नवीन डेटासेट ॲक्टिव्हेट करेल.
-          </div>
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:12px; padding:16px; margin-bottom:18px; box-shadow:0 4px 12px rgba(0,0,0,0.03);">
+          <div style="font-size:16px; font-weight:800; color:#0f766e; margin-bottom:12px;">🔄 NCD डेटासेट अपलोड (CBAC, Screening, Treatment)</div>
 
-          <div style="border:2px dashed #0d9488; background:#f0fdf4; border-radius:12px; padding:24px; text-align:center; margin-bottom:8px;">
-            <div style="font-size:32px; margin-bottom:8px;">📥</div>
-            <div style="font-size:14px; font-weight:800; color:#0f172a; margin-bottom:4px;">नवीन CSV फाईल्स निवडा (CBAC, Screening, Treatment)</div>
-            <div style="font-size:12px; font-weight:600; color:#64748b; margin-bottom:16px;">(तुम्ही एकाच वेळी १, २ किंवा ३ ही उत्पादन CSV फाईल्स निवडू शकता — मोठ्या ४२,०००+ ओळींच्या फाईल्स सुरक्षितपणे चंक अपलोड केल्या जातात)</div>
+          <div style="border:2px dashed #0d9488; background:#f0fdf4; border-radius:12px; padding:18px; text-align:center;">
+            <div style="font-size:28px; margin-bottom:6px;">📥</div>
+            <div style="font-size:13.5px; font-weight:800; color:#0f172a; margin-bottom:10px;">CSV फाईल्स निवडा</div>
             <input type="file" id="ncdMultiFileInput" accept=".csv" multiple class="form-control" style="max-width:440px; margin:0 auto;" onchange="handleNcdMultiFileSelect(event)">
           </div>
         </div>
@@ -10121,10 +10055,7 @@
               <div class="sheet-title">
                 <span style="font-size:22px;">📋</span>
                 <div>
-                  <div>डेंगी व चिकनगुनिया संशयित रुग्ण नोंदवही (Sample Register)</div>
-                  <div style="font-size:12px; color:var(--text-muted); font-weight:500;">
-                    सर्व संकलित सिरम नमुन्यांची तपशीलवार यादी, शोध आणि प्रिंट पर्याय.
-                  </div>
+                  <div>डेंगी व चिकनगुनिया रुग्ण नोंदवही</div>
                 </div>
               </div>
               <div class="sheet-actions">
@@ -10240,10 +10171,7 @@
               <div class="sheet-title">
                 <span style="font-size:22px;">📄</span>
                 <div>
-                  <div>शासकीय वैद्यकीय महाविद्यालय (GMC), लातूर - नमुने पाठविण्याचे अधिकृत पत्र</div>
-                  <div style="font-size:12px; color:var(--text-muted); font-weight:500;">
-                    प्रयोगशाळेस सिरम नमुने तपासणीसाठी पाठविण्याचे स्वाक्षरीयुक्त पत्र.
-                  </div>
+                  <div>GMC लातूर नमुने पाठवणी पत्र</div>
                 </div>
               </div>
               <div class="sheet-actions">
@@ -10281,10 +10209,7 @@
               <div class="sheet-title">
                 <span style="font-size:22px;">📑</span>
                 <div>
-                  <div>National Institute of Virology (NIV), Pune - केस हिस्ट्री शीट्स</div>
-                  <div style="font-size:12px; color:var(--text-muted); font-weight:500;">
-                    रुग्णनिहाय अधिकृत केस हिस्ट्री शीट (Case History Sheet for Dengue / Chikungunya).
-                  </div>
+                  <div>NIV केस हिस्ट्री शीट्स</div>
                 </div>
               </div>
               <div class="sheet-actions">
@@ -11339,8 +11264,7 @@
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:22px;">📂</span>
           <div>
-            <h3 style="margin:0; color:#2d3748; font-size:18px;" id="uploadModalTitle">डेटा अपलोड व आयात केंद्र (Data Import Center)</h3>
-            <p style="margin:2px 0 0 0; font-size:12px; color:#718096;">CSV फाईल किंवा गुगल शीट कॉपी-पेस्ट द्वारे संपूर्ण डेटाबेस त्वरित अद्ययावत करा</p>
+            <h3 style="margin:0; color:#2d3748; font-size:17px;" id="uploadModalTitle">डेटा अपलोड व आयात केंद्र</h3>
           </div>
         </div>
         <button type="button" onclick="closeCsvImportModal()" style="background:none; border:none; font-size:22px; cursor:pointer; color:#718096;">✕</button>
