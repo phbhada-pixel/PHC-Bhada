@@ -2276,6 +2276,30 @@
   };
 }
 
+      const MARATHI_MONTH_NAMES = [
+        "जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून",
+        "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"
+      ];
+
+      function getCurrentMonthName() {
+        const now = new Date();
+        const mIdx = now.getMonth();
+        const yr = now.getFullYear();
+        return `${MARATHI_MONTH_NAMES[mIdx]} ${yr}`;
+      }
+
+      function getDefaultActiveMonth(list) {
+        const curName = getCurrentMonthName();
+        if (Array.isArray(list) && list.includes(curName)) return curName;
+        const now = new Date();
+        const mWord = MARATHI_MONTH_NAMES[now.getMonth()];
+        if (Array.isArray(list)) {
+          const found = list.find(m => String(m).includes(mWord));
+          if (found) return found;
+        }
+        return (list && list.length > 0) ? list[list.length - 1] : curName;
+      }
+
       async function executeClientSideRpc(prop, args) {
         switch (prop) {
           case 'getMonthListForWebApp':
@@ -2294,9 +2318,22 @@
 
           case 'getDashboardStats':
           case 'getStats': {
-            const totalSmears = clientBsData.reduce((acc, r) => acc + (parseInt(r[9]) || 0), 0);
-            const totalEntries = clientBsData.length;
-            const opdSmears = clientBsData.filter(r => {
+            const [targetMonth] = args;
+            const targetMonthName = cleanMonthString(targetMonth) || getCurrentMonthName();
+            const curIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === targetMonthName);
+            const mObj = (curIdx !== -1 ? clientMonthMaster[curIdx] : clientMonthMaster[new Date().getMonth()]) || {};
+            const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+            const endDate = mObj.f2End ? new Date(mObj.f2End) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
+
+            const monthEntries = clientBsData.filter(r => {
+              const d = new Date(r[1]);
+              return !isNaN(d.getTime()) && d >= startDate && d <= endDate;
+            });
+            const dataToUse = monthEntries.length > 0 ? monthEntries : clientBsData;
+
+            const totalSmears = dataToUse.reduce((acc, r) => acc + (parseInt(r[9]) || 0), 0);
+            const totalEntries = dataToUse.length;
+            const opdSmears = dataToUse.filter(r => {
               const code = String(r[5] || '').toUpperCase().trim();
               const emp = String(r[3] || '');
               return code === '54P' || code.startsWith('54P') || emp.includes('बाह्य') || emp.includes('OPD');
@@ -2309,6 +2346,7 @@
               result: {
                 success: true,
                 data: {
+                  monthName: mObj.name || targetMonthName,
                   total: totalSmears || 0,
                   active: fieldSmears || 0,
                   passive: opdSmears || 0,
@@ -2327,7 +2365,7 @@
 
           case 'getMonthlyReportDashboardData': {
             const [selectedMonth] = args;
-            const targetMonthName = cleanMonthString(selectedMonth) || "ऑक्टोबर २०२६";
+            const targetMonthName = cleanMonthString(selectedMonth) || getCurrentMonthName();
             let mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === targetMonthName);
             if (mIdx === -1) mIdx = 9;
             const mObj = clientMonthMaster[mIdx] || {};
@@ -2913,7 +2951,7 @@
 
           case 'generateEmployeeNoticesWebApp': {
             const [month, selectedEmpNames] = args;
-            const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mName = cleanMonthString(month) || getCurrentMonthName();
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
             const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
@@ -2983,7 +3021,7 @@
 
           case 'generateLowPerformanceReportWebApp': {
             const [month] = args;
-            const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mName = cleanMonthString(month) || getCurrentMonthName();
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
             const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
@@ -3047,7 +3085,7 @@
 
           case 'generateEmployeeVillageMonthlyReportWebApp': {
             const [month, upkendra, employee, staffType] = args;
-            const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mName = cleanMonthString(month) || getCurrentMonthName();
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
             const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
@@ -3104,7 +3142,7 @@
 
           case 'getEmployeeVillageMonthlyData': {
             const [month, upkendra, employee, staffType] = args;
-            const mName = cleanMonthString(month) || "सप्टेंबर २०२६";
+            const mName = cleanMonthString(month) || getCurrentMonthName();
             const mIdx = clientMonthMaster.findIndex(m => cleanMonthString(m.name) === mName);
             const mObj = (mIdx !== -1 ? clientMonthMaster[mIdx] : clientMonthMaster[9]) || {};
             const startDate = mObj.f1Start ? new Date(mObj.f1Start) : new Date(2026, mIdx !== -1 ? mIdx : 8, 1);
@@ -5375,8 +5413,9 @@
       font-size: 12.5px;
       text-transform: uppercase;
       letter-spacing: 0.03em;
-      padding: 10px 14px;
+      padding: 10px 12px;
       border-bottom: 2px solid #cbd5e1;
+      white-space: nowrap;
     }
     .table-modern tbody tr {
       transition: background-color 150ms ease;
@@ -5385,10 +5424,22 @@
       background-color: #f1f5f9;
     }
     .table-modern tbody td {
-      padding: 10px 14px;
+      padding: 10px 12px;
       font-size: 13.5px;
       border-bottom: 1px solid #f1f5f9;
       color: #1e293b;
+      white-space: nowrap;
+    }
+    .table-modern tbody td[colspan] {
+      white-space: normal !important;
+    }
+    /* When a table only has an empty-state row, hide the wide multi-column header on mobile so the empty message centers cleanly within the screen */
+    .table-modern:has(tbody tr:only-child td[colspan]) thead {
+      display: none;
+    }
+    .table-modern:has(tbody tr:only-child td[colspan]) tbody td[colspan] {
+      text-align: center !important;
+      padding: 24px 16px !important;
     }
 
     /* 6. Form Control Outlined Material Field */
@@ -5758,6 +5809,64 @@
         display: grid !important;
         grid-template-columns: repeat(3, 1fr) !important;
         gap: 8px !important;
+      }
+
+      /* Mobile Table & NWBDCP Filter / Action Bar Optimizations */
+      .table-modern thead th,
+      .app-table thead th {
+        white-space: nowrap !important;
+        padding: 8px 10px !important;
+        font-size: 12px !important;
+      }
+
+      .table-modern tbody td,
+      .app-table tbody td {
+        white-space: nowrap !important;
+        padding: 8px 10px !important;
+        font-size: 12.5px !important;
+      }
+
+      .table-modern tbody td[colspan],
+      .app-table tbody td[colspan] {
+        white-space: normal !important;
+        text-align: center !important;
+        padding: 20px 14px !important;
+      }
+
+      /* Compact 2-column filter grids on mobile so filter fields don't stack vertically */
+      #nwbdcpPaneSources > div:nth-child(2),
+      #nwbdcpPaneRegister > div:nth-child(2) {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        padding: 12px !important;
+        margin-bottom: 14px !important;
+      }
+
+      #nwbdcpPaneRegister > div:nth-child(2) > div:last-child {
+        grid-column: 1 / -1 !important;
+      }
+
+      #nwbdcpPaneSources > div:first-child {
+        padding: 12px !important;
+        gap: 8px !important;
+      }
+
+      #nwbdcpPaneSources > div:first-child > div:last-child {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 6px !important;
+      }
+
+      #nwbdcpPaneSources > div:first-child > div:last-child > a,
+      #nwbdcpPaneSources > div:first-child > div:last-child > button {
+        width: 100% !important;
+        padding: 7px 6px !important;
+        font-size: 11.5px !important;
+        min-height: 36px !important;
+        justify-content: center !important;
+        text-align: center !important;
+        white-space: nowrap !important;
       }
     }
 
@@ -7946,7 +8055,7 @@
                 </div>
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                   <span style="font-size:12px; background:#ebf8ff; color:#2b6cb0; padding:4px 12px; border-radius:16px; font-weight:700; border:1px solid #bee3f8;">
-                    माहे:- <span id="mrdTemplateMonthLabel">सप्टेंबर २०२६</span>
+                    माहे:- <span id="mrdTemplateMonthLabel">--</span>
                   </span>
                   <button type="button" onclick="generateMonthlyReportFromDashboard()" style="background:#00796b; color:white; border:none; padding:7px 16px; border-radius:8px; cursor:pointer; font-weight:700; font-size:13px; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 4px rgba(0,121,107,0.2);">
                     🖨️ संपूर्ण अहवाल जनरेट करा (Generate Report)
@@ -7961,7 +8070,7 @@
               <div style="text-align:center; margin-bottom:14px;">
                 <div style="font-size:16px; font-weight:800; color:#1a202c; letter-spacing:0.5px;">राष्ट्रिय किटकजन्य रोग नियंत्रण कार्यक्रम</div>
                 <div style="font-size:14px; font-weight:700; color:#4a5568; margin-top:2px;">प्राथमिक आरोग्य केंद्र भादा</div>
-                <div style="font-size:13px; font-weight:700; color:#00796b; margin-top:2px;">माहे:- <span id="mrdTableMonthName">सप्टेंबर २०२६</span></div>
+                <div style="font-size:13px; font-weight:700; color:#00796b; margin-top:2px;">माहे:- <span id="mrdTableMonthName">--</span></div>
               </div>
 
               <!-- The NVBDCP Template Table -->
@@ -8174,7 +8283,12 @@
 
         <!-- ================= SUBPANE 2: GENERAL BLOOD SMEAR OVERVIEW & CHARTS ================= -->
         <div id="subpaneGeneralOverview" style="display:block;">
-          <h3 style="color:var(--primary-dark); margin-top:0; border-bottom:2px solid var(--border-color); padding-bottom:10px;">मासिक आढावा (चालू महिना - रक्त नमुने)</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-bottom:2px solid var(--border-color); padding-bottom:10px; margin-bottom:14px;">
+            <h3 style="color:var(--primary-dark); margin:0;">मासिक आढावा (रक्त नमुने)</h3>
+            <span style="font-size:13px; background:#e0f2fe; color:#0369a1; padding:4px 12px; border-radius:16px; font-weight:800; border:1px solid #bae6fd;">
+              माहे: <span id="dashOverviewMonthBadge">चालू महिना</span>
+            </span>
+          </div>
           <div id="dashLoader" style="text-align:center; padding:50px; color:var(--primary); font-weight:bold;">डेटा लोड होत आहे... ⏳</div>
           <div id="dashContent" style="display:none;">
             <div class="stats-container">
@@ -8522,14 +8636,14 @@
                   <b style="color:var(--primary-dark); font-size:14.5px;">मासिक अहवाल पूर्वावलोकन</b>
                 </div>
                 <span style="font-size:12px; background:#ebf8ff; color:#2b6cb0; padding:3px 10px; border-radius:15px; font-weight:700;">
-                  माहे: <span id="prevSelectedMonthName">सप्टेंबर २०२६</span>
+                  माहे: <span id="prevSelectedMonthName">--</span>
                 </span>
               </div>
 
               <div style="text-align:center; margin-bottom:12px;">
                 <h4 style="margin:0 0 3px 0; font-size:15px; font-weight:700; color:#1a202c;">राष्ट्रिय किटकजन्य रोग नियंत्रण कार्यक्रम</h4>
                 <div style="font-size:13px; font-weight:600; color:#4a5568;">प्राथमिक आरोग्य केंद्र भादा</div>
-                <div style="font-size:13px; font-weight:600; color:#00796b;">माहे:- <span id="prevSelectedMonthLabel">सप्टेंबर २०२६</span></div>
+                <div style="font-size:13px; font-weight:600; color:#00796b;">माहे:- <span id="prevSelectedMonthLabel">--</span></div>
               </div>
 
               <!-- Table 1: OPD, Fever, Smears, Treated, Chloroquine -->
@@ -8580,7 +8694,7 @@
                 <div style="font-size:13.5px; font-weight:700; color:#234e52; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                   <span>📋 <b>१०.१४ घरावरील स्टेन्सीलिंग / गृहभेटी (थेट अहवाल पूर्वावलोकन):</b></span>
                   <span style="font-size:11.5px; background:#f0fff4; color:#22543d; padding:2px 8px; border-radius:10px; font-weight:700; border:1px solid #9ae6b4;">
-                    माहे: <span id="prevSelectedMonthNameHome">सप्टेंबर २०२६</span>
+                    माहे: <span id="prevSelectedMonthNameHome">--</span>
                   </span>
                 </div>
                 <div class="table-container" style="max-height:none;">
@@ -12039,14 +12153,14 @@
     let appMonthsList = [...fallbackMonths];
 
     function cleanMonthString(m) {
-      if (!m) return "सप्टेंबर २०२६";
+      if (!m) return getCurrentMonthName();
       if (typeof m === 'object' && m !== null) {
         if (m.monthName) return cleanMonthString(m.monthName);
         if (m.name) return cleanMonthString(m.name);
         if (m.month) return cleanMonthString(m.month);
       }
       const s = String(m).trim();
-      if (!s || s === '[object Object]' || s.includes('[object')) return "सप्टेंबर २०२६";
+      if (!s || s === '[object Object]' || s.includes('[object')) return getCurrentMonthName();
       return s;
     }
 
@@ -12064,6 +12178,8 @@
       const iSelect = document.getElementById('indicatorMonthSelect');
       const mrdSelect = document.getElementById('mrdMonthSelect');
 
+      const defaultMonth = getDefaultActiveMonth(list);
+
       [rSelect, nSelect, lSelect, iSelect, mrdSelect].forEach(sel => {
         if (!sel) return;
         const cur = cleanMonthString(sel.value);
@@ -12074,8 +12190,8 @@
         });
         if (cur && list.includes(cur)) {
           sel.value = cur;
-        } else if (list.includes("सप्टेंबर २०२६")) {
-          sel.value = "सप्टेंबर २०२६";
+        } else if (list.includes(defaultMonth)) {
+          sel.value = defaultMonth;
         } else if (list.length > 0) {
           sel.value = list[0];
         }
@@ -12197,7 +12313,7 @@
       }
       loadMonthList(() => {
         // Pre-load default month indicators
-        loadSelectedMonthIndicators("सप्टेंबर २०२६");
+        loadSelectedMonthIndicators(getCurrentMonthName());
       });
       // Proactively load master management data so village house counts and KPIs are always initialized
       setTimeout(() => {
@@ -12790,7 +12906,7 @@
 
     // --- DASHBOARD SUBTABS & MONTHLY REPORT DASHBOARD CONTROLLER ---
     let currentDashboardSubtab = 'general';
-    let currentMrdMonth = 'सप्टेंबर २०२६';
+    let currentMrdMonth = getCurrentMonthName();
     let mrdPriorCache = { opd: 0, feverCases: 0, bloodSmears: 0, treatedCases: 0, chloroquineSpent: 0 };
     let mrdMonthsLoaded = false;
     let villageAnalyticsData = null;
@@ -13636,7 +13752,7 @@
     }
 
     function loadMonthlyReportDashboardData(targetMonth) {
-      if (!targetMonth) targetMonth = currentMrdMonth || "सप्टेंबर २०२६";
+      if (!targetMonth) targetMonth = currentMrdMonth || getCurrentMonthName();
       currentMrdMonth = targetMonth;
 
       const loader = document.getElementById('mrdLoader');
@@ -14228,7 +14344,7 @@
     }
 
     function generateMonthlyReportFromDashboard() {
-      const month = currentMrdMonth || "सप्टेंबर २०२६";
+      const month = currentMrdMonth || getCurrentMonthName();
       const previewBox = document.getElementById('mrdReportPreviewBox');
       const loader = document.getElementById('mrdReportFrameLoader');
       const iframe = document.getElementById('mrdReportIframe');
@@ -14300,6 +14416,10 @@
       document.getElementById('dashContent').style.display = 'block';
       if(res.success) {
         const d = res.data;
+        if (d && d.monthName) {
+          const badge = document.getElementById('dashOverviewMonthBadge');
+          if (badge) badge.textContent = d.monthName;
+        }
         document.getElementById('dTotal').textContent = d.total;
         document.getElementById('dActive').textContent = d.active;
         document.getElementById('dPassive').textContent = d.passive;
@@ -14936,7 +15056,7 @@
         if (iSelect) {
           if (!iSelect.value || iSelect.options.length === 0) {
             populateAllMonthDropdowns(appMonthsList);
-            iSelect.value = "सप्टेंबर २०२६";
+            iSelect.value = getCurrentMonthName();
           }
           loadSelectedMonthIndicators(iSelect.value);
         }
@@ -14953,7 +15073,7 @@
         if (iSelect) {
           if (!iSelect.value || iSelect.options.length === 0) {
             populateAllMonthDropdowns(appMonthsList);
-            iSelect.value = "सप्टेंबर २०२६";
+            iSelect.value = getCurrentMonthName();
           }
           loadSelectedMonthIndicators(iSelect.value);
         }
@@ -15080,7 +15200,7 @@
     }
 
     function goToMonthlyIndicatorsFromReport() {
-      const selectedMonth = document.getElementById('reportMonthSelect').value || "सप्टेंबर २०२६";
+      const selectedMonth = document.getElementById('reportMonthSelect').value || getCurrentMonthName();
       switchToMonthlyIndicatorsTab(selectedMonth);
     }
 
@@ -15089,7 +15209,7 @@
     }
 
     function loadSelectedMonthIndicators(monthName) {
-      monthName = cleanMonthString(monthName || (document.getElementById('indicatorMonthSelect') ? document.getElementById('indicatorMonthSelect').value : "सप्टेंबर २०२६"));
+      monthName = cleanMonthString(monthName || (document.getElementById('indicatorMonthSelect') ? document.getElementById('indicatorMonthSelect').value : getCurrentMonthName()));
       const loader = document.getElementById('indicatorLoader');
       const content = document.getElementById('indicatorFormContent');
       const statusDiv = document.getElementById('indicatorStatus');
@@ -15377,7 +15497,7 @@
 
     function reloadCurrentMonthIndicators() {
       const iSelect = document.getElementById('indicatorMonthSelect');
-      loadSelectedMonthIndicators(iSelect ? iSelect.value : "सप्टेंबर २०२६");
+      loadSelectedMonthIndicators(iSelect ? iSelect.value : getCurrentMonthName());
     }
 
     function saveMonthlyIndicators(btn) {
@@ -15545,7 +15665,7 @@
     }
 
     function generateMonthlyReportFromIndicator() {
-      const month = document.getElementById('indicatorMonthSelect').value || "सप्टेंबर २०२६";
+      const month = document.getElementById('indicatorMonthSelect').value || getCurrentMonthName();
       const statusDiv = document.getElementById('indicatorStatus');
       if (statusDiv) {
         statusDiv.style.display = 'block';

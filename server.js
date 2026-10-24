@@ -171,7 +171,8 @@ import {
   getEmployeeVillageMonthlyData,
   generateGmcForwardingLetter,
   generateNivCaseHistorySheets,
-  findMonthInMaster
+  findMonthInMaster,
+  getCurrentMonthInMaster
 } from './services/reports.js';
 
 import {
@@ -1480,19 +1481,13 @@ app.post('/api/rpc', async (req, res) => {
 
       case 'getDashboardStats': {
         const [targetMonth] = args;
-        let monthObj = findMonthInMaster(targetMonth);
+        let monthObj = targetMonth ? findMonthInMaster(targetMonth) : getCurrentMonthInMaster();
         if (!monthObj) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          monthObj = monthMaster.find(m => {
-            const s = m.f1Start ? new Date(m.f1Start) : null;
-            const e = m.f2End ? new Date(m.f2End) : null;
-            return s && e && today >= s && today <= e;
-          }) || monthMaster[9] || monthMaster[0];
+          monthObj = getCurrentMonthInMaster();
         }
 
-        const startDate = monthObj && monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(2026, 9, 1);
-        const endDate = monthObj && monthObj.f2End ? new Date(monthObj.f2End) : new Date(2026, 9, 31, 23, 59, 59, 999);
+        const startDate = monthObj && monthObj.f1Start ? new Date(monthObj.f1Start) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+        const endDate = monthObj && monthObj.f2End ? new Date(monthObj.f2End) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59, 999);
 
         let total = 0;
         let active = 0;
@@ -1532,6 +1527,7 @@ app.post('/api/rpc', async (req, res) => {
         result = {
           success: true,
           data: {
+            monthName: monthObj ? monthObj.name : getCurrentMonthInMaster().name,
             total,
             active,
             passive,
@@ -1545,11 +1541,9 @@ app.post('/api/rpc', async (req, res) => {
       case 'getMonthlyReportDashboardData': {
         const [targetMonth] = args;
         const monthStr = typeof targetMonth === 'string' ? targetMonth : (targetMonth && typeof targetMonth === 'object' ? (targetMonth.monthName || targetMonth.name || '') : '');
-        let monthObj = findMonthInMaster(monthStr);
+        let monthObj = monthStr ? findMonthInMaster(monthStr) : getCurrentMonthInMaster();
         if (!monthObj) {
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          monthObj = monthMaster.find(m => m.f1Start && m.f2End && today >= new Date(m.f1Start) && today <= new Date(m.f2End)) || monthMaster[9] || monthMaster[0];
+          monthObj = getCurrentMonthInMaster();
         }
         if (!monthObj) {
           monthObj = { name: "ऑक्टोबर २०२६", newOpd: 0, feverCases: 0, bloodSmears: 0, treatedCases: 0, chloroquineSpent: 0, f1Start: new Date(2026, 9, 1), f2End: new Date(2026, 9, 31) };

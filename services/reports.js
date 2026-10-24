@@ -262,8 +262,23 @@ export function generateDailyMalariaReportWebApp(dateStr) {
 const MARATHI_MONTHS = ["जानेवारी", "फेब्रुवारी", "मार्च", "एप्रिल", "मे", "जून", "जुलै", "ऑगस्ट", "सप्टेंबर", "ऑक्टोबर", "नोव्हेंबर", "डिसेंबर"];
 const ENGLISH_MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
 
+export function getCurrentMonthInMaster(list = monthMaster) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const found = list.find(m => {
+    const s = m.f1Start ? new Date(m.f1Start) : null;
+    const e = m.f2End ? new Date(m.f2End) : null;
+    return s && e && today >= s && today <= e;
+  });
+  if (found) return found;
+  const curIdx = today.getMonth();
+  return list[curIdx] || list[list.length - 1] || list[0] || null;
+}
+
 export function findMonthInMaster(inputStr, list = monthMaster) {
-  if (!inputStr) return list[0] || null;
+  if (!inputStr || inputStr === 'CURRENT' || inputStr === 'चालू महिना') {
+    return getCurrentMonthInMaster(list);
+  }
   const s = String(inputStr).toLowerCase().trim();
   const cleanNorm = str => String(str || "").replace(/[०-९]/g, d => "०१२३४५६७८९".indexOf(d)).replace(/[\s\-_/]/g, "").toLowerCase().trim();
   const cInput = cleanNorm(s);
@@ -287,7 +302,7 @@ export function findMonthInMaster(inputStr, list = monthMaster) {
     }
   }
 
-  return list[0] || null;
+  return getCurrentMonthInMaster(list) || list[0] || null;
 }
 
 // Helper to check if an entry is OPD / Passive (अप्रत्यक्ष सर्वेक्षण: बाह्य रुग्ण विभाग)
